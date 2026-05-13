@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ──────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+
+    function isContentAdmin() {
+      return isAuthenticated() && getUserRole() == 'content_admin';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'super_admin';
+    }
+
+    function isAdmin() {
+      return isContentAdmin() || isSuperAdmin();
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Users ─────────────────────────────────────────
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Users can update their own non-critical fields
+      allow update: if isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isBlocked', 'premium']);
+
+      // Admins can update user profiles
+      allow update: if isAdmin() &&
+        // Only super_admin can change roles
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+          isSuperAdmin()
+        );
+
+      // Only system can create users (via auth trigger or first login)
+      allow create: if isOwner(userId);
+
+      // Users cannot be deleted from client
+      allow delete: if false;
+    }
+
+    // ─── Content Collections ───────────────────────────
+
+    match /standards/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /subjects/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /chapters/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /quizzes/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /questions/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Quiz Attempts ─────────────────────────────────
+
+    match /quizAttempts/{docId} {
+      // Students can read their own attempts, admins can read all
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Students can create their own attempts
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Attempts cannot be updated or deleted
+      allow update, delete: if false;
+    }
+
+    // ─── Subscriptions ─────────────────────────────────
+
+    match /subscriptions/{docId} {
+      // Users can read their own subscriptions, admins can read all
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Only super_admin can create/update subscriptions
+      allow create, update: if isSuperAdmin();
+
+      allow delete: if false;
+    }
+
+    // ─── Notifications ────────────────────────────────
+
+    match /notifications/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── App Configuration ─────────────────────────────
+
+    match /appConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // ─── Leaderboard Config ────────────────────────────
+
+    match /leaderboardConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Audit Logs ────────────────────────────────────
+
+    match /auditLogs/{docId} {
+      // Only admins can read audit logs
+      allow read: if isAdmin();
+
+      // Admins can create audit logs
+      allow create: if isAdmin();
+
+      // Audit logs cannot be updated or deleted
+      allow update, delete: if false;
+    }
+  }
+}

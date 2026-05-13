@@ -1,0 +1,37 @@
+{
+  "common": {
+    "home": "Home",
+    "subjects": "Subjects",
+    "bookmarks": "Bookmarks",
+    "profile": "Profile",
+    "leaderboard": "Leaderboard",
+    "language": "Language",
+    "premium": "Premium",
+    "settings": "Settings",
+    "error": "Something went wrong",
+    "tryAgain": "Please try again",
+    "noData": "No Data Available",
+    "continueLearning": "Continue Learning",
+    "recentChapter": "Jump back into your recent chapter",
+    "startJourney": "Start your learning journey",
+    "dailyChallenge": "Daily Challenge",
+    "comingSoon": "Coming soon! Check back later.",
+    "quickAccess": "Quick Access"
+  },
+  "premium": {
+    "unlock": "🔓 Unlock Premium Learning",
+    "description": "Access all premium chapters, MCQs, videos and study materials.",
+    "features": {
+      "chapters": "✔ Premium Chapters",
+      "mcq": "✔ Unlimited MCQ Practice",
+      "videos": "✔ Exclusive Videos",
+      "materials": "✔ Study Materials",
+      "adFree": "✔ Ad-Free Experience"
+    },
+    "upgrade": "Upgrade to Premium",
+    "later": "Maybe Later",
+    "monthly": "₹49 / Month",
+    "yearly": "₹299 / Year",
+    "lifetime": "₹499 / Lifetime"
+  }
+}

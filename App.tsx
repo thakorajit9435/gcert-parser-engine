@@ -1,118 +1,85 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useEffect } from 'react';
+import './src/locales/i18n';
+import { StatusBar } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import messaging from '@react-native-firebase/messaging';
+import { AuthProvider } from './src/context/AuthContext';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
+import { NetworkProvider } from './src/components/common/NetworkProvider';
+import { adminColors } from './src/theme';
+import { seedDemoQuizIfNeeded } from './src/services/firebase/quiz.service';
+import SplashScreen from 'react-native-splash-screen';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+// ── FCM Background/Quit Handler (must be registered BEFORE app mounts) ──────
+// This runs when the app is in the background or fully closed.
+// It receives the message but does NOT show UI (the OS shows the system notification).
+messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+    // The OS handles showing the notification automatically.
+    // You can do silent data processing here if needed.
+    console.log('[FCM Background]', remoteMessage.notification?.title);
+});
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+// ── App Component ─────────────────────────────────────────────────────────────
 
 function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+    useEffect(() => {
+        SplashScreen.hide();
+        seedDemoQuizIfNeeded();
+    }, []);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    return (
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+                <ErrorBoundary>
+                    <AuthProvider>
+                        <StatusBar
+                            barStyle="light-content"
+                            backgroundColor={adminColors.background}
+                            translucent={false}
+                        />
+                        <NavigationContainer
+                            theme={{
+                                dark: true,
+                                colors: {
+                                    primary: adminColors.primary,
+                                    background: adminColors.background,
+                                    card: adminColors.surface,
+                                    text: adminColors.textPrimary,
+                                    border: adminColors.border,
+                                    notification: adminColors.accentRed,
+                                },
+                                fonts: {
+                                    regular: { fontFamily: 'System', fontWeight: '400' },
+                                    medium: { fontFamily: 'System', fontWeight: '500' },
+                                    bold: { fontFamily: 'System', fontWeight: '700' },
+                                    heavy: { fontFamily: 'System', fontWeight: '900' },
+                                },
+                            }}
+                        >
+                            <NetworkProvider>
+                                {/* FCMInitializer lives inside NavigationContainer so
+                                    useFCMSetup can access the navigation context */}
+                                <FCMInitializer />
+                                <RootNavigator />
+                            </NetworkProvider>
+                        </NavigationContainer>
+                    </AuthProvider>
+                </ErrorBoundary>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
+    );
 }
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+// ── FCMInitializer ─────────────────────────────────────────────────────────────
+// Separate component so useFCMSetup has access to both AuthContext + NavigationContext.
+import { useFCMSetup } from './src/hooks/useFCMSetup';
+
+function FCMInitializer(): null {
+    useFCMSetup();
+    return null;
+}
 
 export default App;

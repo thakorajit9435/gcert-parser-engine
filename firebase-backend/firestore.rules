@@ -1,0 +1,251 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper Functions ──────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStudent() {
+      return isAuthenticated() && userDocExists() && getUserRole() == 'student';
+    }
+
+    function isContentAdmin() {
+      return isAuthenticated() && userDocExists() && getUserRole() == 'content_admin';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && userDocExists() && getUserRole() == 'super_admin';
+    }
+
+    function isAdmin() {
+      return isContentAdmin() || isSuperAdmin();
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Users ─────────────────────────────────────────
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Allow any authenticated user to list users (e.g., leaderboard)
+      allow list: if isAuthenticated();
+
+      // Users can update their own non-critical fields
+      allow update: if isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isBlocked', 'premium']);
+
+      // Admins can update user profiles
+      allow update: if isAdmin() &&
+        // Only super_admin can change roles
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+          isSuperAdmin()
+        );
+
+      // Only system can create users (via auth trigger or first login)
+      allow create: if isOwner(userId);
+
+      // Users cannot be deleted from client
+      allow delete: if false;
+    }
+
+    // ─── Content Collections ───────────────────────────
+
+    match /standards/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /subjects/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /chapters/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /quizzes/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+
+      // Questions subcollection under each quiz
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    match /questions/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Quiz Attempts ─────────────────────────────────
+
+    match /quizAttempts/{docId} {
+      // Single doc read: owner or admin
+      allow get: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // List queries: any authenticated user (filtered client-side by userId)
+      allow list: if isAuthenticated();
+
+      // Students can create their own attempts with basic data integrity
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.createdAt == request.time; // enforce server timestamp
+
+      // Attempts cannot be updated or deleted
+      allow update, delete: if false;
+    }
+
+    // ─── Subscriptions ─────────────────────────────────
+
+    match /subscriptions/{docId} {
+      // Users can read their own subscriptions, admins can read all
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Only super_admin can create/update subscriptions
+      allow create, update: if isSuperAdmin();
+
+      allow delete: if false;
+    }
+
+    // ─── Notifications ────────────────────────────────
+
+    match /notifications/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── App Configuration ─────────────────────────────
+
+    match /appConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // ─── Leaderboard Config ────────────────────────────
+
+    match /leaderboardConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Audit Logs ────────────────────────────────────
+    
+    match /auditLogs/{docId} {
+      // Only admins can read audit logs
+      allow read: if isAdmin();
+
+      // Admins can create audit logs
+      allow create: if isAdmin();
+
+      // Audit logs cannot be updated or deleted
+      allow update, delete: if false;
+    }
+
+    // ─── MCQs (Practice System) ────────────────────────
+
+    match /mcqs/{docId} {
+      // All authenticated users can read MCQs
+      allow read: if isAuthenticated();
+
+      // Only admins can create, update, delete MCQs
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Practice Settings ─────────────────────────────
+
+    match /practiceSettings/{docId} {
+      // All authenticated users can read settings
+      allow read: if isAuthenticated();
+
+      // Only admins can write settings
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── User Progress ─────────────────────────────────
+
+    match /userProgress/{docId} {
+      allow get: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        (!request.resource.data.keys().hasAll(['updatedAt']) || request.resource.data.updatedAt == request.time);
+      allow update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // ─── Sessions ──────────────────────────────────────
+
+    match /sessions/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Daily Challenges ──────────────────────────────
+
+    match /dailyChallenges/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Language Section ──────────────────────────────
+
+    match /languageSection/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Blueprints ────────────────────────────────────
+
+    match /blueprints/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Bookmarks ─────────────────────────────────────
+
+    match /bookmarks/{docId} {
+      allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // ─── Old Papers ────────────────────────────────────
+
+    match /oldPapers/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Leaderboard ───────────────────────────────────
+
+    match /leaderboard/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+  }
+}

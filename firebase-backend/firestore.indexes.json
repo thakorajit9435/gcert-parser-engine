@@ -1,0 +1,353 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "subjects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "chapters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "subjectId", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "bookmarks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "blueprints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "subjectId", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "oldpapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "year", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "standards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "role", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "premium", "order": "ASCENDING"},
+        {"fieldPath": "lastActiveAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "subjects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "chapters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "subjectId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDailyQuiz", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standardId", "order": "ASCENDING"},
+        {"fieldPath": "isDailyQuiz", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "chapterId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizzes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDailyQuiz", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "quizId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "endDate", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "action", "order": "ASCENDING"},
+        {"fieldPath": "timestamp", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "performedBy", "order": "ASCENDING"},
+        {"fieldPath": "timestamp", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "quizAttempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mcqs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "session", "order": "ASCENDING"},
+        {"fieldPath": "subjectId", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mcqs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "session", "order": "ASCENDING"},
+        {"fieldPath": "subjectId", "order": "ASCENDING"},
+        {"fieldPath": "chapterId", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mcqs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "subjectId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "mcqs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "chapterId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "blueprints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "semester", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "blueprints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "blueprints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "semester", "order": "ASCENDING"},
+        {"fieldPath": "order", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "oldPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "semester", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "year", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "oldPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "year", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "oldPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "semester", "order": "ASCENDING"},
+        {"fieldPath": "year", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "languageSection",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "languageSection",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "standard", "order": "ASCENDING"},
+        {"fieldPath": "language", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
+    }
+  ]
+}
