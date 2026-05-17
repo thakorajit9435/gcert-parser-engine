@@ -1,4 +1,4 @@
-package com.students
+package com.gyandeep
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity
@@ -11,5 +11,5 @@ class MainActivity : ReactActivity() {
     super.onCreate(savedInstanceState)
   }
 
-  override fun getMainComponentName(): String = "Students"
+  override fun getMainComponentName(): String = "GyanDeep"
 }
