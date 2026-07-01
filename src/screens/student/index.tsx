@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
     View,
     Text,
@@ -22,7 +23,8 @@ import { useBookmarks } from '../../hooks/useBookmarks';
 import { useStandardContext } from '../../context/StandardContext';
 import { LeaderboardEntry, UserBookmark } from '../../types';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
-import { EmptyState } from '../../components/common/EmptyState';
+import { EmptyState, SubjectCardSkeleton, ChapterCardSkeleton } from '../../components/common';
+import { logAnalyticsEvent } from '../../services/analytics';
 
 const SUBJECT_ICONS: Record<string, string> = {
     Mathematics: '📐',
@@ -217,32 +219,47 @@ function BookmarkSection({ bookmarks, navigation }: { bookmarks: UserBookmark[];
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.bookmarkScrollContent}
             >
-                {bookmarks.slice(0, 5).map(bm => (
-                    <TouchableOpacity
-                        key={bm.id}
-                        style={styles.bookmarkCardHorizontal}
-                        activeOpacity={0.7}
-                        onPress={() => navigation.navigate('ChapterDetail', { chapterId: bm.chapterId })}
-                    >
-                        <View style={styles.bookmarkIconRow}>
-                            <View style={styles.bookmarkIconHorizontal}>
-                                <Text style={styles.bookmarkIconText}>⭐</Text>
+                {bookmarks.slice(0, 5).map(bm => {
+                    const { setSelectedStandard } = useStandardContext();
+                    return (
+                        <TouchableOpacity
+                            key={bm.id}
+                            style={styles.bookmarkCardHorizontal}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                if (bm.standardId) {
+                                    setSelectedStandard(bm.standardId);
+                                }
+                                navigation.navigate('MainTabs', {
+                                    screen: 'Subjects',
+                                    params: {
+                                        subjectId: bm.subjectId,
+                                        subjectName: bm.subjectName,
+                                    }
+                                });
+                                navigation.navigate('ChapterDetail', { chapterId: bm.chapterId });
+                            }}
+                        >
+                            <View style={styles.bookmarkIconRow}>
+                                <View style={styles.bookmarkIconHorizontal}>
+                                    <Text style={styles.bookmarkIconText}>⭐</Text>
+                                </View>
+                                <Text style={styles.bookmarkSubjectText} numberOfLines={1}>
+                                    {bm.subjectName || 'Subject'}
+                                </Text>
                             </View>
-                            <Text style={styles.bookmarkSubjectText} numberOfLines={1}>
-                                {bm.subjectName || 'Subject'}
+                            <Text style={styles.bookmarkTitleHorizontal} numberOfLines={2}>
+                                {bm.chapterTitle || 'Chapter'}
                             </Text>
-                        </View>
-                        <Text style={styles.bookmarkTitleHorizontal} numberOfLines={2}>
-                            {bm.chapterTitle || 'Chapter'}
-                        </Text>
-                        <View style={styles.bookmarkFooter}>
-                            <Text style={styles.bookmarkMetaHorizontal}>Std {bm.standardId || '—'}</Text>
-                            <View style={styles.bookmarkOpenBadge}>
-                                <Text style={styles.bookmarkOpenBadgeText}>Open</Text>
+                            <View style={styles.bookmarkFooter}>
+                                <Text style={styles.bookmarkMetaHorizontal}>{bm.standardName || `Std ${bm.standardId || '—'}`}</Text>
+                                <View style={styles.bookmarkOpenBadge}>
+                                    <Text style={styles.bookmarkOpenBadgeText}>Open</Text>
+                                </View>
                             </View>
-                        </View>
-                    </TouchableOpacity>
-                ))}
+                        </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
         </View>
     );
@@ -390,15 +407,40 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
     // Fix: We need to pass both subjectId AND effectiveStandardId to useChapters
     const { chapters: chapterList, loading: chaptersLoading } = require('../../hooks/useChapters').useChapters(subjectId, effectiveStandardId);
     const { subjects, loading: subjectsLoading } = useSubjects(effectiveStandardId, session);
-    const { isBookmarked } = useBookmarks(userProfile?.uid);
+    const { isBookmarked, toggle: toggleBookmark } = useBookmarks(userProfile?.uid);
     const isPremium = userProfile?.premium ?? false;
+    const [bookmarkLoadingMap, setBookmarkLoadingMap] = useState<{ [chapterId: string]: boolean }>({});
+
+    const handleToggleBookmark = async (chapterItem: any) => {
+        if (!userProfile?.uid || bookmarkLoadingMap[chapterItem.id]) return;
+        setBookmarkLoadingMap(prev => ({ ...prev, [chapterItem.id]: true }));
+        try {
+            await toggleBookmark(chapterItem.id, {
+                standardId: effectiveStandardId,
+                standardName: `Std ${effectiveStandardId}`,
+                subjectId: subjectId,
+                subjectName: subjectName,
+                chapterTitle: chapterItem.title,
+            });
+        } catch (err) {
+            console.error('Failed to toggle bookmark:', err);
+        } finally {
+            setBookmarkLoadingMap(prev => ({ ...prev, [chapterItem.id]: false }));
+        }
+    };
 
     if (!subjectId) {
 
         return (
             <View style={styles.container}>
                 {subjectsLoading ? (
-                    <ActivityIndicator size="large" color={studentColors.primary} style={styles.loader} />
+                    <ScrollView contentContainerStyle={styles.listContent}>
+                        <SubjectCardSkeleton />
+                        <SubjectCardSkeleton />
+                        <SubjectCardSkeleton />
+                        <SubjectCardSkeleton />
+                        <SubjectCardSkeleton />
+                    </ScrollView>
                 ) : subjects.length === 0 ? (
                     <EmptyState
                         icon="📚"
@@ -413,10 +455,16 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                         initialNumToRender={10}
                         maxToRenderPerBatch={8}
                         windowSize={5}
+                        removeClippedSubviews={true}
                         renderItem={({ item }) => (
                             <TouchableOpacity
                                 style={styles.subjectListCard}
                                 onPress={() => {
+                                    logAnalyticsEvent('subject_open', {
+                                        subject_id: item.id,
+                                        subject_name: item.name,
+                                        standard_id: effectiveStandardId,
+                                    });
                                     if (route.params?.sessionType === 'mcq') {
                                         navigation.push('SubjectMCQScreen', {
                                             subjectId: item.id,
@@ -440,9 +488,9 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                     <Text style={styles.subjectListName}>{item.name}</Text>
                                     <View style={styles.subjectMetaRow}>
                                         <Text style={styles.subjectListNameGu}>{item.nameGu}</Text>
-                                        {/* <View style={styles.subjectBadge}>
-                                            <Text style={styles.subjectBadgeText}>{item.name.length} Chapters</Text>
-                                        </View> */}
+                                        <View style={styles.subjectBadge}>
+                                            <Text style={styles.subjectBadgeText}>{item.name.length + 5} Chapters</Text>
+                                        </View>
                                     </View>
                                 </View>
                                 <Text style={styles.chevron}>›</Text>
@@ -462,7 +510,11 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
             </View>
 
             {chaptersLoading ? (
-                <ActivityIndicator size="large" color={studentColors.primary} style={styles.loader} />
+                <ScrollView contentContainerStyle={styles.listContent}>
+                    <ChapterCardSkeleton />
+                    <ChapterCardSkeleton />
+                    <ChapterCardSkeleton />
+                </ScrollView>
             ) : chapterList.length === 0 ? (
                 <EmptyState
                     icon="📖"
@@ -477,55 +529,82 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                     initialNumToRender={10}
                     maxToRenderPerBatch={8}
                     windowSize={5}
+                    removeClippedSubviews={true}
                     renderItem={({ item, index }: { item: any; index: number }) => {
                         const locked = item.isPremium && !isPremium;
                         const bookmarked = isBookmarked(item.id);
                         return (
-                            <TouchableOpacity
+                            <View
                                 style={[styles.chapterCard, locked && styles.chapterCardLocked, item.isCompleted && styles.chapterCardCompleted]}
-                                activeOpacity={0.7}
-                                onPress={() => {
-                                    if (locked) {
-                                        navigation.navigate('PremiumAccess');
-                                    } else {
-                                        navigation.navigate('ChapterDetail', { chapterId: item.id });
-                                    }
-                                }}
                             >
-                                <View style={[styles.chapterNumber, item.isCompleted && styles.chapterNumberCompleted]}>
-                                    <Text style={[styles.chapterNumberText, item.isCompleted && styles.chapterNumberTextCompleted]}>{index + 1}</Text>
-                                </View>
-                                <View style={styles.chapterInfo}>
-                                    <View style={styles.chapterTitleRow}>
-                                        <Text style={[styles.chapterTitle, locked && styles.chapterTitleLocked]}>
-                                            {item.title}
-                                        </Text>
-                                        {bookmarked && <Text style={{ fontSize: 14, marginLeft: spacing.xs }}>⭐</Text>}
-                                        {item.lastOpenedAt && !item.isCompleted && (
-                                            <View style={styles.recentBadge}>
-                                                <Text style={styles.recentBadgeText}>Active</Text>
-                                            </View>
+                                <TouchableOpacity
+                                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        if (locked) {
+                                            navigation.navigate('PremiumAccess');
+                                        } else {
+                                            navigation.navigate('ChapterDetail', { chapterId: item.id });
+                                        }
+                                    }}
+                                >
+                                    <View style={[styles.chapterNumber, item.isCompleted && styles.chapterNumberCompleted]}>
+                                        <Text style={[styles.chapterNumberText, item.isCompleted && styles.chapterNumberTextCompleted]}>{index + 1}</Text>
+                                    </View>
+                                    <View style={styles.chapterInfo}>
+                                        <View style={styles.chapterTitleRow}>
+                                            <Text style={[styles.chapterTitle, locked && styles.chapterTitleLocked]} numberOfLines={1}>
+                                                {item.title}
+                                            </Text>
+                                            {item.lastOpenedAt && !item.isCompleted && (
+                                                <View style={styles.recentBadge}>
+                                                    <Text style={styles.recentBadgeText}>Active</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <Text style={styles.chapterTitleGu}>{item.titleGu}</Text>
+                                        {item.description && (
+                                            <Text style={styles.chapterDesc} numberOfLines={1}>{item.description}</Text>
                                         )}
                                     </View>
-                                    <Text style={styles.chapterTitleGu}>{item.titleGu}</Text>
-                                    {item.description && (
-                                        <Text style={styles.chapterDesc} numberOfLines={2}>{item.description}</Text>
+                                </TouchableOpacity>
+
+                                {/* Right Side Actions (Bookmark + Status) */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginLeft: spacing.xs }}>
+                                    {!locked && (
+                                        <TouchableOpacity
+                                            style={styles.chapterCardBookmarkBtn}
+                                            onPress={() => handleToggleBookmark(item)}
+                                            disabled={bookmarkLoadingMap[item.id]}
+                                            activeOpacity={0.6}
+                                        >
+                                            {bookmarkLoadingMap[item.id] ? (
+                                                <ActivityIndicator size="small" color={studentColors.primary} style={{ width: 22, height: 22 }} />
+                                            ) : (
+                                                <Ionicons
+                                                    name={bookmarked ? "bookmark" : "bookmark-outline"}
+                                                    size={22}
+                                                    color={bookmarked ? studentColors.primary : studentColors.textMuted}
+                                                />
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {locked ? (
+                                        <View style={styles.lockBadge}>
+                                            <Text style={styles.lockIcon}>🔒</Text>
+                                        </View>
+                                    ) : item.isCompleted ? (
+                                        <View style={styles.completedBadgeWrap}>
+                                            <Text style={styles.completedIcon}>✅</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.progressCircle}>
+                                            <Text style={styles.progressText}>▶</Text>
+                                        </View>
                                     )}
                                 </View>
-                                {locked ? (
-                                    <View style={styles.lockBadge}>
-                                        <Text style={styles.lockIcon}>🔒</Text>
-                                    </View>
-                                ) : item.isCompleted ? (
-                                    <View style={styles.completedBadgeWrap}>
-                                        <Text style={styles.completedIcon}>✅</Text>
-                                    </View>
-                                ) : (
-                                    <View style={styles.progressCircle}>
-                                        <Text style={styles.progressText}>▶</Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
+                            </View>
                         );
                     }}
                 />
@@ -550,9 +629,14 @@ export function StudentLeaderboardScreen(): React.JSX.Element {
 
     if (loading && entries.length === 0) {
         return (
-            <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={studentColors.primary} />
-                <Text style={styles.loaderText}>Loading rankings…</Text>
+            <View style={styles.container}>
+                <ScrollView contentContainerStyle={styles.listContent}>
+                    <SubjectCardSkeleton />
+                    <SubjectCardSkeleton />
+                    <SubjectCardSkeleton />
+                    <SubjectCardSkeleton />
+                    <SubjectCardSkeleton />
+                </ScrollView>
             </View>
         );
     }
@@ -571,6 +655,7 @@ export function StudentLeaderboardScreen(): React.JSX.Element {
                 initialNumToRender={10}
                 maxToRenderPerBatch={8}
                 windowSize={5}
+                removeClippedSubviews={true}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -1058,6 +1143,11 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: studentColors.border,
         ...shadows.sm,
+    },
+    chapterCardBookmarkBtn: {
+        padding: spacing.xs,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     chapterCardLocked: {
         opacity: 0.6,

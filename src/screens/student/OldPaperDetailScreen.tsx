@@ -16,7 +16,9 @@ export function OldPaperDetailScreen({ route }: { route: any }): React.JSX.Eleme
         }
         navigation.navigate('PdfViewer', {
             url: paper.pdfUrl,
-            title: paper.title || `${paper.subject} - ${paper.year}`
+            title: paper.title || `${paper.subject} - ${paper.year}`,
+            pdfId: paper.id,
+            pdfType: 'oldPaper'
         });
     };
 

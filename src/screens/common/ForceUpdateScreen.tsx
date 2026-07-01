@@ -5,12 +5,12 @@ import {
     StyleSheet,
     TouchableOpacity,
     Linking,
-    SafeAreaView,
     StatusBar,
     Animated,
     Easing,
     Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MobileAppConfig } from '../../services/firebase/version.check.service';
 
 // ─── Design tokens ────────────────────────────────────────────

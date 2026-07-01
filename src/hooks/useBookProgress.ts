@@ -50,7 +50,7 @@ export function useBookProgress(bookId: string) {
    */
   const saveProgress = useCallback(
     (page: number, totalPages: number) => {
-      if (!userId || !bookId) return;
+      if (!userId || !bookId) {return;}
 
       // Optimistically update local state immediately
       setProgress(prev => {
@@ -93,7 +93,7 @@ export function useBookProgress(bookId: string) {
    */
   const forceSaveProgress = useCallback(
     async (page: number, totalPages: number) => {
-      if (!userId || !bookId) return;
+      if (!userId || !bookId) {return;}
 
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);

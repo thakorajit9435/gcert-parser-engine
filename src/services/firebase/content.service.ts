@@ -12,6 +12,37 @@ import {
   ServiceResult,
   PaginatedResult,
 } from '../../types';
+import {logCrashError} from '../crashlytics';
+
+// ─── Content Cache ────────────────────────────────────────────
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const contentCache: Record<string, CacheEntry<any>> = {};
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCachedData<T>(key: string): T | null {
+  const entry = contentCache[key];
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setCachedData<T>(key: string, data: T): void {
+  contentCache[key] = {
+    data,
+    timestamp: Date.now(),
+  };
+}
+
+export function clearContentCache(): void {
+  for (const key in contentCache) {
+    delete contentCache[key];
+  }
+}
 
 // ─── Generic Helpers ──────────────────────────────────────────
 
@@ -65,6 +96,10 @@ async function getPaginated<T extends {id: string}>(
 
     return {success: true, data: {data, lastDoc, hasMore}};
   } catch (error) {
+    logCrashError(error, 'firestore_error', {
+      action: 'getPaginated',
+      collectionName,
+    });
     return {success: false, error: (error as Error).message};
   }
 }
@@ -84,6 +119,11 @@ export async function getStandards(
 }
 
 export async function getAllStandards(): Promise<ServiceResult<Standard[]>> {
+  const cacheKey = 'all_standards';
+  const cached = getCachedData<Standard[]>(cacheKey);
+  if (cached) {
+    return {success: true, data: cached};
+  }
   try {
     const snapshot = await collectionRef(COLLECTIONS.STANDARDS)
       .where('isDeleted', '==', false)
@@ -94,6 +134,7 @@ export async function getAllStandards(): Promise<ServiceResult<Standard[]>> {
       id: doc.id,
       ...doc.data(),
     })) as Standard[];
+    setCachedData(cacheKey, data);
     return {success: true, data};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -110,6 +151,7 @@ export async function createStandard(
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
+    clearContentCache();
     return {success: true, data: docRef.id};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -127,6 +169,7 @@ export async function updateStandard(
         ...data,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+    clearContentCache();
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -171,6 +214,7 @@ export async function createSession(
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
+    clearContentCache();
     return {success: true, data: docRef.id};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -188,6 +232,7 @@ export async function updateSession(
         ...data,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+    clearContentCache();
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -208,6 +253,15 @@ export async function getSubjects(
   startAfterDoc?: FirebaseFirestoreTypes.QueryDocumentSnapshot | null,
   sessionId?: string,
 ): Promise<ServiceResult<PaginatedResult<Subject>>> {
+  const isFirstPage = !startAfterDoc;
+  const cacheKey = `subjects_${standardId}_${sessionId || 'none'}`;
+  if (isFirstPage) {
+    const cached = getCachedData<PaginatedResult<Subject>>(cacheKey);
+    if (cached) {
+      return {success: true, data: cached};
+    }
+  }
+
   const conditions: Array<{
     field: string;
     op: FirebaseFirestoreTypes.WhereFilterOp;
@@ -216,13 +270,19 @@ export async function getSubjects(
   if (sessionId) {
     conditions.push({field: 'session', op: '==', value: sessionId});
   }
-  return getPaginated<Subject>(
+
+  const result = await getPaginated<Subject>(
     COLLECTIONS.SUBJECTS,
     'order',
     pageSize,
     startAfterDoc,
     conditions,
   );
+
+  if (isFirstPage && result.success && result.data) {
+    setCachedData(cacheKey, result.data);
+  }
+  return result;
 }
 
 export async function createSubject(
@@ -235,6 +295,7 @@ export async function createSubject(
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
+    clearContentCache();
     return {success: true, data: docRef.id};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -252,6 +313,7 @@ export async function updateSubject(
         ...data,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+    clearContentCache();
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -271,13 +333,27 @@ export async function getChapters(
   pageSize: number = DEFAULT_PAGE_SIZE,
   startAfterDoc?: FirebaseFirestoreTypes.QueryDocumentSnapshot | null,
 ): Promise<ServiceResult<PaginatedResult<Chapter>>> {
-  return getPaginated<Chapter>(
+  const isFirstPage = !startAfterDoc;
+  const cacheKey = `chapters_${subjectId}`;
+  if (isFirstPage) {
+    const cached = getCachedData<PaginatedResult<Chapter>>(cacheKey);
+    if (cached) {
+      return {success: true, data: cached};
+    }
+  }
+
+  const result = await getPaginated<Chapter>(
     COLLECTIONS.CHAPTERS,
     'order',
     pageSize,
     startAfterDoc,
     [{field: 'subjectId', op: '==', value: subjectId}],
   );
+
+  if (isFirstPage && result.success && result.data) {
+    setCachedData(cacheKey, result.data);
+  }
+  return result;
 }
 
 export async function createChapter(
@@ -290,6 +366,7 @@ export async function createChapter(
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
+    clearContentCache();
     return {success: true, data: docRef.id};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -307,6 +384,7 @@ export async function updateChapter(
         ...data,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+    clearContentCache();
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -486,6 +564,7 @@ export async function reorderItems(
       });
     });
     await batch.commit();
+    clearContentCache();
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};

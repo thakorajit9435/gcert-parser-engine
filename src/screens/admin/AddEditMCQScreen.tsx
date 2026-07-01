@@ -30,7 +30,7 @@ export function AddEditMCQScreen({ route, navigation }: { route: any; navigation
     const isEditing = !!mcqId;
 
     // ─── Selectors State ─────────────────────────────────────
-    const { standards, loading: standardsLoading } = useStandards();
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
     const [selectedStandard, setSelectedStandard] = useState<string | null>(paramStandardId || null);
     const [selectedSession, setSelectedSession] = useState<string>(paramSessionId || '1');
     const [selectedSubject, setSelectedSubject] = useState<string | null>(paramSubjectId || null);
@@ -168,29 +168,33 @@ export function AddEditMCQScreen({ route, navigation }: { route: any; navigation
         <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <Text style={styles.pageTitle}>{isEditing ? '✏️ Edit MCQ' : '➕ Add MCQ'}</Text>
 
-            {/* ─── Standard Selector ─────────────────────────── */}
             <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Standard <Text style={styles.required}>*</Text></Text>
                 {standardsLoading ? (
                     <ActivityIndicator size="small" color={adminColors.primary} style={styles.inlineLoader} />
                 ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        {standards.map((s) => (
-                            <TouchableOpacity
-                                key={s.id}
-                                style={[styles.chip, selectedStandard === s.id && styles.chipActive]}
-                                onPress={() => {
-                                    setSelectedStandard(s.id);
-                                    setSelectedSubject(null);
-                                    setSelectedChapter(null);
-                                }}
-                            >
-                                <Text style={[styles.chipText, selectedStandard === s.id && styles.chipTextActive]}>
-                                    {s.label} {s.labelGu ? `(${s.labelGu})` : ''}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                    <>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                            {standards.map((s) => (
+                                <TouchableOpacity
+                                    key={s.id}
+                                    style={[styles.chip, selectedStandard === s.id && styles.chipActive]}
+                                    onPress={() => {
+                                        setSelectedStandard(s.id);
+                                        setSelectedSubject(null);
+                                        setSelectedChapter(null);
+                                    }}
+                                >
+                                    <Text style={[styles.chipText, selectedStandard === s.id && styles.chipTextActive]}>
+                                        {s.label} {s.labelGu ? `(${s.labelGu})` : ''}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        {isFallback && (
+                            <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                        )}
+                    </>
                 )}
             </View>
 
@@ -543,5 +547,11 @@ const styles = StyleSheet.create({
     },
     bottomSpacer: {
         height: spacing.huge,
+    },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        fontWeight: typography.weight.medium,
     },
 });

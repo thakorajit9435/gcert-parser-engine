@@ -12,6 +12,7 @@ import { studentColors, typography, spacing, borderRadius, shadows } from '../..
 import { useAuth } from '../../hooks/useAuth';
 import { useQuiz } from '../../hooks/useQuiz';
 import { Question } from '../../types';
+import { logAnalyticsEvent } from '../../services/analytics';
 
 type QuizPhase = 'loading' | 'empty' | 'error' | 'ready' | 'active' | 'finished' | 'review';
 
@@ -82,8 +83,18 @@ export function QuizScreen({ route, navigation }: { route: any; navigation: any 
 
         if (result) {
             setSummary({ ...result, total: questions.length, timeTaken });
+            logAnalyticsEvent('quiz_complete', {
+                quiz_id: quizId || 'practice',
+                subject_id: quiz?.subjectId || 'unknown',
+                chapter_id: quiz?.chapterId || 'unknown',
+                score: result.score,
+                correct_answers: result.correct,
+                total_questions: questions.length,
+                time_taken_seconds: timeTaken,
+                passed: result.passed,
+            });
         }
-    }, [clearTimer, submitQuiz, userProfile, questions.length]);
+    }, [clearTimer, submitQuiz, userProfile, questions.length, quizId, quiz]);
 
     useEffect(() => {
         if (phase !== 'active') { return; }
@@ -112,6 +123,12 @@ export function QuizScreen({ route, navigation }: { route: any; navigation: any 
     }, [currentIndex, phase, questions.length, progressAnim]);
 
     const startQuiz = useCallback(() => {
+        logAnalyticsEvent('quiz_start', {
+            quiz_id: quizId || 'practice',
+            subject_id: quiz?.subjectId || 'unknown',
+            chapter_id: quiz?.chapterId || 'unknown',
+            total_questions: questions.length,
+        });
         setPhase('active');
         setCurrentIndex(0);
         setAnswers({});
@@ -119,7 +136,7 @@ export function QuizScreen({ route, navigation }: { route: any; navigation: any 
         setLockedOption(null);
         startTimeRef.current = Date.now();
         progressAnim.setValue((1 / questions.length) * 100);
-    }, [progressAnim, questions.length]);
+    }, [progressAnim, questions.length, quizId, quiz]);
 
     const handleSelectOption = useCallback((optId: string) => {
         if (lockedOption) { return; }

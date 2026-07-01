@@ -12,9 +12,8 @@ import {
     Modal,
     FlatList,
     StatusBar,
-    SafeAreaView,
-    Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList } from '../../types';
@@ -211,14 +210,10 @@ export function SignupScreen(): React.JSX.Element {
                 >
                     {/* Header */}
                     <View style={styles.headerSection}>
-                        <Image
-                            source={require('../../../assets/icon.png')}
-                            style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12 }}
-                        />
-                        {/* <View style={styles.logoCircle}>
+                        <View style={styles.logoCircle}>
                             <Text style={styles.logoEmoji}>🎓</Text>
-                        </View> */}
-                        <Text style={styles.appName}>GyanDeep</Text>
+                        </View>
+                        <Text style={styles.appName}>Students</Text>
                         <Text style={styles.tagline}>Your learning journey begins here</Text>
                     </View>
 

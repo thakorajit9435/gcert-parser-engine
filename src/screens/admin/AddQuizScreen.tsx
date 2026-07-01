@@ -72,7 +72,7 @@ export function AddQuizScreen({ navigation }: Props): React.JSX.Element {
                 isPremium,
             });
             console.log(title, subjectId, chapterId, standardId, session, totalMarks, timeLimitSeconds, passingScore, difficulty, isMixed, isDailyQuiz, isActive, isPremium);
-            console.log("first quiz id:", quizId);
+            console.log('first quiz id:', quizId);
             if (quizId) {
                 Alert.alert(
                     '✅ Quiz Created',
@@ -279,7 +279,7 @@ export function AddQuizScreen({ navigation }: Props): React.JSX.Element {
                             value={isMixed}
                             onValueChange={(val) => {
                                 setIsMixed(val);
-                                if (val) setChapterId('');
+                                if (val) {setChapterId('');}
                             }}
                             trackColor={{ true: adminColors.primary, false: adminColors.border }}
                             thumbColor={isMixed ? '#FFFFFF' : adminColors.textMuted}

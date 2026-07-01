@@ -16,3 +16,4 @@ export {useLanguageSection} from './useLanguageSection';
 export {useBlueprints} from './useBlueprints';
 export {useOldPapers} from './useOldPapers';
 export {useBookmarks} from './useBookmarks';
+export {usePdfProgress} from './usePdfProgress';

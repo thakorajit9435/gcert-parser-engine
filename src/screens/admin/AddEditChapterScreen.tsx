@@ -82,7 +82,7 @@ export function AddEditChapterScreen({ route, navigation }: { route: any; naviga
             if (res && res.uri) {
                 setUploadingSwadhyayPdf(true);
                 const fileUri = res.fileCopyUri || res.uri;
-                const storagePath = `swadhyay`;
+                const storagePath = 'swadhyay';
 
                 const result = await uploadPdf(fileUri, storagePath);
                 if (result.success && result.data) {

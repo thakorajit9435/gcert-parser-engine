@@ -34,7 +34,10 @@ export function getFirestoreErrorMessage(error: unknown): string {
 
   // Check for network errors
   if (err.message && err.message.includes('network')) {
-    return ERROR_MAP.unavailable;
+    return (
+      ERROR_MAP.unavailable ||
+      'Network error. Please check your internet connection.'
+    );
   }
 
   // Fallback

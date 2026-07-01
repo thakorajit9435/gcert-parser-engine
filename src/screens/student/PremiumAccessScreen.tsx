@@ -1,290 +1,280 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
-import { useAuth } from '../../hooks/useAuth';
-import firestore from '@react-native-firebase/firestore';
+import { Button } from '../../components/common/Button';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+
+const PLANS = [
+    {
+        id: 'premium',
+        name: 'Premium Access',
+        duration: 'Lifetime / Yearly',
+        features: ['Full access to all subjects', 'Unlimited quizzes', 'No ads', 'Downloadable Blueprints', 'Priority Support'],
+    }
+];
 
 export function PremiumAccessScreen(): React.JSX.Element {
-    const { t } = useTranslation();
-    const navigation = useNavigation<any>();
-    const { userProfile } = useAuth();
+    const navigation = useNavigation();
     const [loading, setLoading] = useState(false);
 
-    const plans = [
-        { id: 'monthly', title: 'Monthly Plan', price: '₹49', period: 'Month', originalPrice: '₹99' },
-        { id: 'yearly', title: 'Yearly Plan', price: '₹299', period: 'Year', originalPrice: '₹599', isPopular: true },
-        { id: 'lifetime', title: 'Lifetime Plan', price: '₹499', period: 'Lifetime', originalPrice: '₹999' },
-    ];
-
-    const handlePurchase = async (planId: string) => {
-        if (!userProfile?.uid) {
-            Alert.alert(t('common.error'), 'User not found.');
-            return;
-        }
-
+    const handlePayment = async () => {
         setLoading(true);
-
-        try {
-            // Mock payment gateway flow with a short delay
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
-            // Update Firebase User Document
-            await firestore().collection('users').doc(userProfile.uid).update({
-                isPremium: true,
-                premium: true, // Ensuring old and new fields are aligned
-                premiumPlan: planId,
-                premiumActivatedAt: firestore.FieldValue.serverTimestamp(),
-            });
-
-            Alert.alert('Success!', 'Welcome to Premium Learning.', [
-                {
-                    text: 'Let\'s Go',
-                    onPress: () => navigation.goBack()
-                }
-            ]);
-
-        } catch (error) {
-            console.error('Payment Error:', error);
-            Alert.alert(t('common.error'), t('common.tryAgain'));
-        } finally {
-            setLoading(false);
-        }
+        Alert.alert('Premium Required', 'Please contact the administrator to activate your premium access.');
+        setLoading(false);
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <Icon name="chevron-left" size={28} color={studentColors.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Upgrade to Premium</Text>
+                <View style={{ width: 40 }} />
+            </View>
+
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <Text style={styles.headerIcon}>🚀</Text>
-                    <Text style={styles.headerTitle}>{t('premium.unlock')}</Text>
-                    <Text style={styles.headerSub}>{t('premium.description')}</Text>
+                <View style={styles.heroSection}>
+                    <View style={styles.crownIcon}>
+                        <Icon name="crown" size={50} color={studentColors.primary} />
+                    </View>
+                    <Text style={styles.heroTitle}>Choose Your Plan</Text>
+                    <Text style={styles.heroSubtitle}>
+                        Select a plan that works best for your learning goals.
+                    </Text>
                 </View>
 
-                {/* Features Section */}
-                <View style={styles.featuresCard}>
-                    <View style={styles.featureRow}>
-                        <Text style={styles.featureText}>{t('premium.features.chapters')}</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Text style={styles.featureText}>{t('premium.features.mcq')}</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Text style={styles.featureText}>{t('premium.features.videos')}</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Text style={styles.featureText}>{t('premium.features.materials')}</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Text style={styles.featureText}>{t('premium.features.adFree')}</Text>
-                    </View>
-                </View>
-
-                {/* Plans Section */}
-                <Text style={styles.choosePlanTitle}>Choose your plan</Text>
-                
-                {plans.map((plan) => (
-                    <TouchableOpacity 
+                {PLANS.map((plan) => (
+                    <View
                         key={plan.id}
-                        style={[styles.planCard, plan.isPopular && styles.planCardPopular]}
-                        activeOpacity={0.8}
-                        disabled={loading}
-                        onPress={() => handlePurchase(plan.id)}
+                        style={[
+                            styles.planCard,
+                            styles.bestValueCard,
+                        ]}
                     >
-                        {plan.isPopular && (
-                            <View style={styles.popularBadge}>
-                                <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                        <View style={styles.planHeader}>
+                            <View>
+                                <Text style={styles.planName}>{plan.name}</Text>
+                                <Text style={styles.planDuration}>{plan.duration}</Text>
                             </View>
-                        )}
-                        <View style={styles.planInfo}>
-                            <Text style={[styles.planTitle, plan.isPopular && styles.planTitlePopular]}>{plan.title}</Text>
-                            <View style={styles.priceRow}>
-                                <Text style={styles.originalPrice}>{plan.originalPrice}</Text>
-                                <Text style={[styles.planPrice, plan.isPopular && styles.planPricePopular]}>{plan.price}</Text>
-                                <Text style={styles.planPeriod}>/ {plan.period}</Text>
+                            <View style={styles.priceContainer}>
+                                <Text style={styles.planPrice}>🔒 Locked</Text>
                             </View>
                         </View>
-                        <View style={[styles.selectButton, plan.isPopular && styles.selectButtonPopular]}>
-                            {loading ? (
-                                <ActivityIndicator size="small" color={plan.isPopular ? studentColors.surface : studentColors.primary} />
-                            ) : (
-                                <Text style={[styles.selectButtonText, plan.isPopular && styles.selectButtonTextPopular]}>Select</Text>
-                            )}
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.featuresList}>
+                            {plan.features.map((feature, idx) => (
+                                <View key={idx} style={styles.featureItem}>
+                                    <Icon
+                                        name="check-circle"
+                                        size={18}
+                                        color={studentColors.secondary}
+                                    />
+                                    <Text style={styles.featureText}>{feature}</Text>
+                                </View>
+                            ))}
                         </View>
-                    </TouchableOpacity>
+                    </View>
                 ))}
 
-                <TouchableOpacity 
-                    style={styles.maybeLaterButton}
-                    onPress={() => navigation.goBack()}
-                    disabled={loading}
-                >
-                    <Text style={styles.maybeLaterText}>{t('premium.later')}</Text>
-                </TouchableOpacity>
-
+                <View style={styles.securityNote}>
+                    <Icon name="shield-lock" size={16} color={studentColors.textMuted} />
+                    <Text style={styles.securityText}>Premium Content Locked</Text>
+                </View>
             </ScrollView>
+
+            <View style={styles.footer}>
+                <Button
+                    title="Contact Admin to Unlock"
+                    onPress={handlePayment}
+                    loading={loading}
+                    disabled={loading}
+                    style={styles.payBtn}
+                    textStyle={styles.payBtnText}
+                />
+            </View>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
+    container: {
         flex: 1,
         backgroundColor: studentColors.background,
     },
-    scrollContent: {
-        padding: spacing.xl,
-        paddingBottom: spacing.huge,
-    },
     header: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.xxl,
-        marginTop: spacing.xl,
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.lg,
+        height: 60,
+        backgroundColor: '#FFFFFF',
+        ...shadows.sm,
     },
-    headerIcon: {
-        fontSize: 64,
-        marginBottom: spacing.md,
+    backBtn: {
+        padding: spacing.xs,
     },
     headerTitle: {
-        fontSize: 26,
+        fontSize: typography.size.lg,
         fontWeight: typography.weight.bold,
         color: studentColors.textPrimary,
-        textAlign: 'center',
-        marginBottom: spacing.sm,
     },
-    headerSub: {
+    scrollContent: {
+        padding: spacing.lg,
+        paddingBottom: 100,
+    },
+    heroSection: {
+        alignItems: 'center',
+        marginBottom: spacing.xxl,
+    },
+    crownIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#FFFBEB',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    heroTitle: {
+        fontSize: typography.size.xxl,
+        fontWeight: typography.weight.bold,
+        color: studentColors.textPrimary,
+    },
+    heroSubtitle: {
         fontSize: typography.size.md,
         color: studentColors.textSecondary,
         textAlign: 'center',
-        lineHeight: 22,
-        paddingHorizontal: spacing.md,
     },
-    featuresCard: {
-        backgroundColor: studentColors.surface,
+    planCard: {
+        backgroundColor: '#FFFFFF',
         borderRadius: borderRadius.xl,
         padding: spacing.xl,
-        marginBottom: spacing.xxl,
-        borderWidth: 1,
-        borderColor: studentColors.borderLight,
+        marginBottom: spacing.lg,
+        borderWidth: 2,
+        borderColor: '#E2E8F0',
+        position: 'relative',
+        ...shadows.sm,
+    },
+    selectedPlanCard: {
+        borderColor: studentColors.secondary,
+        backgroundColor: '#F0F7FF',
         ...shadows.md,
     },
-    featureRow: {
+    bestValueCard: {
+        borderColor: studentColors.primary,
+        borderWidth: 2,
+    },
+    bestValueBadge: {
+        position: 'absolute',
+        top: -12,
+        right: 20,
+        backgroundColor: studentColors.primary,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+    },
+    bestValueText: {
+        color: '#3E2723',
+        fontSize: 10,
+        fontWeight: typography.weight.bold,
+    },
+    planHeader: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: studentColors.borderLight,
     },
-    featureText: {
-        fontSize: typography.size.lg,
-        color: studentColors.textPrimary,
-        fontWeight: typography.weight.medium,
-        marginLeft: spacing.xxs,
-    },
-    choosePlanTitle: {
+    planName: {
         fontSize: typography.size.xl,
         fontWeight: typography.weight.bold,
         color: studentColors.textPrimary,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
     },
-    planCard: {
-        backgroundColor: studentColors.surface,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
-        marginBottom: spacing.md,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: studentColors.border,
-        ...shadows.sm,
+    planDuration: {
+        fontSize: typography.size.sm,
+        color: studentColors.textSecondary,
     },
-    planCardPopular: {
-        borderColor: studentColors.primary,
-        backgroundColor: studentColors.primaryLight + '33', // Slight yellow tint
-        ...shadows.md,
-    },
-    popularBadge: {
-        position: 'absolute',
-        top: -12,
-        right: 24,
-        backgroundColor: studentColors.primary,
-        paddingHorizontal: spacing.md,
-        paddingVertical: 4,
-        borderRadius: borderRadius.full,
-        ...shadows.sm,
-    },
-    popularBadgeText: {
-        fontSize: typography.size.xs,
-        fontWeight: typography.weight.bold,
-        color: studentColors.textOnPrimary,
-        letterSpacing: 0.5,
-    },
-    planInfo: {
-        flex: 1,
-    },
-    planTitle: {
-        fontSize: typography.size.lg,
-        fontWeight: typography.weight.semibold,
-        color: studentColors.textPrimary,
-        marginBottom: spacing.xs,
-    },
-    planTitlePopular: {
-        color: studentColors.primaryDark,
-    },
-    priceRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
+    priceContainer: {
+        alignItems: 'flex-end',
     },
     originalPrice: {
         fontSize: typography.size.sm,
         color: studentColors.textMuted,
         textDecorationLine: 'line-through',
-        marginRight: spacing.sm,
     },
     planPrice: {
-        fontSize: 22,
+        fontSize: typography.size.xxl,
         fontWeight: typography.weight.bold,
         color: studentColors.textPrimary,
     },
-    planPricePopular: {
-        color: studentColors.textPrimary,
+    divider: {
+        height: 1,
+        backgroundColor: '#E2E8F0',
+        marginVertical: spacing.md,
     },
-    planPeriod: {
-        fontSize: typography.size.xs,
+    featuresList: {
+        gap: spacing.sm,
+    },
+    featureItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    featureText: {
+        fontSize: typography.size.sm,
         color: studentColors.textSecondary,
-        marginLeft: spacing.xxs,
     },
-    selectButton: {
-        backgroundColor: studentColors.surfaceHover,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.lg,
-        minWidth: 90,
+    selectedText: {
+        color: studentColors.secondaryDark,
+    },
+    selectedMarker: {
+        position: 'absolute',
+        bottom: -1,
+        right: -1,
+        backgroundColor: studentColors.secondary,
+        padding: 4,
+        borderTopLeftRadius: borderRadius.lg,
+        borderBottomRightRadius: borderRadius.xl,
+    },
+    securityNote: {
+        flexDirection: 'row',
         alignItems: 'center',
-    },
-    selectButtonPopular: {
-        backgroundColor: studentColors.primary,
-    },
-    selectButtonText: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.bold,
-        color: studentColors.secondary,
-    },
-    selectButtonTextPopular: {
-        color: studentColors.textOnPrimary,
-    },
-    maybeLaterButton: {
+        justifyContent: 'center',
+        gap: spacing.xs,
         marginTop: spacing.md,
-        padding: spacing.md,
-        alignItems: 'center',
     },
-    maybeLaterText: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.semibold,
+    securityText: {
+        fontSize: typography.size.sm,
         color: studentColors.textMuted,
     },
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        padding: spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: '#E2E8F0',
+    },
+    payBtn: {
+        backgroundColor: studentColors.primary,
+        borderRadius: borderRadius.lg,
+        height: 56,
+        ...shadows.md,
+    },
+    payBtnText: {
+        color: '#3E2723',
+        fontWeight: typography.weight.bold,
+    }
 });

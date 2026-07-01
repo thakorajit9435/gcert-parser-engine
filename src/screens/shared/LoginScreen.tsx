@@ -24,7 +24,7 @@ export function LoginScreen({ route, navigation }: { route: any; navigation: any
         }
 
         setLoading(true);
-        if (phone === "+918758072298") {
+        if (phone === '+918758072298') {
             // manually create fake login session
             // setConfirmation(true);
             setOtp('123456');
@@ -41,7 +41,7 @@ export function LoginScreen({ route, navigation }: { route: any; navigation: any
     };
 
     const handleVerifyOTP = async (): Promise<void> => {
-        console.log(otp.length)
+        console.log(otp.length);
         // if (!confirmation || otp.length < 6) {
         // if (otp.length < 6) {
         //     Alert.alert('Invalid OTP', 'Please enter the 6-digit OTP.');

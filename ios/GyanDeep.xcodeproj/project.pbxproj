@@ -319,7 +319,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gyandeep";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gyandeeps";
 				PRODUCT_NAME = "GyanDeep";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -347,7 +347,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gyandeep";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gyandeeps";
 				PRODUCT_NAME = "GyanDeep";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

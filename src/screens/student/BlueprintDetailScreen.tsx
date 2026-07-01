@@ -16,7 +16,9 @@ export function BlueprintDetailScreen({ route }: { route: any }): React.JSX.Elem
         }
         navigation.navigate('PdfViewer', {
             url: blueprint.pdfUrl,
-            title: blueprint.title
+            title: blueprint.title,
+            pdfId: blueprint.id,
+            pdfType: 'blueprint'
         });
     };
 

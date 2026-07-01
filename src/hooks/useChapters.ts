@@ -53,7 +53,7 @@ export function useChapters(subjectId?: string): UseChaptersReturn {
   }, [subjectId, refreshTrigger]);
 
   const chaptersWithProgress = useMemo(() => {
-    if (!chapters.length) return [];
+    if (!chapters.length) {return [];}
     return chapters.map(ch => ({
       ...ch,
       isCompleted: progressMap[ch.id]?.isCompleted ?? false,

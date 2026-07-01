@@ -6,6 +6,9 @@ import { onAuthStateChanged, loginWithEmail, signupWithEmail, logoutUser, signIn
 import { getUserProfile, createStudentProfile, createAdminProfile, createGoogleStudentProfile } from '../services/firebase/userService';
 import { subscribeToUser } from '../services/firebase/users.service';
 import { removeFCMToken } from '../services/firebase/fcm.service';
+import { logAnalyticsEvent, setAnalyticsUser } from '../services/analytics';
+import { initCrashlytics, logCrashError } from '../services/crashlytics';
+import { withTimeout } from '../utils';
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -127,40 +130,91 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
     // ── Auth State Listener ──────────────────────────────────────
     useEffect(() => {
-        const unsubscribeAuth = onAuthStateChanged(async (firebaseUser) => {
-            currentUserRef.current = firebaseUser;
-            setUser(firebaseUser);
-
-            if (!firebaseUser) {
-                setUserData(null);
-                setIsEmailVerified(false);
-                setLoading(false);
-                return;
-            }
-
-            // Reload the user from the Firebase server so we always get the
-            // latest emailVerified value — this handles the case where a user
-            // verifies their email outside the app and then reopens it.
-            try {
-                await firebaseUser.reload();
-            } catch {
-                // Ignore network errors — fall back to cached value
-            }
-            // Re-read after reload (currentUser is updated in place)
-            const freshUser = auth().currentUser;
-            const verified = freshUser?.emailVerified ?? firebaseUser.emailVerified;
-            setIsEmailVerified(verified);
-
-            // Fetch profile from Firestore — role comes from here only
-            const result = await getUserProfile(firebaseUser.uid);
-            if (result.success && result.data) {
-                setUserData(result.data);
-            }
-
+        // ── Failsafe: if onAuthStateChanged never fires OR the async work
+        // inside the callback hangs/crashes — unblock the splash after 10 s.
+        const failsafeTimer = setTimeout(() => {
+            console.warn('[AuthContext] Failsafe: loading timed out after 10 s — unblocking app.');
             setLoading(false);
+        }, 10_000);
+
+        const unsubscribeAuth = onAuthStateChanged(async (firebaseUser) => {
+            console.log('[AuthContext] onAuthStateChanged fired, user:', firebaseUser?.uid ?? 'null');
+
+            // Do NOT clear the failsafe here — clear it ONLY after all async
+            // work completes (in `finally`) so it remains a true safety net.
+
+            try {
+                currentUserRef.current = firebaseUser;
+                setUser(firebaseUser);
+
+                if (!firebaseUser) {
+                    console.log('[AuthContext] No user — clearing state');
+                    setUserData(null);
+                    setIsEmailVerified(false);
+                    setAnalyticsUser(null);
+                    initCrashlytics(null);
+                    return;
+                }
+
+                // Reload the user from the Firebase server so we always get the
+                // latest emailVerified value — this handles the case where a user
+                // verifies their email outside the app and then reopens it.
+                // Wrapped in a 4 s timeout so a slow/unreachable server can't hang startup.
+                console.log('[AuthContext] Reloading Firebase user…');
+                try {
+                    await withTimeout(firebaseUser.reload(), 4000);
+                } catch {
+                    // Ignore network errors / timeouts — fall back to cached value
+                    console.warn('[AuthContext] User reload timed out / failed — using cached value');
+                }
+                // Re-read after reload (currentUser is updated in place)
+                const freshUser = auth().currentUser;
+                const verified = freshUser?.emailVerified ?? firebaseUser.emailVerified;
+                setIsEmailVerified(verified);
+
+                // Fetch profile from Firestore — role comes from here only.
+                // Wrapped with a 5 s timeout so a Firestore hang doesn't freeze the splash.
+                console.log('[AuthContext] Fetching user profile…');
+                let result = await withTimeout(
+                    getUserProfile(firebaseUser.uid),
+                    5000,
+                    { success: false, error: 'Profile fetch timed out' }
+                );
+
+                // Cache fallback: if server fetch failed/timed out, try local Firestore cache
+                // so a returning user can still enter the app under poor network conditions.
+                if (!result.success) {
+                    console.warn('[AuthContext] Server profile fetch failed — trying cache…');
+                    result = await withTimeout(
+                        getUserProfile(firebaseUser.uid, { source: 'cache' }),
+                        2000,
+                        { success: false, error: 'Cache fetch also timed out' },
+                    );
+                }
+
+                if (result.success && result.data) {
+                    console.log('[AuthContext] Profile loaded, role:', result.data.role);
+                    setUserData(result.data);
+                    setAnalyticsUser(firebaseUser.uid, result.data.role, result.data.standard ? String(result.data.standard) : undefined);
+                    initCrashlytics(result.data);
+                } else {
+                    console.warn('[AuthContext] Failed to load user profile or timed out:', result.error);
+                }
+            } catch (err) {
+                // Catch-all: log the unexpected error so it's visible in Metro
+                console.error('[AuthContext] Unexpected error in auth listener — unblocking app:', err);
+            } finally {
+                // ALWAYS unblock the splash — even if something above threw
+                clearTimeout(failsafeTimer);
+                setLoading(false);
+                console.log('[AuthContext] Auth loading complete ✓');
+            }
         });
 
-        return () => unsubscribeAuth();
+        return () => {
+            clearTimeout(failsafeTimer);
+            unsubscribeAuth();
+        };
     }, []);
 
     // ── Real-time Firestore Profile Updates ──────────────────────
@@ -186,6 +240,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         if (result.success && result.data?.user) {
             const loggedInUser = result.data.user;
 
+            logAnalyticsEvent('login', { method: 'email' });
+
             // Explicitly set isEmailVerified immediately after login so
             // RootNavigator shows VerifyEmailScreen without any flash.
             // onAuthStateChanged will also fire and re-confirm this value.
@@ -194,6 +250,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
             const profileResult = await getUserProfile(loggedInUser.uid);
             if (profileResult.success && profileResult.data) {
                 setUserData(profileResult.data);
+                setAnalyticsUser(loggedInUser.uid, profileResult.data.role, profileResult.data.standard ? String(profileResult.data.standard) : undefined);
+                initCrashlytics(profileResult.data);
             }
         }
         setLoading(false);
@@ -214,10 +272,14 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         if (result.success && result.data?.user) {
             const { uid } = result.data.user;
 
+            logAnalyticsEvent('signup', { method: 'email', standard });
+
             // Step 1: Create Firestore doc immediately — never delayed
             const profileResult = await createStudentProfile(uid, name, email, standard);
             if (profileResult.success && profileResult.data) {
                 setUserData(profileResult.data);
+                setAnalyticsUser(uid, profileResult.data.role, String(standard));
+                initCrashlytics(profileResult.data);
             }
 
             // Step 2: Mark user as NOT yet verified so RootNavigator
@@ -313,10 +375,12 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
             }
 
             if (!result.success || !result.data?.user) {
-                return { success: false, error: result.error || 'Google Sign-In failed.' };
+                return { success: false, error: 'Unable to connect Google Account. Please try again.' };
             }
 
             const { uid, displayName, email } = result.data.user;
+
+            logAnalyticsEvent('login', { method: 'google' });
 
             // Create Firestore doc if first time, otherwise return existing
             const profileResult = await createGoogleStudentProfile(
@@ -327,11 +391,14 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
             if (profileResult.success && profileResult.data) {
                 setUserData(profileResult.data);
+                setAnalyticsUser(uid, profileResult.data.role, profileResult.data.standard ? String(profileResult.data.standard) : undefined);
+                initCrashlytics(profileResult.data);
             }
 
             return { success: true };
         } catch (err) {
-            return { success: false, error: 'Something went wrong. Try again.' };
+            logCrashError(err, 'auth_error');
+            return { success: false, error: 'Google Sign-In failed. Please try again.' };
         } finally {
             setLoading(false);
         }
@@ -350,6 +417,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     const checkEmailVerification = async (): Promise<{ verified: boolean; error?: string }> => {
         const result = await reloadCurrentUser();
         if (result.success) {
+            setUser(auth().currentUser);
             setIsEmailVerified(result.emailVerified ?? false);
             return { verified: result.emailVerified ?? false };
         }
@@ -362,11 +430,20 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         if (user?.uid) {
             await removeFCMToken(user.uid);
         }
+        // Sign out of Google session so user can pick a different account next time
+        try {
+            await GoogleSignin.signOut();
+        } catch {
+            // Ignore — user may not have signed in via Google
+        }
         const result = await logoutUser();
         if (result.success) {
+            logAnalyticsEvent('logout');
             setUser(null);
             setUserData(null);
             currentUserRef.current = null;
+            setAnalyticsUser(null);
+            initCrashlytics(null);
         }
         setLoading(false);
         return result;

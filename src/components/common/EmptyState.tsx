@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { adminColors, typography, spacing } from '../../theme';
+import React, { useEffect, useRef } from 'react';
+import { Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { studentColors, typography, spacing, borderRadius } from '../../theme';
 
 interface EmptyStateProps {
     icon?: string;
@@ -11,7 +11,7 @@ interface EmptyStateProps {
 }
 
 /**
- * Empty state placeholder with optional action button.
+ * Empty state placeholder with entry animation and custom button.
  */
 export function EmptyState({
     icon = '📭',
@@ -20,8 +20,32 @@ export function EmptyState({
     actionLabel,
     onAction,
 }: EmptyStateProps): React.JSX.Element {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(15)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 500,
+                useNativeDriver: true,
+            })
+        ]).start();
+    }, [fadeAnim, slideAnim]);
+
     return (
-        <View style={styles.container}>
+        <Animated.View style={[
+            styles.container,
+            {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+            }
+        ]}>
             <Text style={styles.icon}>{icon}</Text>
             <Text style={styles.title}>{title}</Text>
             {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -30,7 +54,7 @@ export function EmptyState({
                     <Text style={styles.actionText}>{actionLabel}</Text>
                 </TouchableOpacity>
             ) : null}
-        </View>
+        </Animated.View>
     );
 }
 
@@ -42,32 +66,32 @@ const styles = StyleSheet.create({
         padding: spacing.xxl,
     },
     icon: {
-        fontSize: 56,
-        marginBottom: spacing.lg,
+        fontSize: 64,
+        marginBottom: spacing.md,
     },
     title: {
-        fontSize: typography.size.xl,
-        fontWeight: typography.weight.semibold,
-        color: adminColors.textPrimary,
-        marginBottom: spacing.sm,
+        fontSize: typography.size.lg,
+        fontWeight: typography.weight.bold,
+        color: studentColors.textPrimary,
+        marginBottom: spacing.xs,
         textAlign: 'center',
     },
     message: {
         fontSize: typography.size.md,
-        color: adminColors.textSecondary,
+        color: studentColors.textSecondary,
         textAlign: 'center',
-        lineHeight: typography.lineHeight.lg,
+        lineHeight: typography.lineHeight.md,
         marginBottom: spacing.xl,
     },
     actionButton: {
-        backgroundColor: adminColors.primary,
+        backgroundColor: studentColors.primary,
         paddingHorizontal: spacing.xxl,
         paddingVertical: spacing.md,
-        borderRadius: 8,
+        borderRadius: borderRadius.md,
     },
     actionText: {
-        color: '#FFFFFF',
+        color: studentColors.textOnPrimary || '#3E2723',
         fontSize: typography.size.md,
-        fontWeight: typography.weight.semibold,
+        fontWeight: typography.weight.bold,
     },
 });

@@ -1,7 +1,8 @@
 import firestore from '@react-native-firebase/firestore';
 import {Quiz, Question, QuizAttempt, ServiceResult} from '../../types';
 import {COLLECTIONS} from '../../constants';
-import {generateId} from '../../utils';
+import {generateId, withTimeout} from '../../utils';
+import {logCrashError} from '../crashlytics';
 
 // ─── Admin Queries ────────────────────────────────────────────
 
@@ -221,6 +222,7 @@ export async function getQuizQuestions(
       .filter(q => !q.isDeleted);
     return {success: true, data};
   } catch (error) {
+    logCrashError(error, 'quiz_error', {action: 'getQuizQuestions', quizId});
     return {success: false, error: (error as Error).message};
   }
 }
@@ -306,6 +308,11 @@ export async function saveQuizAttempt(
     await batch.commit();
     return {success: true};
   } catch (error) {
+    logCrashError(error, 'quiz_error', {
+      action: 'saveQuizAttempt',
+      userId: attempt.userId,
+      quizId: attempt.quizId,
+    });
     return {success: false, error: (error as Error).message};
   }
 }
@@ -318,10 +325,12 @@ export async function seedDemoQuizIfNeeded(): Promise<void> {
   }
 
   try {
-    const snapshot = await firestore()
-      .collection(COLLECTIONS.QUIZZES)
-      .limit(1)
-      .get();
+    // Wrapped in a 4 s timeout so a slow Firestore connection in DEV
+    // can't stall startup or starve other queries.
+    const snapshot = await withTimeout(
+      firestore().collection(COLLECTIONS.QUIZZES).limit(1).get(),
+      4000,
+    );
 
     if (!snapshot.empty) {
       return;

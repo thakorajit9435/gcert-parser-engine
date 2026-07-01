@@ -13,7 +13,6 @@ import {
   getTotalQuizzes,
   getTotalQuizAttempts,
 } from '../services/firebase/content.service';
-import {getRevenueSummary} from '../services/firebase/subscriptions.service';
 
 interface UseDashboardStatsReturn {
   stats: DashboardStats | null;
@@ -55,7 +54,6 @@ export function useDashboardStats(): UseDashboardStatsReturn {
           totalChapters,
           totalQuizzes,
           totalQuizAttempts,
-          revenueResult,
         ] = await Promise.all([
           getTotalUserCount(),
           getPremiumUserCount(),
@@ -65,7 +63,6 @@ export function useDashboardStats(): UseDashboardStatsReturn {
           getTotalChapters(),
           getTotalQuizzes(),
           getTotalQuizAttempts(),
-          getRevenueSummary(),
         ]);
 
         const dashboardStats: DashboardStats = {
@@ -77,7 +74,7 @@ export function useDashboardStats(): UseDashboardStatsReturn {
           totalChapters,
           totalQuizzes,
           totalQuizAttempts,
-          revenue: revenueResult.success ? revenueResult.data ?? 0 : 0,
+          revenue: 0,
           topPerformingStandard: null, // Would require aggregation query
           systemHealthy: true,
           lastUpdated: new Date(),

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity, Alert,
-    ActivityIndicator, Modal, TextInput, ScrollView
+    ActivityIndicator, Modal, TextInput, ScrollView,
 } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
 import { adminColors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -13,7 +13,7 @@ import {
     addBook,
     updateBook,
     deleteBook,
-    uploadBookPdf
+    uploadBookPdf,
 } from '../../services/firebase/book.service';
 
 export function AdminBookManagementScreen(): React.JSX.Element {
@@ -46,7 +46,7 @@ export function AdminBookManagementScreen(): React.JSX.Element {
     const [saving, setSaving] = useState(false);
 
     const fetchItems = useCallback(async () => {
-        if (!selectedStandard) return;
+        if (!selectedStandard) {return;}
         setLoading(true);
         // By passing activeOnly=false, admin sees all books
         const result = await getBooksByStandard(selectedStandard, false);
@@ -171,7 +171,7 @@ export function AdminBookManagementScreen(): React.JSX.Element {
                 text: 'Delete', style: 'destructive', onPress: async () => {
                     await deleteBook(item.id);
                     fetchItems();
-                }
+                },
             },
         ]);
     };

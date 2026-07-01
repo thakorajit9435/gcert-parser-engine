@@ -16,5 +16,8 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }
-  ]
+  ],
+  "react-native": {
+    "Crashlytics_debug_enabled": true
+  }
 }

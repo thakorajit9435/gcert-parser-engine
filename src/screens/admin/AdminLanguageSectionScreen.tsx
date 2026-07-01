@@ -22,7 +22,7 @@ const LANGUAGE_TABS: { key: Language; label: string }[] = [
 ];
 
 export function AdminLanguageSectionScreen(): React.JSX.Element {
-    const { standards } = useStandards();
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
 
     const [selectedStandard, setSelectedStandard] = useState<string>('');
     const [selectedLanguage, setSelectedLanguage] = useState<Language>('gujarati');
@@ -228,7 +228,17 @@ export function AdminLanguageSectionScreen(): React.JSX.Element {
 
                             {/* Standard picker */}
                             <Text style={styles.fieldLabel}>Standard *</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stdRow} contentContainerStyle={styles.stdRowContent}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.stdRow, styles.modalStdRow]} contentContainerStyle={styles.stdRowContent}>
+                                {standardsLoading ? (
+                                    <View style={styles.stdLoading}>
+                                        <ActivityIndicator size="small" color={adminColors.primary} />
+                                        <Text style={styles.stdLoadingText}>Loading standards…</Text>
+                                    </View>
+                                ) : standards.length === 0 ? (
+                                    <View style={styles.stdLoading}>
+                                        <Text style={styles.stdLoadingText}>No standards found</Text>
+                                    </View>
+                                ) : null}
                                 {standards.map(s => (
                                     <TouchableOpacity
                                         key={s.id}
@@ -241,6 +251,12 @@ export function AdminLanguageSectionScreen(): React.JSX.Element {
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
+                            {isFallback && (
+                                <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                            )}
+                            {!formSelectedStandard && standards.length > 0 && (
+                                <Text style={styles.validationHint}>Please select a standard</Text>
+                            )}
 
                             <Text style={styles.fieldLabel}>Title *</Text>
                             <TextInput
@@ -412,5 +428,34 @@ const styles = StyleSheet.create({
         fontSize: typography.size.md,
         fontWeight: typography.weight.semibold,
         color: adminColors.primary,
+    },
+    modalStdRow: {
+        maxHeight: 60,
+        minHeight: 50,
+        borderBottomWidth: 0,
+        backgroundColor: 'transparent',
+    },
+    stdLoading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    stdLoadingText: {
+        color: adminColors.textMuted,
+        fontSize: typography.size.sm,
+    },
+    validationHint: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        marginLeft: spacing.md,
+    },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        marginLeft: spacing.md,
+        fontWeight: typography.weight.medium,
     },
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, Alert, RefreshControl } from 'react-native';
-import { adminColors, typography, spacing, borderRadius } from '../../theme';
+import { adminColors, typography, spacing } from '../../theme';
 import { LoadingState, Card, TextInput } from '../../components/common';
 import { Button } from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';

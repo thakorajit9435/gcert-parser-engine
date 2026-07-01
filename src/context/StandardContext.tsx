@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthContext } from './AuthContext';
+import { logAnalyticsEvent } from '../services/analytics';
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export function StandardProvider({ children }: StandardProviderProps): React.JSX
 
     const handleSetSelectedStandard = async (standard: string) => {
         setSelectedStandard(standard);
+        logAnalyticsEvent('standard_change', { standard: Number(standard) || 1 });
         if (userProfile?.uid) {
             try {
                 const docId = `selected_standard_${userProfile.uid}`;

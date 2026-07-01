@@ -46,7 +46,7 @@ export function PremiumManagementScreen(): React.JSX.Element {
     }, []);
 
     const loadMore = useCallback(async (): Promise<void> => {
-        if (!hasMore || loadingMore) return;
+        if (!hasMore || loadingMore) {return;}
         setLoadingMore(true);
         const result = await SubsService.getSubscriptions(DEFAULT_PAGE_SIZE, lastDoc);
         if (result.success && result.data) {
@@ -65,7 +65,7 @@ export function PremiumManagementScreen(): React.JSX.Element {
             {
                 text: 'Next',
                 onPress: (userId) => {
-                    if (!userId?.trim()) return;
+                    if (!userId?.trim()) {return;}
                     setActivatingUserId(userId.trim());
                     showPlanSelection(userId.trim());
                 },
@@ -125,7 +125,7 @@ export function PremiumManagementScreen(): React.JSX.Element {
         </View>
     );
 
-    if (loading) return <LoadingState message="Loading subscriptions…" />;
+    if (loading) {return <LoadingState message="Loading subscriptions…" />;}
 
     return (
         <View style={styles.container}>

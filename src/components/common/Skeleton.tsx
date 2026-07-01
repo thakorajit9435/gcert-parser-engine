@@ -14,7 +14,7 @@ export function Skeleton({
     height = 20,
     borderRadius = 8,
     style,
-    baseColor = '#E0E5EC'
+    baseColor = '#E0E5EC',
 }: SkeletonProps): React.JSX.Element {
     const opacity = useRef(new Animated.Value(0.3)).current;
 
@@ -30,7 +30,7 @@ export function Skeleton({
                     toValue: 0.3,
                     duration: 800,
                     useNativeDriver: true,
-                })
+                }),
             ])
         ).start();
     }, [opacity]);
@@ -46,7 +46,7 @@ export function Skeleton({
                     opacity,
                     backgroundColor: baseColor,
                 },
-                style
+                style,
             ]}
         />
     );

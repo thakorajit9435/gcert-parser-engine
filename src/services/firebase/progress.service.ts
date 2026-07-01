@@ -19,7 +19,7 @@ export async function markChapterCompleted(
     if (!querySnapshot.empty) {
       // Document exists, update it
       const docId = querySnapshot.docs[0]?.id;
-      if (!docId) return false;
+      if (!docId) {return false;}
       await firestore()
         .collection(COLLECTIONS.USER_PROGRESS)
         .doc(docId)
@@ -66,7 +66,7 @@ export async function updateChapterLastOpened(
 
     if (!querySnapshot.empty) {
       const docId = querySnapshot.docs[0]?.id;
-      if (!docId) return;
+      if (!docId) {return;}
       await firestore()
         .collection(COLLECTIONS.USER_PROGRESS)
         .doc(docId)
@@ -111,7 +111,7 @@ export async function toggleChapterBookmark(
 
     if (!querySnapshot.empty) {
       const docId = querySnapshot.docs[0]?.id;
-      if (!docId) return false;
+      if (!docId) {return false;}
       await firestore()
         .collection(COLLECTIONS.USER_PROGRESS)
         .doc(docId)

@@ -21,7 +21,10 @@ export const COLLECTIONS = {
   LANGUAGE_SECTION: 'languageSection',
   BLUEPRINTS: 'blueprints',
   OLD_PAPERS: 'oldPapers',
-  USER_BOOKMARKS: 'userBookmarks',
+  USER_BOOKMARKS: 'bookmarks',
+  PDF_READING_PROGRESS: 'pdfReadingProgress',
+  // ── Bulk Import (additive only) ──────────────────────────────
+  IMPORT_LOGS: 'importLogs',
 } as const;
 
 // ─── Route Names ──────────────────────────────────────────────

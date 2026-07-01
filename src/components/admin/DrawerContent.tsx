@@ -16,19 +16,24 @@ interface DrawerItem {
     icon: string;
     route: string;
     superAdminOnly?: boolean;
+    /** If true, rendered as an indented sub-item */
+    isSub?: boolean;
+    /** If true, rendered as a section separator label */
+    isSectionHeader?: boolean;
 }
 
 const DRAWER_ITEMS: DrawerItem[] = [
     { label: 'Dashboard', icon: '📊', route: 'DashboardStack' },
     { label: 'Content', icon: '📚', route: 'ContentStack' },
+    { label: 'Bulk Subject Import', icon: '📥', route: 'BulkSubjectStack', isSub: true },
+    { label: 'Bulk Chapter Import', icon: '📥', route: 'BulkChapterStack', isSub: true },
+    { label: 'Gujarat Board Import', icon: '🇮🇳', route: 'GujaratContentStack', isSub: true },
     { label: 'Quizzes', icon: '📝', route: 'QuizStack' },
     { label: 'Practice MCQ', icon: '🧪', route: 'PracticeStack' },
     { label: 'Language Section', icon: '📖', route: 'LanguageSectionStack' },
     { label: 'Blueprint', icon: '📋', route: 'BlueprintStack' },
     { label: 'Old Papers', icon: '📄', route: 'OldPapersStack' },
-    { label: 'Books', icon: '📚', route: 'BookManagementStack' },
     { label: 'Users', icon: '👥', route: 'UsersStack' },
-    { label: 'Premium', icon: '💎', route: 'PremiumStack', superAdminOnly: true },
     { label: 'Leaderboard', icon: '🏆', route: 'LeaderboardStack' },
     { label: 'Notifications', icon: '🔔', route: 'NotificationsStack' },
     { label: 'App Config', icon: '⚙️', route: 'ConfigStack', superAdminOnly: true },
@@ -78,15 +83,20 @@ export function AdminDrawerContent(
                     return (
                         <TouchableOpacity
                             key={item.route}
-                            style={[styles.drawerItem, isActive && styles.drawerItemActive]}
+                            style={[
+                                styles.drawerItem,
+                                isActive && styles.drawerItemActive,
+                                item.isSub && styles.drawerItemSub,
+                            ]}
                             onPress={() => props.navigation.navigate(item.route)}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.drawerIcon}>{item.icon}</Text>
+                            <Text style={[styles.drawerIcon, item.isSub && styles.drawerIconSub]}>{item.icon}</Text>
                             <Text
                                 style={[
                                     styles.drawerLabel,
                                     isActive && styles.drawerLabelActive,
+                                    item.isSub && styles.drawerLabelSub,
                                 ]}
                             >
                                 {item.label}
@@ -183,6 +193,23 @@ const styles = StyleSheet.create({
     drawerLabelActive: {
         color: adminColors.primary,
         fontWeight: typography.weight.semibold,
+    },
+    // ── Sub-item styles (used by Bulk Import items) ───────────────────────────
+    drawerItemSub: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.xl,
+        marginLeft: spacing.xl + spacing.sm,
+        marginHorizontal: spacing.sm,
+        borderLeftWidth: 2,
+        borderLeftColor: adminColors.border,
+    },
+    drawerIconSub: {
+        fontSize: 14,
+        color: adminColors.textMuted,
+    },
+    drawerLabelSub: {
+        fontSize: typography.size.sm,
+        color: adminColors.textMuted,
     },
     activeIndicator: {
         width: 4,

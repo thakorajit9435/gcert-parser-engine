@@ -62,7 +62,7 @@ export function LeaderboardManagementScreen(): React.JSX.Element {
                 text: 'Adjust',
                 onPress: async (val) => {
                     const delta = parseInt(val ?? '0', 10);
-                    if (isNaN(delta) || delta === 0) return;
+                    if (isNaN(delta) || delta === 0) {return;}
                     await UsersService.adjustUserPoints(entry.uid, delta);
                     if (currentUser) {
                         await logAuditAction({
@@ -79,9 +79,9 @@ export function LeaderboardManagementScreen(): React.JSX.Element {
     };
 
     const getMedalIcon = (rank: number): string => {
-        if (rank === 1) return '🥇';
-        if (rank === 2) return '🥈';
-        if (rank === 3) return '🥉';
+        if (rank === 1) {return '🥇';}
+        if (rank === 2) {return '🥈';}
+        if (rank === 3) {return '🥉';}
         return `#${rank}`;
     };
 

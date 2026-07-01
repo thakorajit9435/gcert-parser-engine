@@ -27,7 +27,7 @@ export function SubjectMCQScreen({ route, navigation }: { route: any; navigation
             subjectId,
             subjectName,
             standardId,
-            session
+            session,
         });
     };
 
@@ -40,7 +40,7 @@ export function SubjectMCQScreen({ route, navigation }: { route: any; navigation
                 subjectId,
                 subjectName,
                 mode: 'mix',
-                count: questionCount
+                count: questionCount,
             });
         }
     };

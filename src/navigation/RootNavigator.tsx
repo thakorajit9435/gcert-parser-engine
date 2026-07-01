@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthContext } from '../context/AuthContext';
 import { useStartup } from '../hooks/useStartup';
@@ -13,6 +13,7 @@ import { SelectStandardScreen } from '../screens/auth/SelectStandardScreen';
 import { VerifyEmailScreen } from '../screens/auth/VerifyEmailScreen';
 import { ADMIN_ROLES } from '../types';
 import { StandardProvider } from '../context/StandardContext';
+import NativeSplashScreen from 'react-native-splash-screen';
 
 /**
  * Root navigator — routes based on startup phase and auth state.
@@ -37,6 +38,23 @@ export function RootNavigator(): React.JSX.Element {
     // ── Auth state ────────────────────────────────────────────
     const { isAuthenticated, isLoading, isBlocked, role, userData } = useAuth();
     const { isEmailVerified } = useAuthContext();
+
+    // ── Hide native splash screen once ready ─────────────────
+    // The native splash (react-native-splash-screen) is shown in
+    // MainActivity.kt. We hide it once startup checks complete AND
+    // auth state is resolved so the user sees the correct screen.
+    const isStartupDone = phase !== 'initializing' && phase !== 'checking_network' && phase !== 'checking_version';
+    const isReady = isStartupDone && !isLoading;
+
+    useEffect(() => {
+        if (isReady) {
+            console.log('[RootNavigator] ✅ Hiding native splash screen');
+            NativeSplashScreen.hide();
+        }
+    }, [isReady]);
+
+    // ── Diagnostic log (remove after debugging) ──────────────
+    console.log(`[RootNavigator] phase=${phase} isLoading=${isLoading} isAuthenticated=${isAuthenticated} role=${role}`);
 
     // ── Phase: still initializing / running checks ────────────
     if (phase === 'initializing' || phase === 'checking_network') {

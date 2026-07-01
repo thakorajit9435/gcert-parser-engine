@@ -7,10 +7,10 @@ import {
     TouchableOpacity,
     Alert,
     ActivityIndicator,
-    SafeAreaView,
     StatusBar,
     Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
@@ -354,6 +354,14 @@ export function ProfileScreen(): React.JSX.Element {
                                 onPress={() => {
                                     console.log('[ProfileScreen] Navigating to TermsConditions');
                                     (navigation as any).navigate('TermsConditions');
+                                }}
+                            />
+                            <NavRow
+                                icon="🛡️"
+                                label="Privacy & Data Info"
+                                onPress={() => {
+                                    console.log('[ProfileScreen] Navigating to PrivacyInfo');
+                                    (navigation as any).navigate('PrivacyInfo');
                                 }}
                             />
                             <NavRow

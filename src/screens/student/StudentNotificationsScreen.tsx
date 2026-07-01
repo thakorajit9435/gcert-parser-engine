@@ -21,11 +21,12 @@ import {
     FlatList,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
     StatusBar,
     RefreshControl,
     ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useAuthContext } from '../../context/AuthContext';
 import {
     subscribeToUserNotifications,
@@ -34,6 +35,7 @@ import {
 } from '../../services/firebase/notifications.service';
 import { AppNotification } from '../../types';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { logAnalyticsEvent } from '../../services/analytics';
 
 // ─── Design Tokens ──────────────────────────────────────────────
 
@@ -90,11 +92,11 @@ function getTypeEmoji(targetType: string): string {
 export function StudentNotificationsScreen(): React.JSX.Element {
     const { user, userData } = useAuthContext();
 
+    const navigation = useNavigation<any>();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [readIds, setReadIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [markingRead, setMarkingRead] = useState<string | null>(null);
 
     const uid = user?.uid ?? '';
     const standard = userData?.standard ?? null;
@@ -115,24 +117,29 @@ export function StudentNotificationsScreen(): React.JSX.Element {
 
     // ── Real-time read status subscription ───────────────────────
     useEffect(() => {
-        if (!uid || notifications.length === 0) return;
+        if (!uid) return;
 
-        const ids = notifications.map(n => n.id);
-        const unsub = subscribeToReadStatus(uid, ids, (newReadIds) => {
+        const unsub = subscribeToReadStatus(uid, (newReadIds) => {
             setReadIds(newReadIds);
         });
 
         return () => unsub();
-    }, [uid, notifications]);
+    }, [uid]);
 
-    // ── Mark as read ─────────────────────────────────────────────
+    // ── Mark as read & Navigate ──────────────────────────────────
     const handleTap = useCallback(async (notif: AppNotification) => {
-        if (!uid || readIds.has(notif.id)) return;
+        logAnalyticsEvent('notification_open', {
+            notification_id: notif.id,
+            title: notif.title,
+            target_type: notif.targetType,
+        });
 
-        setMarkingRead(notif.id);
-        await markNotificationRead(notif.id, uid);
-        setMarkingRead(null);
-    }, [uid, readIds]);
+        if (uid && !readIds.has(notif.id)) {
+            markNotificationRead(notif.id, uid).catch(err => console.warn(err));
+        }
+
+        navigation.navigate('NotificationDetail', { notification: notif });
+    }, [uid, readIds, navigation]);
 
     const handleRefresh = useCallback(() => {
         setRefreshing(true);
@@ -148,7 +155,6 @@ export function StudentNotificationsScreen(): React.JSX.Element {
     // ── Render Item ─────────────────────────────────────────────
     const renderItem = ({ item }: { item: AppNotification }) => {
         const isRead = readIds.has(item.id);
-        const isMarking = markingRead === item.id;
 
         return (
             <TouchableOpacity
@@ -166,13 +172,9 @@ export function StudentNotificationsScreen(): React.JSX.Element {
                         <Text style={[styles.cardTitle, !isRead && styles.cardTitleUnread]} numberOfLines={1}>
                             {item.title}
                         </Text>
-                        {isMarking ? (
-                            <ActivityIndicator size="small" color={C.unread} style={styles.markingIndicator} />
-                        ) : (
-                            <Text style={styles.timeText}>
-                                {formatRelativeTime(item.createdAt)}
-                            </Text>
-                        )}
+                        <Text style={styles.timeText}>
+                            {formatRelativeTime(item.createdAt)}
+                        </Text>
                     </View>
 
                     {/* Message */}
@@ -190,8 +192,8 @@ export function StudentNotificationsScreen(): React.JSX.Element {
                             <Text style={styles.typeBadgeText}>
                                 {item.targetType === 'all' ? 'General'
                                     : item.targetType === 'standard' ? `Std ${(item as any).targetStandard ?? ''}`
-                                    : item.targetType === 'individual' ? 'Personal'
-                                    : item.targetType}
+                                        : item.targetType === 'individual' ? 'Personal'
+                                            : item.targetType}
                             </Text>
                         </View>
                         {isRead && <Text style={styles.readText}>✓ Read</Text>}

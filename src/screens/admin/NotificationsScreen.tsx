@@ -39,7 +39,7 @@ export function NotificationsScreen(): React.JSX.Element {
     }, []);
 
     const loadMore = useCallback(async (): Promise<void> => {
-        if (!hasMore || loadingMore) return;
+        if (!hasMore || loadingMore) {return;}
         setLoadingMore(true);
         const result = await NotifService.getNotifications(DEFAULT_PAGE_SIZE, lastDoc);
         if (result.success && result.data) {

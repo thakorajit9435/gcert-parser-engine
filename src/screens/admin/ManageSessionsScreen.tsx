@@ -108,7 +108,7 @@ export function ManageSessionsScreen(): React.JSX.Element {
     const handleDelete = useCallback((session: Session) => {
         Alert.alert(
             'Delete Session',
-            `Are you sure you want to delete this session item?`,
+            'Are you sure you want to delete this session item?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {

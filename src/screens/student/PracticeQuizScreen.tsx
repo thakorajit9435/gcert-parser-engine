@@ -30,7 +30,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
             sessionId: session,
             subjectId,
             chapterId,
-            count
+            count,
         });
     }, []);
 
@@ -42,7 +42,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
     }, [loading, mcqs.length]);
 
     useEffect(() => {
-        if (loading || isFinished || mcqs.length === 0) return;
+        if (loading || isFinished || mcqs.length === 0) {return;}
 
         const timer = setInterval(() => {
             setTimeLeft((prev) => {
@@ -73,7 +73,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
         if (currentQ) {
             setSelectedAnswers(prev => ({
                 ...prev,
-                [currentQ.id]: index
+                [currentQ.id]: index,
             }));
         }
     };
@@ -131,7 +131,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
             if (correctAnswers > 0) {
                 const userRef = firestore().collection(COLLECTIONS.USERS).doc(userProfile.uid);
                 await userRef.update({
-                    points: firestore.FieldValue.increment(correctAnswers * 2) // 2 points per correct practice
+                    points: firestore.FieldValue.increment(correctAnswers * 2), // 2 points per correct practice
                 });
             }
 
@@ -215,7 +215,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
 
     const currentQ = mcqs[currentIndex];
 
-    if (!currentQ) return <></>;
+    if (!currentQ) {return <></>;}
 
     const isAnswered = selectedAnswers[currentQ.id] !== undefined;
 
@@ -239,7 +239,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
                 <Animated.View
                     style={[
                         styles.progressBarFill,
-                        { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }
+                        { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
                     ]}
                 />
             </View>
@@ -258,7 +258,7 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
                                 key={idx}
                                 style={[
                                     styles.optionBtn,
-                                    isSelected && styles.optionSelected
+                                    isSelected && styles.optionSelected,
                                 ]}
                                 onPress={() => handleSelectOption(idx)}
                                 activeOpacity={0.7}

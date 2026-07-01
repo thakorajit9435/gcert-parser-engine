@@ -2,6 +2,8 @@ import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { adminColors, typography, spacing, borderRadius } from '../../theme';
 
+import { logCrashError } from '../../services/crashlytics';
+
 interface ErrorBoundaryProps {
     children: ReactNode;
     fallbackMessage?: string;
@@ -27,6 +29,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
         // Log to analytics/crash reporting service
+        logCrashError(error, 'general_error', {
+            componentStack: errorInfo.componentStack ? errorInfo.componentStack.substring(0, 1000) : '',
+        });
         if (__DEV__) {
             // eslint-disable-next-line no-console
             console.error('ErrorBoundary caught:', error, errorInfo);

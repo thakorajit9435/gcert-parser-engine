@@ -9,6 +9,8 @@ import { studentColors, typography } from '../theme';
 import { useAuthContext } from '../context/AuthContext';
 import { subscribeToUserNotifications, subscribeToReadStatus } from '../services/firebase/notifications.service';
 import { StudentNotificationsScreen } from '../screens/student/StudentNotificationsScreen';
+import { NotificationDetailScreen } from '../screens/student/NotificationDetailScreen';
+import { AppNotification } from '../types';
 import {
     StudentHomeScreen,
     StudentSubjectsScreen,
@@ -31,7 +33,7 @@ import { OldPapersListScreen } from '../screens/student/OldPapersListScreen';
 import { OldPaperDetailScreen } from '../screens/student/OldPaperDetailScreen';
 import { BookmarkListScreen } from '../screens/student/BookmarkListScreen';
 import { PdfViewerScreen } from '../screens/shared';
-import { PrivacyPolicyScreen, TermsConditionsScreen } from '@/screens/common';
+import { PrivacyPolicyScreen, TermsConditionsScreen, PrivacyInfoScreen } from '../screens/common';
 
 type StudentRootParamList = {
     MainTabs: undefined;
@@ -53,8 +55,10 @@ type StudentRootParamList = {
     BookmarkList: undefined;
     PremiumAccess: undefined;
     NotificationsInbox: undefined;
+    NotificationDetail: { notification: AppNotification };
     PrivacyPolicy: undefined;
     TermsConditions: undefined;
+    PrivacyInfo: undefined;
 };
 
 type StudentTabParamList = {
@@ -91,19 +95,31 @@ function NotificationBell({ navigation }: { navigation: any }): React.JSX.Elemen
         const uid = user.uid;
         const standard = userData?.standard ?? null;
 
-        let notifIds: string[] = [];
+        let active = true;
+        let unsubReads: (() => void) | null = null;
+        let latestNotifs: string[] = [];
+        let latestReads: Set<string> = new Set();
+
+        const updateUnreadCount = (notifs: string[], reads: Set<string>) => {
+            if (!active) return;
+            setUnreadCount(notifs.filter(id => !reads.has(id)).length);
+        };
 
         const unsubNotifs = subscribeToUserNotifications(uid, standard, (notifs) => {
-            notifIds = notifs.map(n => n.id);
-
-            const unsubReads = subscribeToReadStatus(uid, notifIds, (readSet) => {
-                setUnreadCount(notifIds.filter(id => !readSet.has(id)).length);
-            });
-
-            return () => unsubReads();
+            latestNotifs = notifs.map(n => n.id);
+            updateUnreadCount(latestNotifs, latestReads);
         });
 
-        return () => unsubNotifs();
+        unsubReads = subscribeToReadStatus(uid, (reads) => {
+            latestReads = reads;
+            updateUnreadCount(latestNotifs, latestReads);
+        });
+
+        return () => {
+            active = false;
+            unsubNotifs();
+            if (unsubReads) unsubReads();
+        };
     }, [user?.uid, userData?.standard]);
 
     return (
@@ -379,6 +395,17 @@ export function StudentTabs(): React.JSX.Element {
                 }}
             />
             <Stack.Screen
+                name="NotificationDetail"
+                component={NotificationDetailScreen}
+                options={{
+                    headerShown: true,
+                    headerStyle: { backgroundColor: studentColors.surface },
+                    headerTintColor: studentColors.textPrimary,
+                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    title: 'Notification',
+                }}
+            />
+            <Stack.Screen
                 name="PrivacyPolicy"
                 component={PrivacyPolicyScreen}
                 options={{
@@ -398,6 +425,17 @@ export function StudentTabs(): React.JSX.Element {
                     headerTintColor: studentColors.textPrimary,
                     headerTitleStyle: { fontWeight: typography.weight.semibold },
                     title: 'Terms & Conditions',
+                }}
+            />
+            <Stack.Screen
+                name="PrivacyInfo"
+                component={PrivacyInfoScreen}
+                options={{
+                    headerShown: true,
+                    headerStyle: { backgroundColor: studentColors.surface },
+                    headerTintColor: studentColors.textPrimary,
+                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    title: 'Privacy & Data',
                 }}
             />
         </Stack.Navigator>

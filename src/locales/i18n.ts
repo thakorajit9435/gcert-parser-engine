@@ -1,9 +1,11 @@
 import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import {initReactI18next} from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import en from './en.json';
 import gu from './gu.json';
+
+import {logAnalyticsEvent} from '../services/analytics';
 
 const LANGUAGE_KEY = 'appLanguage';
 
@@ -27,6 +29,7 @@ const languageDetectorPlugin = {
   cacheUserLanguage: async (language: string) => {
     try {
       await AsyncStorage.setItem(LANGUAGE_KEY, language);
+      logAnalyticsEvent('language_change', {language});
     } catch (error) {
       console.log('Error saving language', error);
     }
@@ -47,7 +50,7 @@ i18n
     },
     fallbackLng: 'gu',
     interpolation: {
-      escapeValue: false, 
+      escapeValue: false,
     },
     compatibilityJSON: 'v4',
   });

@@ -97,7 +97,7 @@ export function NotificationsScreen(): React.JSX.Element {
     }, []);
 
     const loadMore = useCallback(async (): Promise<void> => {
-        if (!hasMore || loadingMore) return;
+        if (!hasMore || loadingMore) {return;}
         setLoadingMore(true);
         const result = await NotifService.getNotifications(DEFAULT_PAGE_SIZE, lastDoc);
         if (result.success && result.data) {
@@ -113,7 +113,7 @@ export function NotificationsScreen(): React.JSX.Element {
     // ── User Search ───────────────────────────────────────────────
 
     useEffect(() => {
-        if (targetType !== 'individual') return;
+        if (targetType !== 'individual') {return;}
         if (!userSearch.trim()) {
             setSearchResults([]);
             return;
@@ -167,7 +167,7 @@ export function NotificationsScreen(): React.JSX.Element {
             Alert.alert('Select User', 'Please search and select a target student.');
             return;
         }
-        if (!userProfile) return;
+        if (!userProfile) {return;}
 
         setFormLoading(true);
         try {
@@ -222,8 +222,8 @@ export function NotificationsScreen(): React.JSX.Element {
     };
 
     const getTargetLabel = (item: AppNotification): string => {
-        if (item.targetType === 'standard') return `Std ${(item as any).targetStandard ?? '?'}`;
-        if (item.targetType === 'individual') return 'Individual';
+        if (item.targetType === 'standard') {return `Std ${(item as any).targetStandard ?? '?'}`;}
+        if (item.targetType === 'individual') {return 'Individual';}
         return 'All';
     };
 

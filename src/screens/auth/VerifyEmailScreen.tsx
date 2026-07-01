@@ -3,12 +3,12 @@ import {
     View,
     Text,
     StyleSheet,
-    SafeAreaView,
     StatusBar,
     TouchableOpacity,
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthContext } from '../../context/AuthContext';
 
 // ─── Design Tokens ─────────────────────────────────────────────
@@ -120,18 +120,33 @@ export function VerifyEmailScreen(): React.JSX.Element {
                     <Text style={styles.title}>Verify Your Email</Text>
 
                     <Text style={styles.subtitle}>
-                        We have sent a verification link to your email.
+                        We have sent a verification link to your email:
                     </Text>
                     <Text style={styles.emailText} numberOfLines={1}>
                         {user?.email ?? 'your email address'}
                     </Text>
 
-                    <Text style={styles.instruction}>
-                        Please verify your email to continue.
-                    </Text>
-
-                    {/* Divider */}
-                    <View style={styles.divider} />
+                    {/* Instruction Checklist Box */}
+                    <View style={styles.instructionsContainer}>
+                        <View style={styles.instructionRow}>
+                            <Text style={styles.instructionBullet}>📥</Text>
+                            <Text style={styles.instructionText}>
+                                <Text style={styles.boldText}>Check Inbox first:</Text> Open the verification email and click the link.
+                            </Text>
+                        </View>
+                        <View style={styles.instructionRow}>
+                            <Text style={styles.instructionBullet}>⚠️</Text>
+                            <Text style={styles.instructionText}>
+                                <Text style={styles.boldText}>Check Spam/Junk folder:</Text> If the email is not in your Inbox, check your Spam folder.
+                            </Text>
+                        </View>
+                        <View style={styles.instructionRow}>
+                            <Text style={styles.instructionBullet}>⭐</Text>
+                            <Text style={styles.instructionText}>
+                                <Text style={styles.boldText}>Mark as "Not Spam":</Text> Doing this ensures future notification emails are delivered directly to your Inbox.
+                            </Text>
+                        </View>
+                    </View>
 
                     {/* I've Verified */}
                     <TouchableOpacity
@@ -171,13 +186,6 @@ export function VerifyEmailScreen(): React.JSX.Element {
                             </>
                         )}
                     </TouchableOpacity>
-                </View>
-
-                {/* Info hint */}
-                <View style={styles.infoBox}>
-                    <Text style={styles.infoText}>
-                        ℹ️{'  '}Check your spam / junk folder if you don't see the email.
-                    </Text>
                 </View>
 
                 {/* Logout link */}
@@ -348,5 +356,32 @@ const styles = StyleSheet.create({
     logoutText: {
         fontSize: 13,
         color: C.textMuted,
+    },
+    instructionsContainer: {
+        width: '100%',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        gap: 12,
+    },
+    instructionRow: {
+        flexDirection: 'row',
+        gap: 10,
+        alignItems: 'flex-start',
+    },
+    instructionBullet: {
+        fontSize: 16,
+        marginTop: 2,
+    },
+    instructionText: {
+        flex: 1,
+        fontSize: 13,
+        color: C.textSecondary,
+        lineHeight: 18,
+    },
+    boldText: {
+        fontWeight: '700',
+        color: C.textPrimary,
     },
 });

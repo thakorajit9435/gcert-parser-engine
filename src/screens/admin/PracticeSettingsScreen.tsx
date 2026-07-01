@@ -8,8 +8,7 @@ import { COLLECTIONS } from '../../constants';
 import { PracticeSettings } from '../../types';
 
 export function PracticeSettingsScreen(): React.JSX.Element {
-    const { standards, loading: standardsLoading } = useStandards();
-    console.log("🚀 ~ PracticeSettingsScreen ~ standards:", standards)
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
 
     const [selectedStandard, setSelectedStandard] = useState<string | null>(null);
     const [selectedSession, setSelectedSession] = useState<string | null>('1');
@@ -142,19 +141,24 @@ export function PracticeSettingsScreen(): React.JSX.Element {
                     {standardsLoading ? (
                         <ActivityIndicator size="small" color={adminColors.primary} style={{ padding: spacing.md }} />
                     ) : (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                            {standards.map((s) => (
-                                <TouchableOpacity
-                                    key={s.id}
-                                    style={[styles.chipSelect, selectedStandard === s.id && styles.chipSelectActive]}
-                                    onPress={() => setSelectedStandard(s.id)}
-                                >
-                                    <Text style={[styles.chipSelectText, selectedStandard === s.id && styles.chipSelectTextActive]}>
-                                        {s.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+                        <>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                                {standards.map((s) => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        style={[styles.chipSelect, selectedStandard === s.id && styles.chipSelectActive]}
+                                        onPress={() => setSelectedStandard(s.id)}
+                                    >
+                                        <Text style={[styles.chipSelectText, selectedStandard === s.id && styles.chipSelectTextActive]}>
+                                            {s.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                            {isFallback && (
+                                <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                            )}
+                        </>
                     )}
                 </View>
 
@@ -426,5 +430,11 @@ const styles = StyleSheet.create({
     chipSelectTextActive: {
         color: adminColors.surface,
         fontWeight: typography.weight.bold,
-    }
+    },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        fontWeight: typography.weight.medium,
+    },
 });

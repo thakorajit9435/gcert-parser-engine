@@ -8,20 +8,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
     function isStudent() {
-      return isAuthenticated() && getUserRole() == 'student';
+      return isAuthenticated() && userDocExists() && getUserRole() == 'student';
     }
 
     function isContentAdmin() {
-      return isAuthenticated() && getUserRole() == 'content_admin';
+      return isAuthenticated() && userDocExists() && getUserRole() == 'content_admin';
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && getUserRole() == 'super_admin';
+      return isAuthenticated() && userDocExists() && getUserRole() == 'super_admin';
     }
 
     function isAdmin() {
@@ -38,15 +42,22 @@ service cloud.firestore {
       // Users can read their own profile
       allow read: if isOwner(userId) || isAdmin();
 
+      // Allow any authenticated user to list users (e.g., leaderboard)
+      allow list: if isAuthenticated();
+
       // Users can update their own non-critical fields
       allow update: if isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isBlocked', 'premium']);
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'role', 'isBlocked', 'premium', 'isPremium'
+        ]);
 
       // Admins can update user profiles
       allow update: if isAdmin() &&
-        // Only super_admin can change roles
+        // Only super_admin can change roles or premium status
         (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 'premium', 'isPremium'
+          ]) ||
           isSuperAdmin()
         );
 
@@ -77,6 +88,12 @@ service cloud.firestore {
     match /quizzes/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+
+      // Questions subcollection under each quiz
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
     }
 
     match /questions/{docId} {
@@ -87,30 +104,22 @@ service cloud.firestore {
     // ─── Quiz Attempts ─────────────────────────────────
 
     match /quizAttempts/{docId} {
-      // Students can read their own attempts, admins can read all
-      allow read: if isAuthenticated() &&
+      // Single doc read: owner or admin
+      allow get: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
 
-      // Students can create their own attempts
+      // List queries: any authenticated user (filtered client-side by userId)
+      allow list: if isAuthenticated();
+
+      // Students can create their own attempts with basic data integrity
       allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid;
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.createdAt == request.time; // enforce server timestamp
 
       // Attempts cannot be updated or deleted
       allow update, delete: if false;
     }
 
-    // ─── Subscriptions ─────────────────────────────────
-
-    match /subscriptions/{docId} {
-      // Users can read their own subscriptions, admins can read all
-      allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-
-      // Only super_admin can create/update subscriptions
-      allow create, update: if isSuperAdmin();
-
-      allow delete: if false;
-    }
 
     // ─── Notifications ────────────────────────────────
 
@@ -122,7 +131,8 @@ service cloud.firestore {
     // ─── App Configuration ─────────────────────────────
 
     match /appConfig/{docId} {
-      allow read: if isAuthenticated();
+      // Anyone can read appConfig (needed for version check during splash screen)
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
@@ -134,7 +144,7 @@ service cloud.firestore {
     }
 
     // ─── Audit Logs ────────────────────────────────────
-
+    
     match /auditLogs/{docId} {
       // Only admins can read audit logs
       allow read: if isAdmin();
@@ -145,5 +155,117 @@ service cloud.firestore {
       // Audit logs cannot be updated or deleted
       allow update, delete: if false;
     }
+
+    // ─── MCQs (Practice System) ────────────────────────
+
+    match /mcqs/{docId} {
+      // All authenticated users can read MCQs
+      allow read: if isAuthenticated();
+
+      // Only admins can create, update, delete MCQs
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Practice Settings ─────────────────────────────
+
+    match /practiceSettings/{docId} {
+      // All authenticated users can read settings
+      allow read: if isAuthenticated();
+
+      // Only admins can write settings
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── User Progress ─────────────────────────────────
+
+    match /userProgress/{docId} {
+      allow get: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        (!request.resource.data.keys().hasAll(['updatedAt']) || request.resource.data.updatedAt == request.time);
+      allow update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // ─── PDF Reading Progress ──────────────────────────
+
+    match /pdfReadingProgress/{docId} {
+      allow get: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ─── Sessions ──────────────────────────────────────
+
+    match /sessions/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Daily Challenges ──────────────────────────────
+
+    match /dailyChallenges/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Language Section ──────────────────────────────
+
+    match /languageSection/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Blueprints ────────────────────────────────────
+
+    match /blueprints/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Bookmarks ─────────────────────────────────────
+
+    match /bookmarks/{docId} {
+      allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // ─── Old Papers ────────────────────────────────────
+
+    match /oldPapers/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Leaderboard ───────────────────────────────────────────────────────────
+
+    match /leaderboard/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Import Logs (Bulk Import history) ────────────────────────────────────
+
+    match /importLogs/{docId} {
+      // Only admins can create import log entries
+      allow create: if isAdmin();
+
+      // Only admins can read import history
+      allow read: if isAdmin();
+
+      // Logs are immutable — no updates or deletes
+      allow update, delete: if false;
+    }
+
   }
 }

@@ -1,0 +1,85 @@
+standardId,session,name,nameGu,icon,order
+1,1,Gujarati,ગુજરાતી,📚,1
+1,1,Mathematics,ગણિત,🔢,2
+1,1,Environmental Studies,આસપાસ,🌱,3
+1,2,Gujarati,ગુજરાતી,📚,1
+1,2,Mathematics,ગણિત,🔢,2
+1,2,Environmental Studies,આસપાસ,🌱,3
+2,1,Gujarati,ગુજરાતી,📚,1
+2,1,Mathematics,ગણિત,🔢,2
+2,1,Environmental Studies,આસપાસ,🌱,3
+2,2,Gujarati,ગુજરાતી,📚,1
+2,2,Mathematics,ગણિત,🔢,2
+2,2,Environmental Studies,આસપાસ,🌱,3
+3,1,Gujarati,ગુજરાતી,📚,1
+3,1,Hindi,હિન્દી,🇮🇳,2
+3,1,English,અંગ્રેજી,🔤,3
+3,1,Mathematics,ગણિત,🔢,4
+3,1,Environmental Studies,આસપાસ,🌱,5
+3,2,Gujarati,ગુજરાતી,📚,1
+3,2,Hindi,હિન્દી,🇮🇳,2
+3,2,English,અંગ્રેજી,🔤,3
+3,2,Mathematics,ગણિત,🔢,4
+3,2,Environmental Studies,આસપાસ,🌱,5
+4,1,Gujarati,ગુજરાતી,📚,1
+4,1,Hindi,હિન્દી,🇮🇳,2
+4,1,English,અંગ્રેજી,🔤,3
+4,1,Mathematics,ગણિત,🔢,4
+4,1,Environmental Studies,આસપાસ,🌱,5
+4,2,Gujarati,ગુજરાતી,📚,1
+4,2,Hindi,હિન્દી,🇮🇳,2
+4,2,English,અંગ્રેજી,🔤,3
+4,2,Mathematics,ગણિત,🔢,4
+4,2,Environmental Studies,આસપાસ,🌱,5
+5,1,Gujarati,ગુજરાતી,📚,1
+5,1,Hindi,હિન્દી,🇮🇳,2
+5,1,English,અંગ્રેજી,🔤,3
+5,1,Mathematics,ગણિત,🔢,4
+5,1,Environmental Studies,પર્યાવરણ,🌿,5
+5,2,Gujarati,ગુજરાતી,📚,1
+5,2,Hindi,હિન્દી,🇮🇳,2
+5,2,English,અંગ્રેજી,🔤,3
+5,2,Mathematics,ગણિત,🔢,4
+5,2,Environmental Studies,પર્યાવરણ,🌿,5
+6,1,Gujarati,ગુજરાતી,📚,1
+6,1,Hindi,હિન્દી,🇮🇳,2
+6,1,English,અંગ્રેજી,🔤,3
+6,1,Mathematics,ગણિત,🔢,4
+6,1,Science,વિજ્ઞાન,🔬,5
+6,1,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+6,1,Sanskrit,સંસ્કૃત,🕉️,7
+6,2,Gujarati,ગુજરાતી,📚,1
+6,2,Hindi,હિન્દી,🇮🇳,2
+6,2,English,અંગ્રેજી,🔤,3
+6,2,Mathematics,ગણિત,🔢,4
+6,2,Science,વિજ્ઞાન,🔬,5
+6,2,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+6,2,Sanskrit,સંસ્કૃત,🕉️,7
+7,1,Gujarati,ગુજરાતી,📚,1
+7,1,Hindi,હિન્દી,🇮🇳,2
+7,1,English,અંગ્રેજી,🔤,3
+7,1,Mathematics,ગણિત,🔢,4
+7,1,Science,વિજ્ઞાન,🔬,5
+7,1,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+7,1,Sanskrit,સંસ્કૃત,🕉️,7
+7,2,Gujarati,ગુજરાતી,📚,1
+7,2,Hindi,હિન્દી,🇮🇳,2
+7,2,English,અંગ્રેજી,🔤,3
+7,2,Mathematics,ગણિત,🔢,4
+7,2,Science,વિજ્ઞાન,🔬,5
+7,2,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+7,2,Sanskrit,સંસ્કૃત,🕉️,7
+8,1,Gujarati,ગુજરાતી,📚,1
+8,1,Hindi,હિન્દી,🇮🇳,2
+8,1,English,અંગ્રેજી,🔤,3
+8,1,Mathematics,ગણિત,🔢,4
+8,1,Science,વિજ્ઞાન,🔬,5
+8,1,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+8,1,Sanskrit,સંસ્કૃત,🕉️,7
+8,2,Gujarati,ગુજરાતી,📚,1
+8,2,Hindi,હિન્દી,🇮🇳,2
+8,2,English,અંગ્રેજી,🔤,3
+8,2,Mathematics,ગણિત,🔢,4
+8,2,Science,વિજ્ઞાન,🔬,5
+8,2,Social Science,સામાજિક વિજ્ઞાન,🌍,6
+8,2,Sanskrit,સંસ્કૃત,🕉️,7

@@ -195,9 +195,9 @@ export function subscribeToUserNotifications(
 
                 // Client-side filter: show notifications relevant to this student
                 const relevant = all.filter((n) => {
-                    if (n.targetType === 'all') return true;
-                    if (n.targetType === 'standard' && n.targetStandard === standard) return true;
-                    if (n.targetType === 'individual' && (n as any).targetUserId === uid) return true;
+                    if (n.targetType === 'all') {return true;}
+                    if (n.targetType === 'standard' && n.targetStandard === standard) {return true;}
+                    if (n.targetType === 'individual' && (n as any).targetUserId === uid) {return true;}
                     return false;
                 });
 

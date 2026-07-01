@@ -21,7 +21,6 @@ export interface UserProfile {
   premium: boolean;
   /** Alias matching the spec — same value as premium */
   isPremium?: boolean;
-  premiumPlan?: SubscriptionPlanType;
   premiumActivatedAt?: FirebaseFirestoreTypes.Timestamp;
   role: UserRole;
   isBlocked: boolean;
@@ -323,35 +322,26 @@ export interface UserBookmark {
   userId: string;
   chapterId: string;
   standardId?: string;
+  standardName?: string;
   subjectId?: string;
   subjectName?: string;
   chapterTitle?: string;
   createdAt?: FirebaseFirestoreTypes.Timestamp;
 }
 
-// ─── Subscriptions ─────────────────────────────────────────────
+// ─── PDF Reading Progress ──────────────────────────────────────
 
-export type SubscriptionPlanType =
-  | 'monthly'
-  | 'quarterly'
-  | 'yearly'
-  | 'lifetime';
-export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'pending';
+export type PdfType = 'chapter' | 'swadhyay' | 'blueprint' | 'oldPaper';
 
-export interface Subscription {
+export interface PdfReadingProgress {
   id: string;
   userId: string;
-  planType: SubscriptionPlanType;
-  startDate: FirebaseFirestoreTypes.Timestamp;
-  endDate: FirebaseFirestoreTypes.Timestamp;
-  status: SubscriptionStatus;
-  razorpayPaymentId?: string;
-  razorpayOrderId?: string;
-  amount: number;
-  currency: string;
-  isManual: boolean;
-  createdAt: FirebaseFirestoreTypes.Timestamp;
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
+  pdfId: string; // chapterId or documentId
+  pdfType: PdfType;
+  currentPage: number;
+  totalPages: number;
+  lastReadAt: FirebaseFirestoreTypes.Timestamp;
+  bookmarkedPages: number[];
 }
 
 // ─── Notifications ─────────────────────────────────────────────
@@ -525,12 +515,16 @@ export type AdminDrawerParamList = {
   BlueprintStack: undefined;
   OldPapersStack: undefined;
   UsersStack: undefined;
-  PremiumStack: undefined;
   LeaderboardStack: undefined;
   NotificationsStack: undefined;
   ConfigStack: undefined;
   AuditStack: undefined;
   ProfileStack: undefined;
+  // ── Bulk Import (additive only) ────────────────────────────────────────────
+  BulkSubjectStack: undefined;
+  BulkChapterStack: undefined;
+  // ── Gujarat Content Import (additive only) ───────────────────────────────
+  GujaratContentStack: undefined;
 };
 
 export type AdminDashboardStackParamList = {
@@ -590,11 +584,6 @@ export type AdminOldPapersStackParamList = {
 export type AdminUsersStackParamList = {
   UserManagement: undefined;
   UserDetail: {userId: string};
-};
-
-export type AdminPremiumStackParamList = {
-  PremiumManagement: undefined;
-  SubscriptionDetail: {subscriptionId: string};
 };
 
 export type AdminLeaderboardStackParamList = {

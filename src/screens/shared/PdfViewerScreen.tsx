@@ -1,18 +1,48 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator, Alert, Text, TouchableOpacity, Linking, Dimensions } from 'react-native';
+import {
+    View,
+    StyleSheet,
+    ActivityIndicator,
+    Alert,
+    Text,
+    TouchableOpacity,
+    Linking,
+    Dimensions,
+    StatusBar,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Pdf from 'react-native-pdf';
+import { useAuth, usePdfProgress } from '../../hooks';
 import { studentColors, typography, spacing, borderRadius } from '../../theme';
+import { logAnalyticsEvent } from '../../services/analytics';
+import { logCrashError } from '../../services/crashlytics';
 
-const LOADING_TIMEOUT_MS = 15000; // 15 seconds timeout
+const LOADING_TIMEOUT_MS = 15000;
 const MAX_RETRIES = 2;
 
-export function PdfViewerScreen({ route }: { route: any }): React.JSX.Element {
-    const { url } = route.params;
+export function PdfViewerScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
+    const { url, title, pdfId, pdfType } = route.params;
+    const { userProfile } = useAuth();
+    const userId = userProfile?.uid;
+
     const [loading, setLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
-    const [webViewKey, setWebViewKey] = useState(0); // key to force remount
+    const [webViewKey, setWebViewKey] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pdfRef = useRef<any>(null);
+
+    const {
+        progress,
+        saveProgress,
+        forceSaveProgress,
+        toggleBookmark,
+        isPageBookmarked,
+    } = usePdfProgress(userId, pdfId, pdfType || 'chapter');
 
     const clearLoadingTimeout = useCallback(() => {
         if (timeoutRef.current) {
@@ -24,18 +54,38 @@ export function PdfViewerScreen({ route }: { route: any }): React.JSX.Element {
     const startLoadingTimeout = useCallback(() => {
         clearLoadingTimeout();
         timeoutRef.current = setTimeout(() => {
-            // If still loading after timeout, stop spinner and show error
             setLoading(false);
             setHasError(true);
+            logCrashError(new Error('PDF loading timeout'), 'pdf_error', { url, pdfId });
         }, LOADING_TIMEOUT_MS);
-    }, [clearLoadingTimeout]);
+    }, [clearLoadingTimeout, url, pdfId]);
+
+    // Track analytics event on open
+    useEffect(() => {
+        logAnalyticsEvent('pdf_open', {
+            pdf_id: pdfId || 'unknown',
+            pdf_type: pdfType || 'unknown',
+            title: title || 'unknown',
+        });
+    }, [pdfId, pdfType, title]);
+
+    // Manage status bar and navigation header visibility based on fullscreen mode
+    useEffect(() => {
+        StatusBar.setHidden(isFullscreen, 'slide');
+        navigation.setOptions({
+            headerShown: !isFullscreen,
+        });
+        return () => {
+            StatusBar.setHidden(false);
+        };
+    }, [isFullscreen, navigation]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
         return () => clearLoadingTimeout();
     }, [clearLoadingTimeout]);
 
-    // Start timeout whenever loading begins
+    // Start timeout when loading is active
     useEffect(() => {
         if (loading) {
             startLoadingTimeout();
@@ -51,7 +101,7 @@ export function PdfViewerScreen({ route }: { route: any }): React.JSX.Element {
 
     const openInBrowser = () => {
         Linking.openURL(url).catch(err => {
-            console.error('Failed to open URL:', err);
+            logCrashError(err, 'pdf_error', { url, action: 'open_in_browser' });
             Alert.alert('Error', 'Could not open the PDF in your browser.');
         });
     };
@@ -60,43 +110,168 @@ export function PdfViewerScreen({ route }: { route: any }): React.JSX.Element {
         setHasError(false);
         setLoading(true);
         setRetryCount(prev => prev + 1);
-        setWebViewKey(prev => prev + 1); // force Pdf component remount
+        setWebViewKey(prev => prev + 1);
+    };
+
+    const handleToggleBookmark = async () => {
+        const success = await toggleBookmark(currentPage);
+        if (success) {
+            Alert.alert(
+                'યાદ રાખ્યું',
+                isPageBookmarked(currentPage)
+                    ? 'બુકમાર્ક દૂર કરવામાં આવ્યો છે'
+                    : 'આ પેજ બુકમાર્ક કરવામાં આવ્યું છે! 🔖'
+            );
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            const nextPage = currentPage + 1;
+            pdfRef.current?.setPage(nextPage);
+            setCurrentPage(nextPage);
+            saveProgress(nextPage, totalPages);
+        }
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            const prevPage = currentPage - 1;
+            pdfRef.current?.setPage(prevPage);
+            setCurrentPage(prevPage);
+            saveProgress(prevPage, totalPages);
+        }
+    };
+
+    const handleGoBack = async () => {
+        await forceSaveProgress(currentPage, totalPages);
+        navigation.goBack();
     };
 
     const source = { uri: url, cache: true };
+    const progressPercent = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
 
     return (
-        <View style={styles.container}>
-            <Pdf
-                key={webViewKey}
-                source={source}
-                trustAllCerts={false}
-                enablePaging={true}
-                horizontal={true}
-                onLoadComplete={() => {
-                    setLoading(false);
-                    clearLoadingTimeout();
-                }}
-                onPageChanged={() => {
-                    // console.log(`Current page: ${page}`);
-                }}
-                onError={(error) => {
-                    console.log('PDF load error:', error);
-                    setLoading(false);
-                    clearLoadingTimeout();
-                    setHasError(true);
-                }}
-                onPressLink={(uri) => {
-                    Linking.openURL(uri).catch(err => console.error('Error opening link:', err));
-                }}
-                style={styles.pdf}
-            />
+        <SafeAreaView style={styles.container}>
+            <StatusBar barStyle={isFullscreen ? 'light-content' : 'dark-content'} />
+
+            {/* Header controls (only in fullscreen) */}
+            {isFullscreen && (
+                <View style={styles.fullscreenHeader}>
+                    <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+                        <Text style={styles.backButtonText}>← પાછા</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.fullscreenTitle} numberOfLines={1}>
+                        {title || 'PDF રીડર'}
+                    </Text>
+                    <TouchableOpacity style={styles.fullscreenToggle} onPress={() => setIsFullscreen(false)}>
+                        <Text style={styles.fullscreenToggleText}>Exit</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Main PDF View */}
+            <View style={styles.pdfContainer}>
+                <Pdf
+                    ref={pdfRef}
+                    key={webViewKey}
+                    source={source}
+                    trustAllCerts={false}
+                    enablePaging={true}
+                    horizontal={false}
+                    enableAntialiasing={true}
+                    fitPolicy={0}
+                    enableAnnotationRendering={false}
+                    onLoadComplete={(numberOfPages) => {
+                        setTotalPages(numberOfPages);
+                        setLoading(false);
+                        clearLoadingTimeout();
+
+                        // Restore progress if available
+                        if (progress && progress.currentPage > 1) {
+                            setTimeout(() => {
+                                pdfRef.current?.setPage(progress.currentPage);
+                                setCurrentPage(progress.currentPage);
+                            }, 300);
+                        }
+                    }}
+                    onPageChanged={(page, numberOfPages) => {
+                        setCurrentPage(page);
+                        saveProgress(page, numberOfPages);
+                    }}
+                    onError={(error) => {
+                        logCrashError(error, 'pdf_error', { url, pdfId });
+                        setLoading(false);
+                        clearLoadingTimeout();
+                        setHasError(true);
+                    }}
+                    onPressLink={(uri) => {
+                        Linking.openURL(uri).catch(err => console.error('Error opening link:', err));
+                    }}
+                    style={styles.pdf}
+                />
+            </View>
+
+            {/* Bottom Controls */}
+            {!loading && !hasError && (
+                <View style={[styles.controlsContainer, isFullscreen && styles.fullscreenControls]}>
+                    {/* Progress Bar */}
+                    <View style={styles.progressBarBg}>
+                        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    </View>
+
+                    <View style={styles.controlsRow}>
+                        {/* Page Indicator */}
+                        <Text style={styles.pageText}>
+                            પેજ {currentPage} / {totalPages}
+                        </Text>
+
+                        {/* Navigation Actions */}
+                        <View style={styles.actionsRow}>
+                            <TouchableOpacity
+                                style={[styles.iconButton, currentPage <= 1 && styles.disabledButton]}
+                                onPress={handlePrevPage}
+                                disabled={currentPage <= 1}
+                            >
+                                <Text style={styles.buttonText}>◀</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.iconButton} onPress={handleToggleBookmark}>
+                                <Text style={styles.bookmarkIcon}>
+                                    {isPageBookmarked(currentPage) ? '🔖' : '📑'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={() => setIsFullscreen(!isFullscreen)}
+                            >
+                                <Text style={styles.buttonText}>
+                                    {isFullscreen ? '🔍' : '🔎'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.iconButton, currentPage >= totalPages && styles.disabledButton]}
+                                onPress={handleNextPage}
+                                disabled={currentPage >= totalPages}
+                            >
+                                <Text style={styles.buttonText}>▶</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Loading Overlay */}
             {loading && (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={studentColors.primary} />
                     <Text style={styles.loadingText}>PDF લોડ થઈ રહ્યું છે...</Text>
                 </View>
             )}
+
+            {/* Error Overlay */}
             {hasError && !loading && (
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorIcon}>⚠️</Text>
@@ -104,18 +279,23 @@ export function PdfViewerScreen({ route }: { route: any }): React.JSX.Element {
                     <Text style={styles.errorSubText}>
                         કૃપા કરીને તમારું ઈન્ટરનેટ કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.
                     </Text>
-                    {retryCount < MAX_RETRIES ? (
-                        <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
-                            <Text style={styles.retryBtnText}>ફરી પ્રયાસ કરો</Text>
+                    <View style={styles.errorButtonsRow}>
+                        {retryCount < MAX_RETRIES ? (
+                            <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
+                                <Text style={styles.retryBtnText}>ફરી પ્રયાસ કરો</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity style={styles.fallbackBtn} onPress={openInBrowser}>
+                                <Text style={styles.fallbackBtnText}>બ્રાઉઝરમાં ખોલો</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity style={styles.cancelBtn} onPress={handleGoBack}>
+                            <Text style={styles.cancelBtnText}>પાછા જાઓ</Text>
                         </TouchableOpacity>
-                    ) : (
-                        <TouchableOpacity style={styles.fallbackBtn} onPress={openInBrowser}>
-                            <Text style={styles.fallbackBtnText}>બ્રાઉઝરમાં ખોલો</Text>
-                        </TouchableOpacity>
-                    )}
+                    </View>
                 </View>
             )}
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -124,22 +304,61 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: studentColors.background,
     },
+    fullscreenHeader: {
+        height: 54,
+        backgroundColor: '#1E293B',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.md,
+    },
+    backButton: {
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+    },
+    backButtonText: {
+        color: '#FFFFFF',
+        fontSize: typography.size.md,
+        fontWeight: typography.weight.bold as any,
+    },
+    fullscreenTitle: {
+        color: '#FFFFFF',
+        fontSize: typography.size.md,
+        fontWeight: typography.weight.semibold as any,
+        flex: 1,
+        textAlign: 'center',
+        marginHorizontal: spacing.md,
+    },
+    fullscreenToggle: {
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.sm,
+    },
+    fullscreenToggleText: {
+        color: '#FFFFFF',
+        fontSize: typography.size.sm,
+    },
+    pdfContainer: {
+        flex: 1,
+    },
     pdf: {
         flex: 1,
         width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height,
+        height: '100%',
         backgroundColor: studentColors.background,
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        zIndex: 10,
     },
     loadingText: {
         marginTop: spacing.md,
         fontSize: typography.size.md,
-        color: studentColors.primary,
+        color: studentColors.textPrimary,
         fontWeight: typography.weight.medium as any,
     },
     errorContainer: {
@@ -148,6 +367,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: spacing.xl,
         backgroundColor: studentColors.background,
+        zIndex: 10,
     },
     errorIcon: {
         fontSize: 48,
@@ -167,40 +387,100 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
         lineHeight: 20,
     },
+    errorButtonsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     retryBtn: {
         backgroundColor: studentColors.primary,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.md,
-        marginBottom: spacing.md,
+        marginRight: spacing.sm,
     },
     retryBtnText: {
-        color: studentColors.surface,
+        color: studentColors.textOnPrimary || '#3E2723',
         fontSize: typography.size.md,
         fontWeight: typography.weight.bold as any,
-    },
-    fallbackContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: spacing.xl,
-        backgroundColor: studentColors.background,
-    },
-    fallbackText: {
-        fontSize: typography.size.md,
-        color: studentColors.error,
-        textAlign: 'center',
-        marginBottom: spacing.xl,
     },
     fallbackBtn: {
         backgroundColor: studentColors.primary,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        marginRight: spacing.sm,
+    },
+    fallbackBtnText: {
+        color: studentColors.textOnPrimary || '#3E2723',
+        fontSize: typography.size.md,
+        fontWeight: typography.weight.bold as any,
+    },
+    cancelBtn: {
+        borderWidth: 1,
+        borderColor: studentColors.border,
+        paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.md,
     },
-    fallbackBtnText: {
-        color: studentColors.surface,
+    cancelBtnText: {
+        color: studentColors.textSecondary,
         fontSize: typography.size.md,
-        fontWeight: typography.weight.bold as any,
+        fontWeight: typography.weight.semibold as any,
+    },
+    controlsContainer: {
+        backgroundColor: studentColors.surface,
+        borderTopWidth: 1,
+        borderTopColor: studentColors.border,
+        paddingBottom: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    fullscreenControls: {
+        backgroundColor: '#1E293B',
+        borderTopColor: '#334155',
+    },
+    progressBarBg: {
+        height: 4,
+        backgroundColor: studentColors.border,
+        width: '100%',
+        position: 'absolute',
+        top: 0,
+        left: spacing.md,
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: studentColors.primary,
+    },
+    controlsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing.md,
+    },
+    pageText: {
+        fontSize: typography.size.md,
+        fontWeight: typography.weight.semibold as any,
+        color: studentColors.textSecondary,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    iconButton: {
+        padding: spacing.sm,
+        marginHorizontal: spacing.xs,
+        backgroundColor: studentColors.surfaceHover,
+        borderRadius: borderRadius.sm,
+        minWidth: 40,
+        alignItems: 'center',
+    },
+    disabledButton: {
+        opacity: 0.3,
+    },
+    buttonText: {
+        fontSize: typography.size.md,
+        color: studentColors.textPrimary,
+    },
+    bookmarkIcon: {
+        fontSize: typography.size.lg,
     },
 });

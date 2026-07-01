@@ -217,19 +217,20 @@ export function subscribeToUserNotifications(
 
 /**
  * Mark a notification as read for a specific user.
- * Stored in a sub-collection: notifications/{notifId}/reads/{uid}
- * This avoids modifying the shared notification document.
+ * Stored in a top-level collection: notificationReads
  */
 export async function markNotificationRead(
   notificationId: string,
   uid: string,
 ): Promise<ServiceResult<void>> {
   try {
-    await notifRef()
-      .doc(notificationId)
-      .collection('reads')
-      .doc(uid)
-      .set({readAt: firestore.FieldValue.serverTimestamp()});
+    const docId = `${uid}_${notificationId}`;
+    await firestore().collection('notificationReads').doc(docId).set({
+      userId: uid,
+      notificationId,
+      isRead: true,
+      readAt: firestore.FieldValue.serverTimestamp(),
+    });
     return {success: true};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -238,37 +239,35 @@ export async function markNotificationRead(
 
 /**
  * Get set of notification IDs that this user has already read.
- * Used to compute unread count and per-item read state.
+ * Listens to updates in real-time.
  */
 export function subscribeToReadStatus(
   uid: string,
-  notificationIds: string[],
   callback: (readIds: Set<string>) => void,
 ): () => void {
-  if (notificationIds.length === 0) {
+  if (!uid) {
     callback(new Set());
     return () => {};
   }
 
-  // We subscribe to each read doc individually (small set, efficient)
-  const unsubs: Array<() => void> = [];
-  const readSet = new Set<string>();
-
-  notificationIds.forEach(notifId => {
-    const unsub = notifRef()
-      .doc(notifId)
-      .collection('reads')
-      .doc(uid)
-      .onSnapshot(doc => {
-        if (doc && doc.exists) {
-          readSet.add(notifId);
-        } else {
-          readSet.delete(notifId);
-        }
-        callback(new Set(readSet));
-      });
-    unsubs.push(unsub);
-  });
-
-  return () => unsubs.forEach(u => u());
+  return firestore()
+    .collection('notificationReads')
+    .where('userId', '==', uid)
+    .where('isRead', '==', true)
+    .onSnapshot(
+      snapshot => {
+        const readSet = new Set<string>();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.notificationId) {
+            readSet.add(data.notificationId);
+          }
+        });
+        callback(readSet);
+      },
+      error => {
+        console.warn('[Notifications] subscribeToReadStatus error:', error);
+        callback(new Set());
+      },
+    );
 }

@@ -15,10 +15,10 @@ export async function getDailyChallenge(
       .limit(1)
       .get();
 
-    if (snapshot.empty) return null;
+    if (snapshot.empty) {return null;}
 
     const doc = snapshot.docs[0];
-    if (!doc) return null;
+    if (!doc) {return null;}
     return {...doc.data(), id: doc.id} as DailyChallenge;
   } catch (err) {
     console.error('Error fetching daily challenge:', err);
@@ -42,7 +42,7 @@ export async function setDailyChallenge(
 
     if (!existing.empty) {
       const docId = existing.docs[0]?.id;
-      if (!docId) return false;
+      if (!docId) {return false;}
       await firestore()
         .collection(COLLECTIONS.DAILY_CHALLENGES)
         .doc(docId)

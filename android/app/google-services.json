@@ -118,6 +118,51 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:848086296881:android:04b4beb4d9493920b1e810",
+        "android_client_info": {
+          "package_name": "com.gyandeeps"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "848086296881-9s35f4gfm9fcuvpb48os82findtji79l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gyandeeps",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "848086296881-ta1r0utr7j8cf2992orf1mk51gj43pki.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gyandeeps",
+            "certificate_hash": "89cccf33bd7e33239e6e2641b8ffea2be100ff4f"
+          }
+        },
+        {
+          "client_id": "848086296881-e9g5k5vmvanp3d08ntd3f1l1e5v5kton.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5Yn2F3nDHkNL9O9nItqYdPCKBc4MIVyc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "848086296881-80ejd49h81c04i27a6orf8rcil732l3d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:848086296881:android:7f0ea2ceea2f44b6b1e810",
         "android_client_info": {
           "package_name": "com.nsdcindia.skillindiaplatform"

@@ -15,7 +15,6 @@ import { ManageQuizScreen } from '../screens/admin/ManageQuizScreen';
 import { QuizDetailScreen } from '../screens/admin/QuizDetailScreen';
 import { AddQuizScreen } from '../screens/admin/AddQuizScreen';
 import { UserManagementScreen } from '../screens/admin/UserManagementScreen';
-import { PremiumManagementScreen } from '../screens/admin/PremiumManagementScreen';
 import { LeaderboardManagementScreen } from '../screens/admin/LeaderboardManagementScreen';
 import { NotificationsScreen } from '../screens/admin/NotificationsScreen';
 import { AppConfigScreen } from '../screens/admin/AppConfigScreen';
@@ -28,7 +27,9 @@ import { CreateAdminScreen } from '../screens/auth/CreateAdminScreen';
 import { AdminLanguageSectionScreen } from '../screens/admin/AdminLanguageSectionScreen';
 import { AdminBlueprintScreen } from '../screens/admin/AdminBlueprintScreen';
 import { AdminOldPapersScreen } from '../screens/admin/AdminOldPapersScreen';
-import { AdminBookManagementScreen } from '../screens/admin/AdminBookManagementScreen';
+import { BulkSubjectImportScreen } from '../screens/admin/BulkSubjectImportScreen';
+import { BulkChapterImportScreen } from '../screens/admin/BulkChapterImportScreen';
+import { GujaratContentImportScreen } from '../screens/admin/GujaratContentImportScreen';
 
 const adminScreenOptions = ({ navigation }: any) => ({
     headerStyle: { backgroundColor: adminColors.surface, elevation: 0, shadowOpacity: 0 },
@@ -131,14 +132,6 @@ function OldPapersStack(): React.JSX.Element {
     );
 }
 
-const BookManagementStackNav = createStackNavigator();
-function BookManagementStack(): React.JSX.Element {
-    return (
-        <BookManagementStackNav.Navigator screenOptions={adminScreenOptions}>
-            <BookManagementStackNav.Screen name="AdminBookManagement" component={AdminBookManagementScreen} options={{ title: '📚 Book Management' }} />
-        </BookManagementStackNav.Navigator>
-    );
-}
 
 const UsersStackNav = createStackNavigator();
 function UsersStack(): React.JSX.Element {
@@ -149,14 +142,7 @@ function UsersStack(): React.JSX.Element {
     );
 }
 
-const PremiumStackNav = createStackNavigator();
-function PremiumStack(): React.JSX.Element {
-    return (
-        <PremiumStackNav.Navigator screenOptions={adminScreenOptions}>
-            <PremiumStackNav.Screen name="PremiumManagement" component={PremiumManagementScreen} options={{ title: '💎 Premium' }} />
-        </PremiumStackNav.Navigator>
-    );
-}
+
 
 const LeaderboardStackNav = createStackNavigator();
 function LeaderboardStack(): React.JSX.Element {
@@ -194,7 +180,49 @@ function AuditStack(): React.JSX.Element {
     );
 }
 
-/** Profile stack — shared across content_admin and super_admin */
+// ── Bulk Import Stacks (additive only) ────────────────────────────────────────
+
+const BulkSubjectStackNav = createStackNavigator();
+function BulkSubjectStack(): React.JSX.Element {
+    return (
+        <BulkSubjectStackNav.Navigator screenOptions={adminScreenOptions}>
+            <BulkSubjectStackNav.Screen
+                name="BulkSubjectImport"
+                component={BulkSubjectImportScreen}
+                options={{ title: '📥 Bulk Subject Import' }}
+            />
+        </BulkSubjectStackNav.Navigator>
+    );
+}
+
+const BulkChapterStackNav = createStackNavigator();
+function BulkChapterStack(): React.JSX.Element {
+    return (
+        <BulkChapterStackNav.Navigator screenOptions={adminScreenOptions}>
+            <BulkChapterStackNav.Screen
+                name="BulkChapterImport"
+                component={BulkChapterImportScreen}
+                options={{ title: '📥 Bulk Chapter Import' }}
+            />
+        </BulkChapterStackNav.Navigator>
+    );
+}
+
+// ── Gujarat Content Import Stack (additive only) ──────────────────────────────
+
+const GujaratContentStackNav = createStackNavigator();
+function GujaratContentStack(): React.JSX.Element {
+    return (
+        <GujaratContentStackNav.Navigator screenOptions={adminScreenOptions}>
+            <GujaratContentStackNav.Screen
+                name="GujaratContentImport"
+                component={GujaratContentImportScreen}
+                options={{ title: '🇮🇳 Gujarat Board Content Import' }}
+            />
+        </GujaratContentStackNav.Navigator>
+    );
+}
+
 const ProfileStackNav = createStackNavigator();
 function ProfileStack(): React.JSX.Element {
     return (
@@ -229,14 +257,17 @@ export function AdminDrawerStack(): React.JSX.Element {
             <Drawer.Screen name="LanguageSectionStack" component={LanguageSectionStack} />
             <Drawer.Screen name="BlueprintStack" component={BlueprintStack} />
             <Drawer.Screen name="OldPapersStack" component={OldPapersStack} />
-            <Drawer.Screen name="BookManagementStack" component={BookManagementStack} />
             <Drawer.Screen name="UsersStack" component={UsersStack} />
-            <Drawer.Screen name="PremiumStack" component={PremiumStack} />
             <Drawer.Screen name="LeaderboardStack" component={LeaderboardStack} />
             <Drawer.Screen name="NotificationsStack" component={NotificationsStack} />
             <Drawer.Screen name="ConfigStack" component={ConfigStack} />
             <Drawer.Screen name="AuditStack" component={AuditStack} />
             <Drawer.Screen name="ProfileStack" component={ProfileStack} />
+            {/* ── Bulk Import (additive only) ──────────────────── */}
+            <Drawer.Screen name="BulkSubjectStack" component={BulkSubjectStack} />
+            <Drawer.Screen name="BulkChapterStack" component={BulkChapterStack} />
+            {/* ── Gujarat Content Import (additive only) ──────────── */}
+            <Drawer.Screen name="GujaratContentStack" component={GujaratContentStack} />
         </Drawer.Navigator>
     );
 }

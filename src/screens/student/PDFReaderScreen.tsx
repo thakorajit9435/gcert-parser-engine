@@ -44,8 +44,8 @@ export function PDFReaderScreen({ route }: { route: any }): React.JSX.Element {
         [book.pdfUrl],
 
     );
-    console.log("first", book.pdfUrl)
-    console.log("🚀 ~ PDFReaderScreen ~ source:", source)
+    console.log('first', book.pdfUrl);
+    console.log('🚀 ~ PDFReaderScreen ~ source:', source);
 
     const handleLoadComplete = useCallback(
         (numberOfPages: number, _filePath: string) => {
@@ -59,7 +59,7 @@ export function PDFReaderScreen({ route }: { route: any }): React.JSX.Element {
     const handlePageChanged = useCallback(
         (page: number, numberOfPages: number) => {
             setCurrentPage(page);
-            if (!firstPageReady) setFirstPageReady(true);
+            if (!firstPageReady) {setFirstPageReady(true);}
             saveProgress(page, numberOfPages);
         },
         [firstPageReady, saveProgress],

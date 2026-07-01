@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { adminColors, typography, spacing } from '../../theme';
 import { StatCard } from '../../components/admin/StatCard';
 import { LoadingState } from '../../components/common/LoadingState';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useUserRole } from '../../hooks/useUserRole';
-import { formatNumber, formatCurrency } from '../../utils';
+import { formatNumber } from '../../utils';
+import { useAnalyticsDashboard } from '../../hooks/useAnalyticsDashboard';
+import { AnalyticsOverview, PopularListCard, TrendChart } from '../../components/admin/AnalyticsCard';
+import { DashboardStatSkeleton } from '../../components/common';
 
 /**
  * Admin Dashboard with analytics grid cards.
@@ -15,13 +18,26 @@ export function DashboardScreen({ navigation }: { navigation: any }): React.JSX.
     const { canManageContent, canManageUsers } = useUserRole();
     const { width } = useWindowDimensions();
 
+    const [selectedRange, setSelectedRange] = useState<number>(7);
+    const {
+        data: analyticsData,
+        loading: analyticsLoading,
+        error: analyticsError,
+        refresh: refreshAnalytics
+    } = useAnalyticsDashboard(selectedRange);
+
     const isTablet = width >= 768;
     const cardColumns = isTablet ? 4 : 2;
 
+    const handleRefresh = async () => {
+        await Promise.all([refresh(), refreshAnalytics()]);
+    };
+
     useEffect(() => {
-        refresh();
+        handleRefresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [selectedRange]);
+
 
     if (loading && !stats) {
         return <LoadingState message="Loading dashboard…" />;
@@ -36,7 +52,6 @@ export function DashboardScreen({ navigation }: { navigation: any }): React.JSX.
         { title: 'Total Chapters', value: formatNumber(stats?.totalChapters ?? 0), icon: '📖', color: adminColors.accentOrange },
         { title: 'Total Quizzes', value: formatNumber(stats?.totalQuizzes ?? 0), icon: '❓', color: adminColors.info },
         { title: 'Quiz Attempts', value: formatNumber(stats?.totalQuizAttempts ?? 0), icon: '📝', color: adminColors.primaryLight },
-        { title: 'Revenue', value: formatCurrency(stats?.revenue ?? 0), icon: '💰', color: adminColors.accentGreen, subtitle: 'Razorpay' },
         { title: 'Top Standard', value: stats?.topPerformingStandard ?? '—', icon: '🏆', color: adminColors.accentOrange },
         { title: 'System Health', value: stats?.systemHealthy ? 'Healthy' : 'Issue', icon: stats?.systemHealthy ? '✅' : '⚠️', color: stats?.systemHealthy ? adminColors.accentGreen : adminColors.accentRed },
     ];
@@ -64,8 +79,8 @@ export function DashboardScreen({ navigation }: { navigation: any }): React.JSX.
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
                     <RefreshControl
-                        refreshing={loading}
-                        onRefresh={refresh}
+                        refreshing={loading || analyticsLoading}
+                        onRefresh={handleRefresh}
                         tintColor={adminColors.primary}
                     />
                 }
@@ -87,11 +102,83 @@ export function DashboardScreen({ navigation }: { navigation: any }): React.JSX.
                                 value={String(card.value)}
                                 icon={card.icon}
                                 color={card.color}
-                                subtitle={card.subtitle}
                             />
                         </View>
                     ))}
                 </View>
+
+                {/* Analytics Date Selector */}
+                <View style={styles.rangeSelectorContainer}>
+                    <Text style={styles.rangeSelectorTitle}>Analytics Period:</Text>
+                    <View style={styles.rangePillsRow}>
+                        {[7, 30, 90].map((days) => (
+                            <TouchableOpacity
+                                key={days}
+                                style={[
+                                    styles.rangePill,
+                                    selectedRange === days && styles.rangePillActive,
+                                ]}
+                                onPress={() => setSelectedRange(days)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.rangePillText,
+                                        selectedRange === days && styles.rangePillTextActive,
+                                    ]}
+                                >
+                                    {days} Days
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Analytics Data */}
+                {analyticsError ? (
+                    <View style={styles.errorBanner}>
+                        <Text style={styles.errorText}>⚠️ {analyticsError}</Text>
+                    </View>
+                ) : analyticsLoading && !analyticsData ? (
+                    <View style={styles.analyticsLoadingContainer}>
+                        <Text style={styles.loadingText}>Fetching range analytics...</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 10 }}>
+                            <DashboardStatSkeleton />
+                            <DashboardStatSkeleton />
+                            <DashboardStatSkeleton />
+                            <DashboardStatSkeleton />
+                        </View>
+                    </View>
+                ) : analyticsData ? (
+                    <>
+                        <AnalyticsOverview
+                            activeUsers={analyticsData.activeUsers}
+                            pdfReads={analyticsData.pdfReads}
+                            chapterOpens={analyticsData.chapterOpens}
+                            quizAttempts={analyticsData.quizAttempts}
+                        />
+
+                        <TrendChart trend={analyticsData.dailyActiveTrend} />
+
+                        <View style={styles.popularRow}>
+                            <View style={styles.popularCol}>
+                                <PopularListCard
+                                    title="Popular Subjects"
+                                    items={analyticsData.popularSubjects.map(s => ({ id: s.subjectId, name: s.subjectName, count: s.count }))}
+                                    icon="📚"
+                                    color="#10B981"
+                                />
+                            </View>
+                            <View style={styles.popularCol}>
+                                <PopularListCard
+                                    title="Popular Quizzes"
+                                    items={analyticsData.popularQuizzes.map(q => ({ id: q.quizId, name: q.title, count: q.count }))}
+                                    icon="❓"
+                                    color="#F59E0B"
+                                />
+                            </View>
+                        </View>
+                    </>
+                ) : null}
 
                 {/* Quick Actions */}
                 <View style={styles.section}>
@@ -271,5 +358,65 @@ const styles = StyleSheet.create({
         fontWeight: typography.weight.semibold,
         textAlign: 'center',
         lineHeight: 18,
+    },
+    rangeSelectorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing.xl,
+        marginBottom: spacing.lg,
+    },
+    rangeSelectorTitle: {
+        fontSize: typography.size.md,
+        fontWeight: typography.weight.semibold,
+        color: adminColors.textPrimary,
+    },
+    rangePillsRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    rangePill: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: 20,
+        backgroundColor: adminColors.surface,
+        borderWidth: 1,
+        borderColor: adminColors.border,
+    },
+    rangePillActive: {
+        backgroundColor: adminColors.primary,
+        borderColor: adminColors.primary,
+    },
+    rangePillText: {
+        fontSize: typography.size.sm,
+        color: adminColors.textSecondary,
+        fontWeight: typography.weight.medium,
+    },
+    rangePillTextActive: {
+        color: adminColors.textInverse,
+        fontWeight: typography.weight.bold,
+    },
+    popularRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    popularCol: {
+        width: '48%',
+        minWidth: 150,
+    },
+    analyticsLoadingContainer: {
+        backgroundColor: adminColors.surface,
+        padding: spacing.lg,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: adminColors.border,
+        marginBottom: spacing.lg,
+    },
+    loadingText: {
+        fontSize: typography.size.sm,
+        color: adminColors.textSecondary,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
     },
 });

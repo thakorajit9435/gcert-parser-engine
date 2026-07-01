@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useChapterDetail } from '../../hooks/useChapterDetail';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { updateChapterLastOpened, markChapterCompleted } from '../../services/firebase/progress.service';
 import { useBookmarks } from '../../hooks/useBookmarks';
+import { PremiumModal } from '../../components/student/PremiumModal';
+import { logAnalyticsEvent } from '../../services/analytics';
+import { Skeleton } from '../../components/common';
 
 export function ChapterDetailScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { chapterId } = route.params || {};
@@ -21,18 +25,59 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
     const isChapterBookmarked = isBookmarked(chapterId);
 
     const [updating, setUpdating] = useState(false);
+    const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+
+    // ✅ FIX: Both useEffects must be declared unconditionally BEFORE any early returns
+    // Previously the second useEffect (isLocked) was placed AFTER the early return for
+    // error/loading, which violates the Rules of Hooks.
 
     useEffect(() => {
         // Record last opened timestamp when chapter is loaded
         if (chapter && userProfile?.uid) {
             updateChapterLastOpened(userProfile.uid, chapter.id, chapter.subjectId, chapter.standardId);
+            logAnalyticsEvent('chapter_open', {
+                chapter_id: chapter.id,
+                subject_id: chapter.subjectId,
+                standard_id: chapter.standardId,
+                title: chapter.title,
+            });
         }
     }, [chapter?.id, userProfile?.uid]);
 
+    useEffect(() => {
+        // Show premium modal whenever the chapter becomes locked
+        const isLocked = chapter?.isPremium && !isPremiumUser;
+        if (isLocked) {
+            setPremiumModalVisible(true);
+        }
+    }, [chapter?.isPremium, isPremiumUser]);
+
+    // Early returns AFTER all hooks
     if (loading) {
         return (
-            <View style={styles.centered}>
-                <ActivityIndicator size="large" color={studentColors.primary} />
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Skeleton width="80%" height={24} borderRadius={4} style={{ marginBottom: spacing.sm }} />
+                    <Skeleton width="50%" height={16} borderRadius={4} />
+                </View>
+                <View style={styles.actionsContainer}>
+                    <View style={styles.actionButton}>
+                        <Skeleton width={36} height={36} borderRadius={18} style={{ marginBottom: spacing.sm }} />
+                        <Skeleton width="60%" height={12} borderRadius={4} />
+                    </View>
+                    <View style={styles.actionButton}>
+                        <Skeleton width={36} height={36} borderRadius={18} style={{ marginBottom: spacing.sm }} />
+                        <Skeleton width="60%" height={12} borderRadius={4} />
+                    </View>
+                    <View style={styles.actionButton}>
+                        <Skeleton width={36} height={36} borderRadius={18} style={{ marginBottom: spacing.sm }} />
+                        <Skeleton width="60%" height={12} borderRadius={4} />
+                    </View>
+                    <View style={styles.actionButton}>
+                        <Skeleton width={36} height={36} borderRadius={18} style={{ marginBottom: spacing.sm }} />
+                        <Skeleton width="60%" height={12} borderRadius={4} />
+                    </View>
+                </View>
             </View>
         );
     }
@@ -62,12 +107,18 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
     const handleToggleBookmark = async () => {
         if (!userProfile?.uid || updating) return;
         setUpdating(true);
-        await toggleBookmark(chapter.id, {
-            standardId: chapter.standardId,
-            subjectId: chapter.subjectId,
-            chapterTitle: chapter.title
-        });
-        setUpdating(false);
+        try {
+            await toggleBookmark(chapter.id, {
+                standardId: chapter.standardId,
+                standardName: `Std ${chapter.standardId}`,
+                subjectId: chapter.subjectId,
+                chapterTitle: chapter.title
+            });
+        } catch (err) {
+            console.error('Bookmark toggle error:', err);
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const openPDF = async () => {
@@ -77,7 +128,9 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
         }
         navigation.navigate('PdfViewer', {
             url: chapter.pdfUrl,
-            title: chapter.title
+            title: chapter.title,
+            pdfId: chapter.id,
+            pdfType: 'chapter'
         });
     };
 
@@ -86,13 +139,22 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
             Alert.alert('Notice', 'No Video available for this chapter.');
             return;
         }
+        logAnalyticsEvent('video_open', {
+            chapter_id: chapter.id,
+            subject_id: chapter.subjectId,
+            standard_id: chapter.standardId,
+            title: chapter.title,
+            video_url: chapter.videoUrl,
+        });
         try {
+            // ✅ FIX: Only attempt to open the URL if canOpenURL returns true.
+            // Previously the else branch also called openURL, which is pointless
+            // (and can throw) when the URL is not openable.
             const canOpen = await Linking.canOpenURL(chapter.videoUrl).catch(() => false);
             if (canOpen) {
                 await Linking.openURL(chapter.videoUrl);
             } else {
-                // Fallback attempt
-                await Linking.openURL(chapter.videoUrl).catch(e => console.log(e));
+                Alert.alert('Error', 'Unable to open video URL on this device.');
             }
         } catch (err) {
             console.error('Video Open Error:', err);
@@ -104,7 +166,9 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
         if (chapter.swadhyayPdfUrl) {
             navigation.navigate('PdfViewer', {
                 url: chapter.swadhyayPdfUrl,
-                title: `${chapter.title} - Swadhyay`
+                title: `${chapter.title} - Swadhyay`,
+                pdfId: `${chapter.id}_swadhyay`,
+                pdfType: 'swadhyay'
             });
         } else {
             navigateToQuiz(false);
@@ -129,9 +193,15 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
                         <Text style={styles.chapterSubtitle}>{chapter.titleGu}</Text>
                     </View>
                     <TouchableOpacity onPress={handleToggleBookmark} style={styles.bookmarkBtn} disabled={updating}>
-                        <Text style={[styles.bookmarkIcon, isChapterBookmarked && styles.bookmarkedIcon]}>
-                            {isChapterBookmarked ? '🔖' : '📑'}
-                        </Text>
+                        {updating ? (
+                            <ActivityIndicator size="small" color={studentColors.primary} />
+                        ) : (
+                            <Ionicons
+                                name={isChapterBookmarked ? "bookmark" : "bookmark-outline"}
+                                size={26}
+                                color={isChapterBookmarked ? studentColors.primary : studentColors.textMuted}
+                            />
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -235,6 +305,18 @@ export function ChapterDetailScreen({ route, navigation }: { route: any; navigat
                     )}
                 </>
             )}
+
+            <PremiumModal
+                visible={premiumModalVisible}
+                onClose={() => {
+                    setPremiumModalVisible(false);
+                    navigation.goBack();
+                }}
+                onUpgrade={() => {
+                    setPremiumModalVisible(false);
+                    navigation.navigate('PremiumAccess');
+                }}
+            />
         </ScrollView>
     );
 }

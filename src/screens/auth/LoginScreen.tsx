@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,9 +10,8 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     StatusBar,
-    SafeAreaView,
-    Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList } from '../../types';
@@ -52,6 +51,13 @@ export function LoginScreen(): React.JSX.Element {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+
+    // ── Debug: confirm this screen mounts ─────────────────────
+    console.log('[LoginScreen] rendering');
+    useEffect(() => {
+        console.log('[LoginScreen] ✅ MOUNTED — splash should be gone');
+        return () => console.log('[LoginScreen] ❌ UNMOUNTED');
+    }, []);
 
     const handleLogin = async () => {
         if (!email.trim()) {
@@ -107,16 +113,10 @@ export function LoginScreen(): React.JSX.Element {
                 >
                     {/* Header */}
                     <View style={styles.headerSection}>
-                        <Image
-                            source={require('../../../assets/icon.png')}
-                            style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12 }}
-
-                        // style={styles.logoCircle}
-                        />
-                        {/* <View style={styles.logoCircle}> */}
-                        {/* <Text style={styles.logoEmoji}>🎓</Text> */}
-                        {/* </View> */}
-                        <Text style={styles.appName}>GyanDeep</Text>
+                        <View style={styles.logoCircle}>
+                            <Text style={styles.logoEmoji}>🎓</Text>
+                        </View>
+                        <Text style={styles.appName}>Students</Text>
                         <Text style={styles.tagline}>Learn. Grow. Succeed.</Text>
                     </View>
 

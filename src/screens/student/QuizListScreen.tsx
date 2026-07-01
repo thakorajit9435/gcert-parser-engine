@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useQuizzes } from '../../hooks/useQuizzes';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { Quiz } from '../../types';
 import { useTranslation } from 'react-i18next';
-import { EmptyState } from '../../components/common/EmptyState';
+import { EmptyState, Skeleton, QuizCardSkeleton } from '../../components/common';
+import { PremiumModal } from '../../components/student/PremiumModal';
+import { useAuth } from '../../hooks/useAuth';
 
 export function QuizListScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { t } = useTranslation();
@@ -15,6 +17,17 @@ export function QuizListScreen({ route, navigation }: { route: any; navigation: 
     const filters = isMixed ? { subjectId, isMixed: true } : { chapterId };
 
     const { quizzes, loading, error } = useQuizzes(filters);
+    const { userProfile } = useAuth();
+    const isPremiumUser = userProfile?.premium ?? false;
+    const [premiumModalVisible, setPremiumModalVisible] = React.useState(false);
+
+    const handleQuizPress = (quiz: Quiz) => {
+        if (quiz.isPremium && !isPremiumUser) {
+            setPremiumModalVisible(true);
+            return;
+        }
+        navigation.navigate('Quiz', { quizId: quiz.id });
+    };
 
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {
@@ -27,8 +40,15 @@ export function QuizListScreen({ route, navigation }: { route: any; navigation: 
 
     if (loading) {
         return (
-            <View style={styles.centered}>
-                <ActivityIndicator size="large" color={studentColors.primary} />
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <Skeleton width="40%" height={24} borderRadius={4} />
+                </View>
+                <View style={styles.listContent}>
+                    <QuizCardSkeleton />
+                    <QuizCardSkeleton />
+                    <QuizCardSkeleton />
+                </View>
             </View>
         );
     }
@@ -72,7 +92,7 @@ export function QuizListScreen({ route, navigation }: { route: any; navigation: 
                         <TouchableOpacity
                             style={styles.quizCard}
                             activeOpacity={0.7}
-                            onPress={() => navigation.navigate('Quiz', { quizId: item.id })}
+                            onPress={() => handleQuizPress(item)}
                         >
                             <View style={styles.quizInfo}>
                                 <Text style={styles.quizTitle}>{item.title}</Text>
@@ -96,6 +116,15 @@ export function QuizListScreen({ route, navigation }: { route: any; navigation: 
                     )}
                 />
             )}
+
+            <PremiumModal
+                visible={premiumModalVisible}
+                onClose={() => setPremiumModalVisible(false)}
+                onUpgrade={() => {
+                    setPremiumModalVisible(false);
+                    navigation.navigate('PremiumAccess');
+                }}
+            />
         </View>
     );
 }

@@ -59,7 +59,7 @@ export function usePracticeMCQs() {
             // Also shuffle options within each question
             const finalData = selected.map(q => {
                 // Ensure options are exactly 4
-                if (!q.options || q.options.length === 0) return q;
+                if (!q.options || q.options.length === 0) {return q;}
 
                 const optionsWithOriginalIndex = q.options.map((opt, i) => ({ opt, index: i }));
 
@@ -79,7 +79,7 @@ export function usePracticeMCQs() {
                 return {
                     ...q,
                     options: optionsWithOriginalIndex.map(o => o.opt),
-                    correctAnswer: newCorrectAnswerIndex !== -1 ? newCorrectAnswerIndex : 0 // Fallback just in case
+                    correctAnswer: newCorrectAnswerIndex !== -1 ? newCorrectAnswerIndex : 0, // Fallback just in case
                 };
             });
 

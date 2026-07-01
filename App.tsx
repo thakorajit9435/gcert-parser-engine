@@ -11,7 +11,18 @@ import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { NetworkProvider } from './src/components/common/NetworkProvider';
 import { adminColors } from './src/theme';
 import { seedDemoQuizIfNeeded } from './src/services/firebase/quiz.service';
-import SplashScreen from 'react-native-splash-screen';
+import crashlytics from '@react-native-firebase/crashlytics';
+
+// Set up global JS error handler to report to Crashlytics
+const defaultErrorHandler = (global as any).ErrorUtils?.getGlobalHandler();
+if ((global as any).ErrorUtils) {
+    (global as any).ErrorUtils.setGlobalHandler((error: any, isFatal: any) => {
+        crashlytics().recordError(error);
+        if (defaultErrorHandler) {
+            defaultErrorHandler(error, isFatal);
+        }
+    });
+}
 
 // ── FCM Background/Quit Handler (must be registered BEFORE app mounts) ──────
 // This runs when the app is in the background or fully closed.
@@ -25,8 +36,9 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
 // ── App Component ─────────────────────────────────────────────────────────────
 
 function App(): React.JSX.Element {
+    console.log("App component rendered");
     useEffect(() => {
-        SplashScreen.hide();
+        crashlytics().log('App mounted');
         seedDemoQuizIfNeeded();
     }, []);
 

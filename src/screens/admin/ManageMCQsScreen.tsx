@@ -9,7 +9,7 @@ import { COLLECTIONS } from '../../constants';
 import { Button } from '../../components/common';
 
 export function ManageMCQsScreen({ navigation }: { navigation: any }): React.JSX.Element {
-    const { standards } = useStandards();
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
 
     const [selectedStandard, setSelectedStandard] = useState<string | null>(null);
     const [selectedSession, setSelectedSession] = useState<string | null>('1');
@@ -88,19 +88,28 @@ export function ManageMCQsScreen({ navigation }: { navigation: any }): React.JSX
             <View style={styles.filtersWrapper}>
                 <View style={styles.filterGroup}>
                     <Text style={styles.filterLabel}>Standard</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        {standards.map((s) => (
-                            <TouchableOpacity
-                                key={s.id}
-                                style={[styles.chipSelect, selectedStandard === s.id && styles.chipSelectActive]}
-                                onPress={() => setSelectedStandard(s.id)}
-                            >
-                                <Text style={[styles.chipSelectText, selectedStandard === s.id && styles.chipSelectTextActive]}>
-                                    {s.label} {s.labelGu ? `(${s.labelGu})` : ''}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                    {standardsLoading ? (
+                        <ActivityIndicator size="small" color={adminColors.primary} style={{ padding: spacing.md }} />
+                    ) : (
+                        <>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                                {standards.map((s) => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        style={[styles.chipSelect, selectedStandard === s.id && styles.chipSelectActive]}
+                                        onPress={() => setSelectedStandard(s.id)}
+                                    >
+                                        <Text style={[styles.chipSelectText, selectedStandard === s.id && styles.chipSelectTextActive]}>
+                                            {s.label} {s.labelGu ? `(${s.labelGu})` : ''}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                            {isFallback && (
+                                <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                            )}
+                        </>
+                    )}
                 </View>
 
                 <View style={styles.filterGroup}>
@@ -401,5 +410,11 @@ const styles = StyleSheet.create({
         fontSize: 24,
         color: adminColors.surface,
         fontWeight: typography.weight.bold,
-    }
+    },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        fontWeight: typography.weight.medium,
+    },
 });

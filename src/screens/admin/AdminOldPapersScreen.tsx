@@ -16,7 +16,7 @@ import {
 } from '../../services/firebase/oldPapers.service';
 
 export function AdminOldPapersScreen(): React.JSX.Element {
-    const { standards } = useStandards();
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
 
     const [selectedStandard, setSelectedStandard] = useState<string>('');
     const [selectedSemester, setSelectedSemester] = useState<string>('1');
@@ -168,27 +168,38 @@ export function AdminOldPapersScreen(): React.JSX.Element {
 
     return (
         <View style={styles.container}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-                {standards.map(s => (
-                    <TouchableOpacity
-                        key={s.id}
-                        style={[styles.chip, selectedStandard === String(s.number) && styles.chipActive]}
-                        onPress={() => setSelectedStandard(String(s.number))}
-                    >
-                        <Text style={[styles.chipText, selectedStandard === String(s.number) && styles.chipTextActive]}>Std {s.number}</Text>
-                    </TouchableOpacity>
-                ))}
-                <View style={styles.separator} />
-                {['1', '2'].map(sem => (
-                    <TouchableOpacity
-                        key={sem}
-                        style={[styles.chip, selectedSemester === sem && styles.chipActive]}
-                        onPress={() => setSelectedSemester(sem)}
-                    >
-                        <Text style={[styles.chipText, selectedSemester === sem && styles.chipTextActive]}>Sem {sem}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            {standardsLoading ? (
+                <View style={[styles.filterRow, { justifyContent: 'center', alignItems: 'center', height: 50 }]}>
+                    <ActivityIndicator size="small" color={adminColors.primary} />
+                </View>
+            ) : (
+                <>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
+                        {standards.map(s => (
+                            <TouchableOpacity
+                                key={s.id}
+                                style={[styles.chip, selectedStandard === String(s.number) && styles.chipActive]}
+                                onPress={() => setSelectedStandard(String(s.number))}
+                            >
+                                <Text style={[styles.chipText, selectedStandard === String(s.number) && styles.chipTextActive]}>Std {s.number}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <View style={styles.separator} />
+                        {['1', '2'].map(sem => (
+                            <TouchableOpacity
+                                key={sem}
+                                style={[styles.chip, selectedSemester === sem && styles.chipActive]}
+                                onPress={() => setSelectedSemester(sem)}
+                            >
+                                <Text style={[styles.chipText, selectedSemester === sem && styles.chipTextActive]}>Sem {sem}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                    {isFallback && (
+                        <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                    )}
+                </>
+            )}
 
             {loading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={adminColors.primary} /></View>
@@ -329,4 +340,11 @@ const styles = StyleSheet.create({
     cancelBtnText: { color: adminColors.textSecondary, fontWeight: typography.weight.semibold },
     saveBtn: { flex: 1, padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: adminColors.primary, alignItems: 'center' },
     saveBtnText: { color: '#fff', fontWeight: typography.weight.semibold },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        marginLeft: spacing.lg,
+        fontWeight: typography.weight.medium,
+    },
 });

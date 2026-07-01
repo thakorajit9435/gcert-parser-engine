@@ -17,7 +17,7 @@ import {
 } from '../../services/firebase/blueprint.service';
 
 export function AdminBlueprintScreen(): React.JSX.Element {
-    const { standards } = useStandards();
+    const { standards, loading: standardsLoading, isFallback } = useStandards();
 
     const [selectedStandard, setSelectedStandard] = useState<string>('');
     const [selectedSemester, setSelectedSemester] = useState<string>('1');
@@ -39,8 +39,10 @@ export function AdminBlueprintScreen(): React.JSX.Element {
     const [formSubjectId, setFormSubjectId] = useState('');
     const [formSelectedStandard, setFormSelectedStandard] = useState('');
 
-    // Fetch subjects for selected standard
-    const { subjects: availableSubjects } = useSubjects(selectedStandard, undefined);
+    // Use formSelectedStandard's ID when modal is open so subject list matches the selected standard
+    const subjectStandard = modalVisible ? formSelectedStandard : selectedStandard;
+    const selectedStdObj = standards.find(s => String(s.number) === subjectStandard);
+    const { subjects: availableSubjects } = useSubjects(selectedStdObj?.id, undefined);
 
     useEffect(() => {
         if (standards.length > 0 && !selectedStandard && standards[0]) {
@@ -221,7 +223,17 @@ export function AdminBlueprintScreen(): React.JSX.Element {
 
                             {/* Standard indicator */}
                             <Text style={styles.fieldLabel}>Standard *</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stdRow} contentContainerStyle={styles.stdRowContent}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.stdRow, styles.modalStdRow]} contentContainerStyle={styles.stdRowContent}>
+                                {standardsLoading ? (
+                                    <View style={styles.stdLoading}>
+                                        <ActivityIndicator size="small" color={adminColors.primary} />
+                                        <Text style={styles.stdLoadingText}>Loading standards…</Text>
+                                    </View>
+                                ) : standards.length === 0 ? (
+                                    <View style={styles.stdLoading}>
+                                        <Text style={styles.stdLoadingText}>No standards found</Text>
+                                    </View>
+                                ) : null}
                                 {standards.map(s => (
                                     <TouchableOpacity
                                         key={s.id}
@@ -234,6 +246,12 @@ export function AdminBlueprintScreen(): React.JSX.Element {
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
+                            {isFallback && (
+                                <Text style={styles.emptyStateText}>⚠️ No Standards Found. Please add standards first.</Text>
+                            )}
+                            {!formSelectedStandard && standards.length > 0 && (
+                                <Text style={styles.validationHint}>Please select a standard</Text>
+                            )}
 
                             {/* Subject picker */}
                             <Text style={styles.fieldLabel}>Subject (Optional)</Text>
@@ -402,5 +420,34 @@ const styles = StyleSheet.create({
     subjectPickerRow: {
         maxHeight: 44,
         marginBottom: spacing.sm,
+    },
+    modalStdRow: {
+        maxHeight: 60,
+        minHeight: 50,
+        borderBottomWidth: 0,
+        backgroundColor: 'transparent',
+    },
+    stdLoading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    stdLoadingText: {
+        color: adminColors.textMuted,
+        fontSize: typography.size.sm,
+    },
+    validationHint: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        marginLeft: spacing.md,
+    },
+    emptyStateText: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        marginLeft: spacing.md,
+        fontWeight: typography.weight.medium,
     },
 });

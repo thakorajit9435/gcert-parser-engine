@@ -78,7 +78,7 @@ export async function sendVerificationEmail(): Promise<{
 }> {
   try {
     const currentUser = auth().currentUser;
-    if (!currentUser) return {success: false, error: 'No user signed in.'};
+    if (!currentUser) {return {success: false, error: 'No user signed in.'};}
     await currentUser.sendEmailVerification();
     return {success: true};
   } catch (error) {
@@ -96,7 +96,7 @@ export async function reloadCurrentUser(): Promise<{
 }> {
   try {
     const currentUser = auth().currentUser;
-    if (!currentUser) return {success: false, error: 'No user signed in.'};
+    if (!currentUser) {return {success: false, error: 'No user signed in.'};}
     await currentUser.reload();
     return {
       success: true,

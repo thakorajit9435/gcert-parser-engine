@@ -32,7 +32,7 @@ export function ChapterSelectionScreen({ route, navigation }: { route: any; navi
                 subjectName,
                 chapterId: selectedChapterId,
                 mode: 'chapter',
-                count: questionCount
+                count: questionCount,
             });
         }
     };

@@ -17,7 +17,7 @@ export function PracticeModeModal({
     onSelectCount,
     title = 'પ્રેક્ટિસ માટે પ્રશ્નોની સંખ્યા પસંદ કરો',
 }: PracticeModeModalProps): React.JSX.Element {
-    if (!visible) return <></>;
+    if (!visible) {return <></>;}
 
     return (
         <RNModal transparent visible={visible} animationType="fade" onRequestClose={onClose}>

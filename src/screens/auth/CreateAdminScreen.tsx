@@ -10,9 +10,9 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Modal,
-    SafeAreaView,
     StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { TextInput } from '../../components/common/TextInput';

@@ -27,7 +27,7 @@ export function SessionScreen({ navigation }: { route: any; navigation: any }): 
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        if (refresh) refresh();
+        if (refresh) {refresh();}
         setTimeout(() => setRefreshing(false), 800);
     }, [refresh]);
 

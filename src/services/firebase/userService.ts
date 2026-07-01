@@ -78,12 +78,22 @@ export async function createAdminProfile(
 
 /**
  * Get user profile by UID.
+ *
+ * @param options.source  Pass `'cache'` to read from the local Firestore
+ *                        cache only (useful as a fallback when the server
+ *                        is unreachable or the initial fetch timed out).
  */
 export async function getUserProfile(
   uid: string,
+  options?: {source?: 'default' | 'cache'},
 ): Promise<{success: boolean; data?: UserProfile; error?: string}> {
   try {
-    const doc = await firestore().collection(USERS_COLLECTION).doc(uid).get();
+    const getOptions =
+      options?.source === 'cache' ? {source: 'cache' as const} : undefined;
+    const doc = await firestore()
+      .collection(USERS_COLLECTION)
+      .doc(uid)
+      .get(getOptions);
     if (!doc.exists) {
       return {success: false, error: 'User not found'};
     }

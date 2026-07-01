@@ -1,4 +1,4 @@
-package com.gyandeep
+package com.gyandeeps
 
 import android.app.Application
 import com.facebook.react.PackageList

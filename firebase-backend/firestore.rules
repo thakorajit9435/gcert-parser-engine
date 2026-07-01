@@ -47,13 +47,17 @@ service cloud.firestore {
 
       // Users can update their own non-critical fields
       allow update: if isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isBlocked', 'premium']);
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'role', 'isBlocked', 'premium', 'isPremium'
+        ]);
 
       // Admins can update user profiles
       allow update: if isAdmin() &&
-        // Only super_admin can change roles
+        // Only super_admin can change roles or premium status
         (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 'premium', 'isPremium'
+          ]) ||
           isSuperAdmin()
         );
 
@@ -116,18 +120,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // ─── Subscriptions ─────────────────────────────────
-
-    match /subscriptions/{docId} {
-      // Users can read their own subscriptions, admins can read all
-      allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-
-      // Only super_admin can create/update subscriptions
-      allow create, update: if isSuperAdmin();
-
-      allow delete: if false;
-    }
 
     // ─── Notifications ────────────────────────────────
 
@@ -139,7 +131,8 @@ service cloud.firestore {
     // ─── App Configuration ─────────────────────────────
 
     match /appConfig/{docId} {
-      allow read: if isAuthenticated();
+      // Anyone can read appConfig (needed for version check during splash screen)
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
@@ -198,6 +191,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── PDF Reading Progress ──────────────────────────
+
+    match /pdfReadingProgress/{docId} {
+      allow get: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
     // ─── Sessions ──────────────────────────────────────
 
     match /sessions/{docId} {
@@ -229,8 +236,8 @@ service cloud.firestore {
     // ─── Bookmarks ─────────────────────────────────────
 
     match /bookmarks/{docId} {
-      allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
-      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow read, delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create, update: if isAuthenticated() && (request.auth.uid == request.resource.data.userId || isAdmin());
     }
 
     // ─── Old Papers ────────────────────────────────────
@@ -245,6 +252,19 @@ service cloud.firestore {
     match /leaderboard/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // ─── Import Logs (Bulk Import history) ────────────────────────────────────
+
+    match /importLogs/{docId} {
+      // Only admins can create import log entries
+      allow create: if isAdmin();
+
+      // Only admins can read import history
+      allow read: if isAdmin();
+
+      // Logs are immutable — no updates or deletes
+      allow update, delete: if false;
     }
 
   }
