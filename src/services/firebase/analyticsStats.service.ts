@@ -70,10 +70,12 @@ export async function getAnalyticsStats(
       const quizId = data.quizId;
       const title = data.quizTitle || 'Quiz ' + quizId;
       if (quizId) {
-        if (!quizCounts[quizId]) {
-          quizCounts[quizId] = {count: 0, title};
+        const existing = quizCounts[quizId];
+        if (!existing) {
+          quizCounts[quizId] = {count: 1, title};
+        } else {
+          existing.count++;
         }
-        quizCounts[quizId].count++;
       }
     });
 
@@ -94,10 +96,12 @@ export async function getAnalyticsStats(
       const subjectId = data.subjectId;
       const subjectName = data.subjectName || 'Subject ' + subjectId;
       if (subjectId) {
-        if (!subjectCounts[subjectId]) {
-          subjectCounts[subjectId] = {count: 0, name: subjectName};
+        const existing = subjectCounts[subjectId];
+        if (!existing) {
+          subjectCounts[subjectId] = {count: 1, name: subjectName};
+        } else {
+          existing.count++;
         }
-        subjectCounts[subjectId].count++;
       }
     });
 

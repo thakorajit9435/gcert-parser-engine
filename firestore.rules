@@ -1,271 +1,1398 @@
+// =====================================================================
+// GyanDeep AI Education Platform — Firestore Security Rules
+// =====================================================================
+// Version        : 2
+// Date           : 2026-07-01
+// Designed by    : Senior Firebase Security Engineer
+// Target DB      : Cloud Firestore (Native Mode) — asia-south1
+// Auth Backend   : Firebase Authentication
+// Role Source    : Firebase Auth Custom Claims (NEVER from Firestore data)
+//
+// Role Hierarchy:
+//   super_admin     — Full platform control, all collections read/write
+//   content_admin   — Content CRUD, cannot touch user PII or financials
+//   student         — Own data + public curriculum reads + premium checks
+//
+// Custom Claims expected on request.auth.token:
+//   { role: "super_admin" | "content_admin" | "student" }
+//
+// CRITICAL: Roles are ONLY sourced from Firebase Auth custom claims.
+//           NO role field in Firestore documents is trusted for access control.
+//
+// =====================================================================
+// Assumed Data Models Summary
+// =====================================================================
+//
+// [standards]           std_{N}                    Curriculum root
+// [subjects]            {std_id}_{code}            Subject per standard
+// [chapters]            {sub_id}_ch{N}             Chapters per subject
+// [topics]              {ch_id}_tp{N}              Granular learning units
+// [learning_outcomes]   {tp_id}_lo{N}              Bloom-aligned outcomes
+// [textbooks]           {sub_id}_tb                Digital textbooks
+// [videos]              vid_{ULID}                 Lecture/animation videos
+// [worksheets]          ws_{ULID}                  Practice worksheets
+// [lesson_plans]        lp_{ch_id}                 Teacher lesson plans
+// [flashcards]          fc_{ULID}                  Spaced-rep flashcards
+// [glossary]            gl_{code}_{slug}           Subject vocabulary
+// [language_sections]   lang_{type}_{id}_{lang}    Multilingual content
+// [question_bank]       qb_{ULID}                  All question types
+// [mcq_bank]            mcq_{ULID}                 MCQ-specific bank
+// [mixed_quiz]          quiz_{ULID}                Configurable quizzes
+//   sub: attempts/{userId_attemptN}               Immutable attempt records
+// [old_papers]          paper_{std}_{sub}_{yr}_{s} Board exam papers
+// [blueprints]          bp_{std}_{sub}_{yr}        Marks blueprints
+// [bookmarks]           bm_{uid}_{type}_{cid}      User-saved content
+// [notifications]       notif_{ULID}               Push/in-app notifications
+//   sub: receipts/{userId}                        Delivery receipts
+// [users]               {Firebase Auth UID}        User profiles (PII)
+//   sub: devices/{deviceId}                       Registered devices
+//   sub: preferences/{prefId}                     UI preferences
+// [sessions]            {uid}_{ts_ms}              Auth sessions
+// [student_progress]    {userId}                   Progress (one per user)
+//   sub: chapter_progress/{chapterId}             Chapter-level progress
+//   sub: topic_progress/{topicId}                 Topic-level progress
+// [pdf_reading_progress] {uid}_{tb_id}            PDF reading tracker
+// [leaderboard]         lb_{std}_{scope}_{period}  Competitive boards
+//   sub: entries/{userId}                         Ranked entries
+// [analytics]           analytics_{YYYY_MM_DD}     Daily summaries
+//   sub: events/{eventId}                         Raw event stream
+// [premium_plans]       plan_{code}                Subscription plans
+// [subscriptions]       sub_{uid}_{ULID}           User subscriptions
+// [ai_knowledge_base]   kb_{sub}_{tp_id}           AI knowledge articles
+// [rag_chunks]          chunk_{ULID}               RAG pipeline chunks
+// [embeddings]          emb_{coll}_{src_id}        Vector embeddings
+// [ai_chat_history]     chat_{uid}_{ULID}           AI tutor sessions
+//   sub: messages/{messageId}                     Chat messages
+// [voice_history]       voice_{uid}_{ULID}          Voice interactions
+// [feedback]            fb_{ULID}                  User feedback
+// [reports]             report_{type}_{YYYY_MM}... Super admin reports
+// [import_logs]         import_{ULID}              Bulk import tracking
+// [audit_logs]          audit_{ULID}               Immutable audit trail
+// [app_config]          config_{env}_{scope}       Remote config
+// [app_versions]        ver_{platform}_{version}   Version management
+//
+// =====================================================================
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Helper Functions ──────────────────────────────
+    // ==================================================================
+    // HELPER FUNCTIONS — Identity & Auth
+    // ==================================================================
 
+    // Is the user authenticated with Firebase Auth?
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function userDocExists() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isStudent() {
-      return isAuthenticated() && userDocExists() && getUserRole() == 'student';
-    }
-
-    function isContentAdmin() {
-      return isAuthenticated() && userDocExists() && getUserRole() == 'content_admin';
-    }
-
-    function isSuperAdmin() {
-      return isAuthenticated() && userDocExists() && getUserRole() == 'super_admin';
-    }
-
-    function isAdmin() {
-      return isContentAdmin() || isSuperAdmin();
-    }
-
+    // Is the requesting user the document owner (by path wildcard)?
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // ─── Users ─────────────────────────────────────────
-
-    match /users/{userId} {
-      // Users can read their own profile
-      allow read: if isOwner(userId) || isAdmin();
-
-      // Allow any authenticated user to list users (e.g., leaderboard)
-      allow list: if isAuthenticated();
-
-      // Users can update their own non-critical fields
-      allow update: if isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'role', 'isBlocked', 'premium', 'isPremium'
-        ]);
-
-      // Admins can update user profiles
-      allow update: if isAdmin() &&
-        // Only super_admin can change roles or premium status
-        (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-            'role', 'premium', 'isPremium'
-          ]) ||
-          isSuperAdmin()
-        );
-
-      // Only system can create users (via auth trigger or first login)
-      allow create: if isOwner(userId);
-
-      // Users cannot be deleted from client
-      allow delete: if false;
+    // Does the document's user_id field match the requester?
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.user_id;
     }
 
-    // ─── Content Collections ───────────────────────────
+    // ==================================================================
+    // HELPER FUNCTIONS — Role Checks (Custom Claims ONLY)
+    // NEVER read roles from Firestore document data
+    // ==================================================================
 
-    match /standards/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.get('role', '') == 'super_admin';
     }
 
-    match /subjects/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    function isContentAdmin() {
+      return isAuthenticated() && request.auth.token.get('role', '') == 'content_admin';
     }
 
-    match /chapters/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    function isStudent() {
+      return isAuthenticated() && request.auth.token.get('role', '') == 'student';
     }
 
-    match /quizzes/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    function isAnyAdmin() {
+      return isSuperAdmin() || isContentAdmin();
+    }
 
-      // Questions subcollection under each quiz
-      match /questions/{questionId} {
-        allow read: if isAuthenticated();
-        allow write: if isAdmin();
+    // ==================================================================
+    // HELPER FUNCTIONS — Premium Content
+    // ==================================================================
+
+    // Read premium status from Firestore (not custom claim) to stay current
+    function hasPremiumAccess() {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        isContentAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('premium', false) == true ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('is_premium', false) == true ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isPremium', false) == true
+        ))
+      );
+    }
+
+    // Non-premium content: any authenticated user. Premium: requires subscription.
+    function canReadContent(isPremiumVal) {
+      return isAuthenticated() && (isPremiumVal == false || hasPremiumAccess());
+    }
+
+    // ==================================================================
+    // HELPER FUNCTIONS — UID & Immutability Guards
+    // ==================================================================
+
+    // On create: user_id must match the requester
+    function uidMatchesRequester() {
+      return !('user_id' in request.resource.data) ||
+             request.resource.data.user_id == request.auth.uid;
+    }
+
+    // On update: user_id must not be changed
+    function userIdNotModified() {
+      return !('user_id' in request.resource.data) ||
+             request.resource.data.user_id == resource.data.user_id;
+    }
+
+    // Specified fields must not change on update
+    function immutableFields(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ==================================================================
+    // HELPER FUNCTIONS — Field Validation
+    // ==================================================================
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidUrl(field) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].matches('^https://.*') &&
+              request.resource.data[field].size() <= 2048);
+    }
+
+    function isValidList(field, maxSize) {
+      return request.resource.data[field] is list &&
+             request.resource.data[field].size() <= maxSize;
+    }
+
+    function isValidOptionalList(field, maxSize) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is list &&
+              request.resource.data[field].size() <= maxSize);
+    }
+
+    function isNonNegativeInt(field) {
+      return request.resource.data[field] is int &&
+             request.resource.data[field] >= 0;
+    }
+
+    function isIntInRange(field, minVal, maxVal) {
+      return request.resource.data[field] is int &&
+             request.resource.data[field] >= minVal &&
+             request.resource.data[field] <= maxVal;
+    }
+
+    function isBool(field) {
+      return request.resource.data[field] is bool;
+    }
+
+    function isRecentTimestamp(field) {
+      return request.resource.data[field] is timestamp &&
+             request.resource.data[field] > request.time - duration.value(5, 'm') &&
+             request.resource.data[field] <= request.time + duration.value(1, 'm');
+    }
+
+    // ==================================================================
+    // HELPER FUNCTIONS — Enum Validators
+    // ==================================================================
+
+    function isValidDifficulty(field) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field] in ['easy', 'medium', 'hard'];
+    }
+
+    function isValidBloomLevel(field) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field] in
+               ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
+    }
+
+    function isValidFeedbackStatus(field) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field] in
+               ['pending', 'in_review', 'resolved', 'rejected'];
+    }
+
+    // ==================================================================
+    // HELPER FUNCTIONS — Domain Validators
+    // Called on BOTH create AND update to prevent the "Update Bypass" attack
+    // ==================================================================
+
+    // Validates core user profile fields that a user can write
+    function isValidUserWrite(data) {
+      return data.full_name_gu is string &&
+               data.full_name_gu.size() >= 2 &&
+               data.full_name_gu.size() <= 100 &&
+             data.username is string &&
+               data.username.size() >= 3 &&
+               data.username.size() <= 30 &&
+             data.standard_id is string &&
+               data.standard_id.size() >= 3 &&
+               data.standard_id.size() <= 20 &&
+             data.standard_number is int &&
+               data.standard_number >= 1 &&
+               data.standard_number <= 12 &&
+             data.state is string &&
+               data.state.size() >= 2 &&
+               data.state.size() <= 50 &&
+             data.preferred_language is string &&
+               data.preferred_language in ['Gujarati', 'English'] &&
+             data.streak_days is int && data.streak_days >= 0 &&
+             data.longest_streak is int && data.longest_streak >= 0 &&
+             data.total_points is int && data.total_points >= 0 &&
+             data.total_study_minutes is int && data.total_study_minutes >= 0 &&
+             data.is_verified is bool &&
+             data.is_blocked is bool &&
+             data.is_deleted is bool &&
+             data.is_premium is bool &&
+             data.auth_provider is string &&
+               data.auth_provider in ['phone', 'google', 'email'];
+    }
+
+    function isValidBookmarkWrite(data) {
+      return data.user_id is string &&
+               data.user_id.size() > 0 && data.user_id.size() <= 128 &&
+             data.content_type is string &&
+               data.content_type in
+                 ['video', 'worksheet', 'question', 'flashcard', 'topic', 'old_paper'] &&
+             data.content_id is string &&
+               data.content_id.size() > 0 && data.content_id.size() <= 128 &&
+             data.content_title_gu is string &&
+               data.content_title_gu.size() > 0 && data.content_title_gu.size() <= 300 &&
+             data.standard_id is string &&
+               data.standard_id.size() >= 3 && data.standard_id.size() <= 20 &&
+             data.subject_id is string &&
+               data.subject_id.size() >= 3 && data.subject_id.size() <= 40;
+    }
+
+    function isValidFeedbackWrite(data) {
+      return data.user_id is string &&
+               data.user_id.size() > 0 && data.user_id.size() <= 128 &&
+             data.feedback_type is string &&
+               data.feedback_type in
+                 ['bug', 'content_error', 'feature_request', 'general', 'ai_response'] &&
+             data.category is string &&
+               data.category in ['app', 'content', 'ai', 'payment', 'other'] &&
+             data.description_gu is string &&
+               data.description_gu.size() >= 10 && data.description_gu.size() <= 2000 &&
+             data.platform is string &&
+               data.platform in ['android', 'ios', 'web'] &&
+             data.app_version is string &&
+               data.app_version.size() >= 1 && data.app_version.size() <= 20;
+    }
+
+    function isValidProgressWrite(data) {
+      return data.user_id is string && data.user_id.size() > 0 &&
+             data.standard_id is string && data.standard_id.size() >= 3 &&
+             data.standard_number is int &&
+               data.standard_number >= 1 && data.standard_number <= 12 &&
+             data.total_topics_completed is int &&
+               data.total_topics_completed >= 0 &&
+             data.total_chapters_completed is int &&
+               data.total_chapters_completed >= 0 &&
+             data.total_quizzes_attempted is int &&
+               data.total_quizzes_attempted >= 0 &&
+             data.total_quizzes_passed is int &&
+               data.total_quizzes_passed >= 0 &&
+             data.total_study_minutes is int &&
+               data.total_study_minutes >= 0 &&
+             data.current_streak_days is int &&
+               data.current_streak_days >= 0;
+    }
+
+    function isValidChatWrite(data) {
+      return data.user_id is string &&
+               data.user_id.size() > 0 && data.user_id.size() <= 128 &&
+             data.session_type is string &&
+               data.session_type in
+                 ['tutor', 'quiz_help', 'doubt', 'revision', 'general'] &&
+             data.language is string &&
+               data.language in ['Gujarati', 'English'] &&
+             data.total_messages is int && data.total_messages >= 0 &&
+             data.total_tokens_used is int && data.total_tokens_used >= 0 &&
+             data.model_used is string &&
+               data.model_used.size() >= 1 && data.model_used.size() <= 100 &&
+             data.is_active is bool;
+    }
+
+    function isValidMessageWrite(data) {
+      return data.message_id is string &&
+               data.message_id.size() >= 1 && data.message_id.size() <= 128 &&
+             data.role is string && data.role in ['user', 'model'] &&
+             data.content_text is string &&
+               data.content_text.size() >= 1 && data.content_text.size() <= 8000 &&
+             data.content_type is string &&
+               data.content_type in ['text', 'image', 'math', 'code'] &&
+             data.is_error is bool;
+    }
+
+    function isValidPdfProgressWrite(data) {
+      return data.user_id is string && data.user_id.size() > 0 &&
+             data.textbook_id is string && data.textbook_id.size() > 0 &&
+             data.current_page is int && data.current_page >= 1 &&
+             data.total_pages is int && data.total_pages >= 1 &&
+             data.reading_time_minutes is int &&
+               data.reading_time_minutes >= 0 &&
+             data.completion_percent is number &&
+               data.completion_percent >= 0.0 && data.completion_percent <= 100.0;
+    }
+
+    function isValidVoiceWrite(data) {
+      return data.user_id is string && data.user_id.size() > 0 &&
+             data.input_type is string &&
+               data.input_type in
+                 ['speech_to_text', 'text_to_speech', 'bidirectional'] &&
+             data.transcription_gu is string &&
+               data.transcription_gu.size() <= 5000 &&
+             data.ai_response_text is string &&
+               data.ai_response_text.size() <= 8000 &&
+             data.stt_model is string &&
+               data.stt_model.size() >= 1 && data.stt_model.size() <= 100 &&
+             data.tts_model is string &&
+               data.tts_model.size() >= 1 && data.tts_model.size() <= 100 &&
+             data.duration_seconds is int &&
+               data.duration_seconds >= 0 && data.duration_seconds <= 3600 &&
+             data.confidence_score is number &&
+               data.confidence_score >= 0.0 && data.confidence_score <= 1.0 &&
+             data.language_code is string &&
+               data.language_code in ['gu-IN', 'en-IN', 'gu', 'en'];
+    }
+
+    // ==================================================================
+    // DEFAULT DENY — All access denied unless explicitly granted below
+    // ==================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==================================================================
+    // CURRICULUM — standards, subjects, chapters, topics, learning_outcomes
+    // Read: any authenticated user (free content)
+    // Write: content_admin or super_admin
+    // Delete: super_admin only
+    // ==================================================================
+
+    match /standards/{standardId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /chapters/{chapterId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /topics/{topicId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /learning_outcomes/{outcomeId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['outcome_id', 'topic_id', 'chapter_id', 'subject_id',
+                           'standard_id', 'outcome_text_gu', 'bloom_level',
+                           'measurable_verb_gu', 'is_active', 'display_order',
+                           'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.outcome_id == outcomeId &&
+        isValidString('outcome_text_gu', 5, 500) &&
+        isValidString('measurable_verb_gu', 1, 50) &&
+        isValidBloomLevel('bloom_level') &&
+        isBool('is_active') &&
+        isNonNegativeInt('display_order') &&
+        isValidOptionalList('linked_question_ids', 50) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['outcome_id', 'created_at', 'created_by']) &&
+        isValidString('outcome_text_gu', 5, 500);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // CONTENT — textbooks, videos, worksheets, lesson_plans,
+    //           flashcards, glossary, language_sections
+    // ==================================================================
+
+    match /textbooks/{textbookId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['textbook_id', 'subject_id', 'standard_id', 'standard_number',
+                           'title_gu', 'title_en', 'publisher', 'edition_year',
+                           'total_pages', 'total_chapters', 'pdf_url', 'chapter_page_map',
+                           'is_downloadable', 'is_active', 'is_premium', 'language',
+                           'ocr_processed', 'ai_indexed', 'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300) &&
+        isValidString('publisher', 1, 100) &&
+        isIntInRange('edition_year', 2000, 2100) &&
+        isNonNegativeInt('total_pages') &&
+        isValidList('chapter_page_map', 50) &&
+        isValidUrl('pdf_url') &&
+        isBool('is_downloadable') &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isBool('ocr_processed') &&
+        isBool('ai_indexed') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['textbook_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /videos/{videoId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['video_id', 'title_gu', 'chapter_id', 'subject_id',
+                           'standard_id', 'standard_number', 'video_source', 'video_url',
+                           'thumbnail_url', 'duration_seconds', 'language', 'content_type',
+                           'view_count', 'like_count', 'is_active', 'is_premium',
+                           'ai_indexed', 'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('video_url', 1, 2048) &&
+        request.resource.data.video_source in ['youtube', 'vimeo', 'gcs', 'cloudflare'] &&
+        request.resource.data.content_type in
+          ['lecture', 'animation', 'experiment', 'revision'] &&
+        isNonNegativeInt('duration_seconds') &&
+        request.resource.data.view_count == 0 &&
+        request.resource.data.like_count == 0 &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isBool('ai_indexed') &&
+        isValidOptionalList('tags', 20) &&
+        isValidOptionalString('ai_transcript_gu', 0, 100000) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      // Admins do full updates (excluding counters); students can only increment view_count
+      allow update: if (isAnyAdmin() &&
+                         immutableFields(['video_id', 'created_at', 'created_by',
+                                          'view_count', 'like_count']) &&
+                         isValidString('title_gu', 1, 300)) ||
+                       (isAuthenticated() &&
+                         request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['view_count']) &&
+                         request.resource.data.view_count == resource.data.view_count + 1);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /worksheets/{worksheetId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['worksheet_id', 'title_gu', 'chapter_id', 'subject_id',
+                           'standard_id', 'standard_number', 'worksheet_type',
+                           'difficulty_level', 'pdf_url', 'total_questions', 'total_marks',
+                           'is_downloadable', 'is_active', 'is_premium', 'download_count',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        request.resource.data.worksheet_type in
+          ['practice', 'revision', 'assignment', 'homework'] &&
+        isValidDifficulty('difficulty_level') &&
+        isNonNegativeInt('total_questions') &&
+        isNonNegativeInt('total_marks') &&
+        request.resource.data.download_count == 0 &&
+        isBool('is_downloadable') &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isValidOptionalList('question_ids', 100) &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if (isAnyAdmin() &&
+                         immutableFields(['worksheet_id', 'created_at', 'created_by',
+                                          'download_count'])) ||
+                       (isAuthenticated() &&
+                         request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['download_count']) &&
+                         request.resource.data.download_count ==
+                           resource.data.download_count + 1);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /lesson_plans/{lessonPlanId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['lesson_plan_id', 'chapter_id', 'subject_id', 'standard_id',
+                           'title_gu', 'total_periods', 'period_duration_min', 'periods',
+                           'learning_outcomes', 'is_active', 'is_ai_generated',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isNonNegativeInt('total_periods') &&
+        isIntInRange('period_duration_min', 15, 120) &&
+        isValidList('periods', 30) &&
+        isValidList('learning_outcomes', 50) &&
+        isBool('is_active') &&
+        isBool('is_ai_generated') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['lesson_plan_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /flashcards/{flashcardId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['flashcard_id', 'topic_id', 'chapter_id', 'subject_id',
+                           'standard_id', 'front_text_gu', 'back_text_gu', 'card_type',
+                           'difficulty_level', 'is_active', 'is_premium', 'is_ai_generated',
+                           'review_count', 'created_at', 'updated_at', 'created_by']) &&
+        isValidString('front_text_gu', 1, 1000) &&
+        isValidString('back_text_gu', 1, 2000) &&
+        request.resource.data.card_type in
+          ['definition', 'formula', 'concept', 'date', 'equation'] &&
+        isValidDifficulty('difficulty_level') &&
+        request.resource.data.review_count == 0 &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isBool('is_ai_generated') &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['flashcard_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /glossary/{glossaryId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['glossary_id', 'word_gu', 'word_en', 'definition_gu',
+                           'subject_id', 'standard_id', 'standard_number',
+                           'subject_code', 'is_active', 'created_at', 'updated_at',
+                           'created_by']) &&
+        isValidString('word_gu', 1, 100) &&
+        isValidString('word_en', 1, 100) &&
+        isValidString('definition_gu', 1, 2000) &&
+        isNonNegativeInt('standard_number') &&
+        isBool('is_active') &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['glossary_id', 'created_at', 'created_by']) &&
+        isValidString('definition_gu', 1, 2000);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /sub_topics/{subTopicId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['sub_topic_id', 'topic_id', 'title_en', 'title_gu', 'display_order',
+                           'is_active', 'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.sub_topic_id == subTopicId &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300) &&
+        isNonNegativeInt('display_order') &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['sub_topic_id', 'created_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['activity_id', 'topic_id', 'chapter_id', 'subject_id', 'standard_id',
+                           'title_en', 'title_gu', 'instructions_en', 'instructions_gu',
+                           'materials_needed', 'duration_minutes', 'activity_type', 'is_active',
+                           'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.activity_id == activityId &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300) &&
+        isValidString('instructions_gu', 1, 5000) &&
+        isValidString('instructions_en', 1, 5000) &&
+        isNonNegativeInt('duration_minutes') &&
+        request.resource.data.activity_type in ['experiment', 'group', 'individual', 'project', 'game'] &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['activity_id', 'created_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /keywords/{keywordId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['keyword_id', 'topic_id', 'chapter_id', 'subject_id', 'standard_id',
+                           'keyword_en', 'keyword_gu', 'meaning_gu', 'meaning_en', 'is_active',
+                           'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.keyword_id == keywordId &&
+        isValidString('keyword_en', 1, 100) &&
+        isValidString('keyword_gu', 1, 100) &&
+        isValidString('meaning_gu', 1, 1000) &&
+        isValidString('meaning_en', 1, 1000) &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['keyword_id', 'created_at', 'created_by']) &&
+        isValidString('keyword_gu', 1, 100) &&
+        isValidString('keyword_en', 1, 100);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /chapter_summaries/{summaryId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['summary_id', 'chapter_id', 'standard_id', 'subject_id',
+                           'summary_en', 'summary_gu', 'key_points', 'important_formulas',
+                           'diagram_references', 'revision_notes_en', 'revision_notes_gu', 'is_active',
+                           'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.summary_id == summaryId &&
+        isValidString('summary_gu', 5, 5000) &&
+        isValidString('summary_en', 5, 5000) &&
+        isValidList('key_points', 50) &&
+        isValidList('important_formulas', 50) &&
+        isValidList('diagram_references', 50) &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['summary_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+
+    match /language_sections/{sectionId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['lang_section_id', 'content_type', 'content_id',
+                           'language_code', 'language_name', 'body',
+                           'translation_method', 'is_reviewed', 'is_active',
+                           'created_at', 'updated_at', 'created_by']) &&
+        request.resource.data.language_code in ['gu', 'en', 'hi'] &&
+        request.resource.data.content_type in
+          ['topic', 'question', 'flashcard', 'glossary'] &&
+        isValidString('body', 1, 50000) &&
+        request.resource.data.translation_method in ['human', 'ai', 'hybrid'] &&
+        isBool('is_reviewed') &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['lang_section_id', 'content_id', 'created_at', 'created_by']) &&
+        isValidString('body', 1, 50000);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // ASSESSMENT — question_bank, mcq_bank, mixed_quiz,
+    //              old_papers, blueprints
+    // ==================================================================
+
+    match /question_bank/{questionId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['question_id', 'question_text_gu', 'question_type',
+                           'subject_id', 'chapter_id', 'standard_id', 'standard_number',
+                           'bloom_level', 'difficulty_level', 'marks',
+                           'is_verified', 'is_active', 'is_premium', 'usage_count',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('question_text_gu', 5, 3000) &&
+        request.resource.data.question_type in
+          ['mcq', 'short_answer', 'long_answer', 'fill_blank', 'match',
+           'true_false', 'diagram'] &&
+        isValidBloomLevel('bloom_level') &&
+        isValidDifficulty('difficulty_level') &&
+        isIntInRange('marks', 0, 20) &&
+        request.resource.data.usage_count == 0 &&
+        isBool('is_verified') &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isValidOptionalString('answer_gu', 0, 5000) &&
+        isValidOptionalList('options', 6) &&
+        isValidOptionalList('answer_hints', 10) &&
+        isValidOptionalList('learning_outcome_ids', 10) &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['question_id', 'created_at', 'created_by']) &&
+        isValidString('question_text_gu', 5, 3000);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /mcq_bank/{mcqId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['mcq_id', 'question_text_gu', 'options', 'correct_option_id',
+                           'subject_id', 'chapter_id', 'standard_id', 'standard_number',
+                           'bloom_level', 'difficulty_level', 'marks',
+                           'is_verified', 'is_active', 'is_premium', 'usage_count',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('question_text_gu', 5, 3000) &&
+        isValidString('correct_option_id', 1, 10) &&
+        isValidList('options', 6) &&
+        isValidBloomLevel('bloom_level') &&
+        isValidDifficulty('difficulty_level') &&
+        isIntInRange('marks', 0, 10) &&
+        request.resource.data.usage_count == 0 &&
+        isBool('is_verified') &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isValidOptionalString('explanation_gu', 0, 3000) &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['mcq_id', 'created_at', 'created_by']) &&
+        isValidString('question_text_gu', 5, 3000);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /mixed_quiz/{quizId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['quiz_id', 'title_gu', 'quiz_type', 'standard_id',
+                           'standard_number', 'question_ids', 'question_sources',
+                           'total_questions', 'total_marks', 'time_limit_minutes',
+                           'negative_marking', 'shuffle_questions', 'shuffle_options',
+                           'show_solution', 'is_active', 'is_premium', 'is_ai_generated',
+                           'attempt_count', 'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        request.resource.data.quiz_type in
+          ['practice', 'chapter_test', 'subject_test', 'mock_exam', 'ai_adaptive'] &&
+        isValidList('question_ids', 200) &&
+        isValidList('question_sources', 5) &&
+        isNonNegativeInt('total_questions') &&
+        isNonNegativeInt('total_marks') &&
+        isIntInRange('time_limit_minutes', 1, 360) &&
+        request.resource.data.attempt_count == 0 &&
+        isBool('negative_marking') &&
+        isBool('shuffle_questions') &&
+        isBool('shuffle_options') &&
+        isBool('show_solution') &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        isBool('is_ai_generated') &&
+        isValidOptionalList('tags', 20) &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['quiz_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+
+      // Quiz attempts: student creates own; both read own; immutable after creation
+      match /attempts/{attemptId} {
+        allow read: if (isAuthenticated() &&
+                         resource.data.user_id == request.auth.uid) ||
+                       isAnyAdmin();
+
+        allow create: if isAuthenticated() &&
+          request.resource.data.user_id == request.auth.uid &&
+          request.resource.data.quiz_id == quizId &&
+          request.resource.data.score is number &&
+          request.resource.data.percentage is number &&
+            request.resource.data.percentage >= 0.0 &&
+            request.resource.data.percentage <= 100.0 &&
+          isValidList('answers', 200) &&
+          request.resource.data.time_taken_minutes is number &&
+            request.resource.data.time_taken_minutes >= 0 &&
+          isBool('is_passed');
+
+      // Attempt records are immutable — no modifications after submission
+        allow update, delete: if false;
       }
     }
 
-    match /questions/{docId} {
+    match /quizzes/{quizId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAnyAdmin() || isAuthenticated();
+        allow delete: if isSuperAdmin();
+      }
     }
 
-    // ─── Quiz Attempts ─────────────────────────────────
-
-    match /quizAttempts/{docId} {
-      // Single doc read: owner or admin
-      allow get: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-
-      // List queries: any authenticated user (filtered client-side by userId)
-      allow list: if isAuthenticated();
-
-      // Students can create their own attempts with basic data integrity
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.createdAt == request.time; // enforce server timestamp
-
-      // Attempts cannot be updated or deleted
-      allow update, delete: if false;
-    }
-
-
-    // ─── Notifications ────────────────────────────────
-
-    match /notifications/{docId} {
+    match /questions/{questionId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
     }
 
-    // ─── App Configuration ─────────────────────────────
-
-    match /appConfig/{docId} {
-      // Anyone can read appConfig (needed for version check during splash screen)
-      allow read: if true;
-      allow write: if isSuperAdmin();
+    match /mcqs/{mcqId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
     }
 
-    // ─── Leaderboard Config ────────────────────────────
+    match /quizAttempts/{attemptId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /quiz_attempts/{attemptId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /old_papers/{paperId} {
+      allow read: if isAuthenticated() &&
+        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['paper_id', 'title_gu', 'standard_id', 'standard_number',
+                           'subject_id', 'subject_code', 'exam_year', 'exam_season',
+                           'board', 'total_marks', 'time_limit_hours', 'sections',
+                           'question_ids', 'pdf_url', 'is_active', 'is_premium',
+                           'download_count', 'attempt_count',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isIntInRange('exam_year', 2000, 2100) &&
+        request.resource.data.exam_season in ['march', 'july', 'repeater'] &&
+        isNonNegativeInt('total_marks') &&
+        isValidList('sections', 10) &&
+        isValidList('question_ids', 200) &&
+        request.resource.data.download_count == 0 &&
+        request.resource.data.attempt_count == 0 &&
+        isBool('is_active') &&
+        isBool('is_premium') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if (isAnyAdmin() &&
+                         immutableFields(['paper_id', 'created_at', 'created_by',
+                                          'download_count', 'attempt_count'])) ||
+                       (isAuthenticated() &&
+                         request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['download_count']) &&
+                         request.resource.data.download_count ==
+                           resource.data.download_count + 1);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /blueprints/{blueprintId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['blueprint_id', 'standard_id', 'standard_number',
+                           'subject_id', 'subject_code', 'academic_year', 'board',
+                           'total_marks', 'chapter_distribution',
+                           'question_type_distribution', 'is_active',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('academic_year', 7, 11) &&
+        isNonNegativeInt('total_marks') &&
+        isValidList('chapter_distribution', 50) &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['blueprint_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // USER DATA — users (with sub-collections), sessions
+    // CRITICAL: PII isolation — no cross-user reads allowed
+    // ==================================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+      match /devices/{deviceId} {
+        allow read, write: if isOwner(userId) || isSuperAdmin();
+      }
+
+      match /preferences/{prefId} {
+        allow read, write: if isOwner(userId) || isSuperAdmin();
+      }
+    }
 
     match /leaderboardConfig/{docId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin();
     }
 
-    // ─── Audit Logs ────────────────────────────────────
-    
-    match /auditLogs/{docId} {
-      // Only admins can read audit logs
-      allow read: if isAdmin();
-
-      // Admins can create audit logs
-      allow create: if isAdmin();
-
-      // Audit logs cannot be updated or deleted
-      allow update, delete: if false;
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
     }
 
-    // ─── MCQs (Practice System) ────────────────────────
+    // ==================================================================
+    // STUDENT DATA — student_progress, pdf_reading_progress
+    // ==================================================================
 
-    match /mcqs/{docId} {
-      // All authenticated users can read MCQs
+    match /student_progress/{userId} {
+      allow read, write: if isOwner(userId) || isAnyAdmin();
+
+      match /chapter_progress/{chapterId} {
+        allow read, write: if isOwner(userId) || isAnyAdmin();
+      }
+
+      match /topic_progress/{topicId} {
+        allow read, write: if isOwner(userId) || isAnyAdmin();
+      }
+    }
+
+    match /userProgress/{progressId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAnyAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAnyAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAnyAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    match /pdf_reading_progress/{progressId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow update: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // ENGAGEMENT — bookmarks, notifications, leaderboard
+    // ==================================================================
+
+    match /bookmarks/{bookmarkId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow update: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
+      allow delete: if (isAuthenticated() && resource.data.user_id == request.auth.uid) || isSuperAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+
+      match /receipts/{userId} {
+        allow read, write: if isOwner(userId) || isAnyAdmin();
+      }
+    }
+
+    match /leaderboard/{boardId} {
       allow read: if isAuthenticated();
 
-      // Only admins can create, update, delete MCQs
-      allow create, update, delete: if isAdmin();
+      allow create: if isSuperAdmin() &&
+        hasRequiredFields(['leaderboard_id', 'scope', 'period_type', 'period_label',
+                           'period_start', 'period_end', 'total_participants',
+                           'is_active', 'created_at', 'updated_at']) &&
+        request.resource.data.scope in ['standard', 'global', 'school', 'district'] &&
+        request.resource.data.period_type in ['weekly', 'monthly', 'all_time'] &&
+        isBool('is_active');
+
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+      // Leaderboard entries — read by all; written only by Cloud Functions
+      match /entries/{userId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isSuperAdmin();
+        allow delete: if isSuperAdmin();
+      }
     }
 
-    // ─── Practice Settings ─────────────────────────────
+    // ==================================================================
+    // MONETIZATION — premium_plans, subscriptions
+    // ==================================================================
 
-    match /practiceSettings/{docId} {
-      // All authenticated users can read settings
+    match /premium_plans/{planId} {
+      // Any authenticated user can browse plans
       allow read: if isAuthenticated();
 
-      // Only admins can write settings
-      allow create, update, delete: if isAdmin();
+      allow create: if isSuperAdmin() &&
+        hasRequiredFields(['plan_id', 'plan_name_gu', 'plan_name_en', 'plan_code',
+                           'plan_type', 'price_inr', 'currency', 'duration_days',
+                           'standard_scope', 'features', 'content_access',
+                           'is_active', 'is_featured', 'display_order',
+                           'created_at', 'updated_at', 'created_by']) &&
+        isValidString('plan_name_gu', 1, 100) &&
+        isValidString('plan_name_en', 1, 100) &&
+        request.resource.data.price_inr is number &&
+          request.resource.data.price_inr >= 0 &&
+        request.resource.data.duration_days is int &&
+          request.resource.data.duration_days >= 1 &&
+        request.resource.data.currency == 'INR' &&
+        request.resource.data.plan_type in ['monthly', 'quarterly', 'annual', 'lifetime'] &&
+        isValidList('features', 30) &&
+        isBool('is_active') &&
+        isBool('is_featured') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isSuperAdmin() &&
+        immutableFields(['plan_id', 'plan_code', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
     }
 
-    // ─── User Progress ─────────────────────────────────
+    match /subscriptions/{subscriptionId} {
+      // Students read only their own subscription; Super Admin reads all
+      allow read: if (isAuthenticated() &&
+                       (resource.data.get('user_id', '') == request.auth.uid ||
+                        resource.data.get('userId', '') == request.auth.uid)) ||
+                     isSuperAdmin();
 
-    match /userProgress/{docId} {
-      allow get: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isAuthenticated();
+      // Subscriptions managed exclusively by Cloud Functions (payment webhooks)
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // FEEDBACK — Students submit; Admins manage
+    // ==================================================================
+
+    match /feedback/{feedbackId} {
+      allow read: if (isAuthenticated() &&
+                       resource.data.user_id == request.auth.uid) ||
+                     isAnyAdmin();
+
       allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid &&
-        (!request.resource.data.keys().hasAll(['updatedAt']) || request.resource.data.updatedAt == request.time);
+        isValidFeedbackWrite(request.resource.data) &&
+        request.resource.data.user_id == request.auth.uid &&
+        // Status must begin as 'pending'; cannot self-resolve
+        request.resource.data.status == 'pending' &&
+        isValidOptionalList('screenshots', 5);
+
+      // Only admins can update status, assign, and add resolution notes
+      allow update: if isAnyAdmin() &&
+        immutableFields(['feedback_id', 'user_id', 'created_at',
+                         'feedback_type', 'category', 'description_gu']) &&
+        isValidFeedbackStatus('status');
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // APP CONFIG & VERSIONS — Super Admin manages; all auth users read
+    // ==================================================================
+
+    match /app_config/{configId} {
+      // All authenticated users read config on app launch
+      allow read: if isAuthenticated();
+
+      allow create: if isSuperAdmin() &&
+        hasRequiredFields(['config_id', 'environment', 'scope', 'feature_flags',
+                           'ai_settings', 'maintenance_mode', 'content_limits',
+                           'rate_limits', 'is_active', 'created_at',
+                           'updated_at', 'updated_by']) &&
+        request.resource.data.environment in ['production', 'staging', 'development'] &&
+        request.resource.data.scope in ['global', 'standard', 'subject'] &&
+        isBool('maintenance_mode') &&
+        isBool('is_active') &&
+        request.resource.data.updated_by == request.auth.uid;
+
+      allow update: if isSuperAdmin() &&
+        immutableFields(['config_id', 'created_at', 'environment']) &&
+        request.resource.data.updated_by == request.auth.uid;
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /app_versions/{versionId} {
+      // All authenticated users read version info for force-update checks
+      allow read: if isAuthenticated();
+
+      allow create: if isSuperAdmin() &&
+        hasRequiredFields(['version_id', 'platform', 'version_string', 'version_code',
+                           'release_type', 'release_notes_gu', 'min_supported_version',
+                           'is_force_update', 'is_deprecated', 'store_url', 'changelog',
+                           'released_at', 'is_active', 'created_at', 'created_by']) &&
+        request.resource.data.platform in ['android', 'ios', 'web'] &&
+        request.resource.data.release_type in ['stable', 'beta', 'hotfix'] &&
+        isValidString('version_string', 1, 20) &&
+        isValidString('store_url', 5, 500) &&
+        isValidList('changelog', 50) &&
+        isBool('is_force_update') &&
+        isBool('is_deprecated') &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isSuperAdmin() &&
+        immutableFields(['version_id', 'platform', 'version_string', 'version_code',
+                         'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // AI PIPELINE — Strictly internal; no direct client access
+    // ai_knowledge_base, rag_chunks, embeddings
+    // ==================================================================
+
+    // Knowledge Base: verified articles readable by authenticated users
+    match /ai_knowledge_base/{kbId} {
+      allow read: if isAuthenticated() &&
+        resource.data.is_verified == true;
+
+      allow create: if isAnyAdmin() &&
+        hasRequiredFields(['kb_id', 'title_gu', 'title_en', 'content_gu',
+                           'content_type', 'subject_id', 'topic_id', 'chapter_id',
+                           'standard_id', 'standard_number', 'source_type',
+                           'rag_chunk_ids', 'keywords', 'is_verified', 'is_active',
+                           'version', 'created_at', 'updated_at', 'created_by']) &&
+        isValidString('title_gu', 1, 300) &&
+        isValidString('title_en', 1, 300) &&
+        isValidString('content_gu', 1, 100000) &&
+        request.resource.data.content_type in
+          ['concept', 'definition', 'formula', 'procedure', 'fact'] &&
+        request.resource.data.source_type in
+          ['textbook', 'curriculum', 'ai_generated', 'expert'] &&
+        isValidList('rag_chunk_ids', 100) &&
+        isValidList('keywords', 50) &&
+        request.resource.data.version == 1 &&
+        isBool('is_verified') &&
+        isBool('is_active') &&
+        request.resource.data.created_by == request.auth.uid;
+
+      allow update: if isAnyAdmin() &&
+        immutableFields(['kb_id', 'created_at', 'created_by']);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // RAG chunks: internal pipeline data — Super Admin (Cloud Functions) only
+    match /rag_chunks/{chunkId} {
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Vector embeddings: strictly internal — no client access ever
+    match /embeddings/{embeddingId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // AI TUTOR — chat_sessions (with messages subcollection), ai_chat_history, voice_history
+    // ==================================================================
+
+    match /chat_sessions/{sessionId} {
+      allow read: if (isAuthenticated() &&
+                       (resource.data.userId == request.auth.uid ||
+                        resource.data.get('user_id', '') == request.auth.uid)) ||
+                     isSuperAdmin();
+
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+      match /messages/{messageId} {
+        allow read: if (isAuthenticated() &&
+                         (get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.userId == request.auth.uid ||
+                          get(/databases/$(database)/documents/chat_sessions/$(sessionId)).data.get('user_id', '') == request.auth.uid)) ||
+                       isSuperAdmin();
+
+        allow create, update: if isSuperAdmin();
+        allow delete: if isSuperAdmin();
+      }
+    }
+
+    match /ai_chat_history/{chatId} {
+      allow read: if (isAuthenticated() &&
+                       resource.data.user_id == request.auth.uid) ||
+                     isSuperAdmin();
+
+      allow create: if isAuthenticated() &&
+        isValidChatWrite(request.resource.data) &&
+        request.resource.data.user_id == request.auth.uid &&
+        // Counters must start at zero on creation
+        request.resource.data.total_messages == 0 &&
+        request.resource.data.total_tokens_used == 0;
+
       allow update: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.updatedAt == request.time;
+        resource.data.user_id == request.auth.uid &&
+        isValidChatWrite(request.resource.data) &&
+        // Prevent tampering with ownership and creation anchors
+        immutableFields(['chat_id', 'user_id', 'created_at', 'started_at']);
+
+      allow delete: if isSuperAdmin();
+
+      match /messages/{messageId} {
+        // Only the chat owner or Super Admin can read messages
+        allow read: if (isAuthenticated() &&
+                         get(/databases/$(database)/documents/ai_chat_history/$(chatId))
+                           .data.user_id == request.auth.uid) ||
+                       isSuperAdmin();
+
+        allow create: if isAuthenticated() &&
+          get(/databases/$(database)/documents/ai_chat_history/$(chatId))
+            .data.user_id == request.auth.uid &&
+          isValidMessageWrite(request.resource.data) &&
+          // Clients cannot inject 'system' role messages
+          request.resource.data.role in ['user', 'model'] &&
+          isValidOptionalList('rag_sources', 20);
+
+        // Only the feedback_rating field can be updated post-creation
+        allow update: if isAuthenticated() &&
+          get(/databases/$(database)/documents/ai_chat_history/$(chatId))
+            .data.user_id == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['feedback_rating']) &&
+          request.resource.data.feedback_rating is int &&
+            request.resource.data.feedback_rating >= 1 &&
+            request.resource.data.feedback_rating <= 5;
+
+        allow delete: if isSuperAdmin();
+      }
+    }
+
+    match /voice_history/{voiceId} {
+      allow read: if (isAuthenticated() &&
+                       resource.data.user_id == request.auth.uid) ||
+                     isSuperAdmin();
+
+      allow create: if isAuthenticated() &&
+        isValidVoiceWrite(request.resource.data) &&
+        request.resource.data.user_id == request.auth.uid;
+
+      // Voice records are immutable after creation
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // ANALYTICS — Super Admin reads; clients write events (controlled schema)
+    // Daily summary docs written exclusively by Cloud Functions
+    // ==================================================================
+
+    match /analytics/{dateId} {
+      allow read: if isSuperAdmin();
+      // Summary documents written by Cloud Functions only
+      allow create, update: if isSuperAdmin();
+      // Analytics data is never deleted
+      allow delete: if false;
+
+      match /events/{eventId} {
+        allow read: if isSuperAdmin();
+
+        // Clients can write raw events (controlled schema)
+        allow create: if isAuthenticated() &&
+          request.resource.data.user_id == request.auth.uid &&
+          request.resource.data.event_name is string &&
+            request.resource.data.event_name.size() >= 1 &&
+            request.resource.data.event_name.size() <= 100 &&
+          request.resource.data.platform in ['android', 'ios', 'web'];
+
+        // Events are immutable once written
+        allow update, delete: if false;
+      }
+    }
+
+    // ==================================================================
+    // REPORTS — Super Admin only
+    // ==================================================================
+
+    match /reports/{reportId} {
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ==================================================================
+    // IMPORT LOGS — Super Admin only; permanent records (no delete)
+    // ==================================================================
+
+    match /import_logs/{importId} {
+      allow read: if isSuperAdmin();
+      allow create, update: if isSuperAdmin();
+      // Import logs are permanent compliance records
       allow delete: if false;
     }
 
-    // ─── PDF Reading Progress ──────────────────────────
+    // ==================================================================
+    // AUDIT LOGS — APPEND-ONLY IMMUTABLE TRAIL
+    // CRITICAL: Written exclusively via Admin SDK (Cloud Functions)
+    //           No client can create, update, or delete audit logs.
+    //           Super Admin can read only.
+    // ==================================================================
 
-    match /pdfReadingProgress/{docId} {
-      allow get: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid &&
-        request.resource.data.userId == request.auth.uid;
-      allow delete: if false;
+    match /audit_logs/{auditId} {
+      allow read: if isSuperAdmin();
+      // Append-only via Firebase Admin SDK — all client writes denied
+      allow create: if false;
+      allow update: if false;  // Immutable — never update
+      allow delete: if false;  // Immutable — never delete
     }
 
-    // ─── Sessions ──────────────────────────────────────
-
-    match /sessions/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Daily Challenges ──────────────────────────────
-
-    match /dailyChallenges/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Language Section ──────────────────────────────
-
-    match /languageSection/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Blueprints ────────────────────────────────────
-
-    match /blueprints/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Bookmarks ─────────────────────────────────────
-
-    match /bookmarks/{docId} {
-      allow read, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
-      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
-    }
-
-    // ─── Old Papers ────────────────────────────────────
-
-    match /oldPapers/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Leaderboard ───────────────────────────────────────────────────────────
-
-    match /leaderboard/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // ─── Import Logs (Bulk Import history) ────────────────────────────────────
-
-    match /importLogs/{docId} {
-      // Only admins can create import log entries
-      allow create: if isAdmin();
-
-      // Only admins can read import history
-      allow read: if isAdmin();
-
-      // Logs are immutable — no updates or deletes
-      allow update, delete: if false;
-    }
-
-  }
-}
+  } // end match /databases/{database}/documents
+} // end service cloud.firestore

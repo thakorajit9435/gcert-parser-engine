@@ -1,0 +1,19 @@
+{
+  "job_id": "e13b12d1-0fcd-4567-95a6-a70e2b1d83c4",
+  "status": "success",
+  "started_at": "2026-07-17T10:53:29.901474",
+  "summary": {
+    "total_documents": 2,
+    "successfully_imported": 1,
+    "duplicates_skipped": 1,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [
+    {
+      "collection": "sessions",
+      "doc_id": "session_2_sem1"
+    }
+  ],
+  "finished_at": "2026-07-17T10:53:32.319231"
+}

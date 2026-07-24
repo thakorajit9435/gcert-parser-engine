@@ -1,0 +1,108 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper functions ─────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAnyAdmin() {
+      return isAuthenticated()
+        && request.auth.token.role in ['admin', 'content_admin', 'super_admin'];
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && request.auth.token.role == 'super_admin';
+    }
+
+    // ── Subject & Chapter assets (existing) ──────────────────────
+    match /subjects/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /chapters/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // ── CMS Module uploads ───────────────────────────────────────
+
+    // Worksheets: PDF uploads (max 50 MB)
+    match /worksheets/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Textbooks: Large PDF uploads (max 100 MB)
+    match /textbooks/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 100 * 1024 * 1024;
+    }
+
+    // Question Bank: Image uploads (max 10 MB)
+    match /question_bank/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // MCQ Bank: Image uploads (max 10 MB)
+    match /mcq_bank/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Videos: Thumbnail uploads (max 5 MB)
+    match /videos/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Lesson Plans: PDF uploads (max 20 MB)
+    match /lesson_plans/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Flashcards: Image uploads (max 5 MB)
+    match /flashcards/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Old Papers: PDF uploads (max 50 MB)
+    match /oldPapers/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Blueprints: PDF uploads (max 20 MB)
+    match /blueprints/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Questions: Image uploads (max 10 MB)
+    match /questions/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin()
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── Default deny ─────────────────────────────────────────────
+    // Any path not matched above is denied
+  }
+}

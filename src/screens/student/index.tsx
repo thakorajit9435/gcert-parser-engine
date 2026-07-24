@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
     View,
@@ -39,7 +39,7 @@ const SUBJECT_ICONS: Record<string, string> = {
 
 
 
-function LeaderboardPreview({ entries }: { entries: LeaderboardEntry[] }): React.JSX.Element {
+const LeaderboardPreview = React.memo(function LeaderboardPreview({ entries }: { entries: LeaderboardEntry[] }): React.JSX.Element {
     const medals = ['🥇', '🥈', '🥉'];
 
     return (
@@ -59,9 +59,9 @@ function LeaderboardPreview({ entries }: { entries: LeaderboardEntry[] }): React
             ))}
         </View>
     );
-}
+});
 
-function DailyChallengeBanner({ navigation, standardId, userId }: { navigation: any; standardId: string; userId: string }): React.JSX.Element {
+const DailyChallengeBanner = React.memo(function DailyChallengeBanner({ navigation, standardId, userId }: { navigation: any; standardId: string; userId: string }): React.JSX.Element {
     const { t } = useTranslation();
     const { challenge, quiz, hasAttempted, loading, error, refresh } = useDailyChallenge(standardId, userId);
 
@@ -100,7 +100,7 @@ function DailyChallengeBanner({ navigation, standardId, userId }: { navigation: 
                 </View>
                 <View style={styles.dailyQuizContent}>
                     <Text style={styles.dailyQuizTitle}>{t('common.dailyChallenge')}</Text>
-                    <Text style={styles.dailyQuizSub}>{t('common.comingSoon')}</Text>
+                    <Text style={styles.dailyQuizSub}>No active challenge for today</Text>
                 </View>
             </View>
         );
@@ -114,7 +114,7 @@ function DailyChallengeBanner({ navigation, standardId, userId }: { navigation: 
                 </View>
                 <View style={styles.dailyQuizContent}>
                     <Text style={styles.dailyQuizTitle}>{t('common.dailyChallenge')}</Text>
-                    <Text style={styles.dailyQuizSub}>You've completed today's challenge!</Text>
+                    <Text style={styles.dailyQuizSub}>Already completed today!</Text>
                 </View>
             </View>
         );
@@ -136,11 +136,11 @@ function DailyChallengeBanner({ navigation, standardId, userId }: { navigation: 
             <Text style={styles.dailyQuizArrow}>→</Text>
         </TouchableOpacity>
     );
-}
+});
 
 // ─── Standard Switcher Dropdown ────────────────────────────────
 
-function StandardSwitcher(): React.JSX.Element {
+const StandardSwitcher = React.memo(function StandardSwitcher(): React.JSX.Element {
     const { selectedStandard, setSelectedStandard, standardLabel } = useStandardContext();
     const [dropdownVisible, setDropdownVisible] = useState(false);
 
@@ -189,11 +189,11 @@ function StandardSwitcher(): React.JSX.Element {
             </Modal>
         </>
     );
-}
+});
 
 // ─── Bookmark Section ──────────────────────────────────────────
 
-function BookmarkSection({ bookmarks, navigation }: { bookmarks: UserBookmark[]; navigation: any }): React.JSX.Element {
+const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigation }: { bookmarks: UserBookmark[]; navigation: any }): React.JSX.Element {
     if (!bookmarks || bookmarks.length === 0) {
         return (
             <View style={styles.bookmarkSection}>
@@ -263,11 +263,11 @@ function BookmarkSection({ bookmarks, navigation }: { bookmarks: UserBookmark[];
             </ScrollView>
         </View>
     );
-}
+});
 
 // ─── Quick Access Cards ────────────────────────────────────────
 
-function QuickAccessCards({ navigation, standardId }: { navigation: any; standardId: string }): React.JSX.Element {
+const QuickAccessCards = React.memo(function QuickAccessCards({ navigation, standardId }: { navigation: any; standardId: string }): React.JSX.Element {
     const { t } = useTranslation();
     const items = [
         { emoji: '🗣️', label: t('common.language'), route: 'LanguageSection', params: { standardId, session: '1' } },
@@ -290,7 +290,7 @@ function QuickAccessCards({ navigation, standardId }: { navigation: any; standar
             ))}
         </View>
     );
-}
+});
 
 // ─── Home Screen ───────────────────────────────────────────────
 
@@ -309,89 +309,102 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
         setTimeout(() => setRefreshing(false), 1000);
     }, []);
 
-    const recentChapter = Object.values(progressMap)
-        .filter(c => c.lastOpenedAt)
-        .sort((a, b) => (b.lastOpenedAt?.toMillis() || 0) - (a.lastOpenedAt?.toMillis() || 0))[0];
+    const recentChapter = useMemo(() => {
+        return Object.values(progressMap)
+            .filter(c => c.lastOpenedAt)
+            .sort((a, b) => (b.lastOpenedAt?.toMillis() || 0) - (a.lastOpenedAt?.toMillis() || 0))[0];
+    }, [progressMap]);
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={
-                <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    colors={[studentColors.primary]}
-                    tintColor={studentColors.primary}
-                />
-            }
-        >
-            {/* Greeting */}
-            <View style={styles.greeting}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.greetingText}>
-                        નમસ્તે, {userProfile?.name?.split(' ')[0] || 'Student'} 👋
-                    </Text>
-                    <View style={styles.stdBadge}>
-                        <Text style={styles.stdBadgeText}>Std {selectedStandard}</Text>
-                    </View>
-                </View>
-                <Text style={styles.greetingSubtext}>
-                    {userProfile?.points ?? 0} XP • 🔥 {userProfile?.streak ?? 0} Day Streak
-                </Text>
-            </View>
-
-            {/* Standard Switcher */}
-            <StandardSwitcher />
-
-            {/* Continue Learning */}
-            <TouchableOpacity
-                style={styles.continueCard}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('SessionScreen', { standardId })}
+        <View style={{ flex: 1 }}>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={[studentColors.primary]}
+                        tintColor={studentColors.primary}
+                    />
+                }
             >
-                <View style={styles.continueLeft}>
-                    <Text style={styles.continueEmoji}>🚀</Text>
-                    <View>
-                        <Text style={styles.continueTitle}>{t('common.continueLearning')}</Text>
-                        <Text style={styles.continueSub}>
-                            {recentChapter ? t('common.recentChapter') : t('common.startJourney')}
+                {/* Greeting */}
+                <View style={styles.greeting}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.greetingText}>
+                            નમસ્તે, {userProfile?.name?.split(' ')[0] || 'Student'} 👋
                         </Text>
+                        <View style={styles.stdBadge}>
+                            <Text style={styles.stdBadgeText}>Std {selectedStandard}</Text>
+                        </View>
                     </View>
+                    <Text style={styles.greetingSubtext}>
+                        {userProfile?.points ?? 0} XP • 🔥 {userProfile?.streak ?? 0} Day Streak
+                    </Text>
                 </View>
-                <Text style={styles.continueArrow}>→</Text>
+
+                {/* Standard Switcher */}
+                <StandardSwitcher />
+
+                {/* Continue Learning */}
+                <TouchableOpacity
+                    style={styles.continueCard}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('SessionScreen', { standardId })}
+                >
+                    <View style={styles.continueLeft}>
+                        <Text style={styles.continueEmoji}>🚀</Text>
+                        <View>
+                            <Text style={styles.continueTitle}>{t('common.continueLearning')}</Text>
+                            <Text style={styles.continueSub}>
+                                {recentChapter ? t('common.recentChapter') : t('common.startJourney')}
+                            </Text>
+                        </View>
+                    </View>
+                    <Text style={styles.continueArrow}>→</Text>
+                </TouchableOpacity>
+
+                {/* Daily Challenge */}
+                <DailyChallengeBanner navigation={navigation} standardId={standardId} userId={userProfile?.uid || ''} />
+
+                {/* Quick Access */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>⚡ {t('common.quickAccess')}</Text>
+                </View>
+                <QuickAccessCards navigation={navigation} standardId={standardId} />
+
+                {/* Bookmarks */}
+                <BookmarkSection bookmarks={bookmarks} navigation={navigation} />
+
+                {/* NMMS Banner */}
+                <TouchableOpacity style={styles.nmmsBanner} activeOpacity={0.8}>
+                    <View style={styles.nmmsContent}>
+                        <Text style={styles.nmmsTitle}>🎯 NMMS Preparation</Text>
+                        <Text style={styles.nmmsSub}>Practice MAT & SAT questions</Text>
+                    </View>
+                    <View style={styles.nmmsBadge}>
+                        <Text style={styles.nmmsBadgeText}>NEW</Text>
+                    </View>
+                </TouchableOpacity>
+
+                {/* Leaderboard Preview */}
+                {leaderboardEntries.length > 0 && (
+                    <LeaderboardPreview entries={leaderboardEntries} />
+                )}
+
+                <View style={styles.bottomSpacer} />
+            </ScrollView>
+
+            {/* Floating Action Button (AI Tutor) */}
+            <TouchableOpacity
+                style={styles.fab}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AITutor')}
+            >
+                <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
             </TouchableOpacity>
-
-            {/* Daily Challenge */}
-            <DailyChallengeBanner navigation={navigation} standardId={standardId} userId={userProfile?.uid || ''} />
-
-            {/* Quick Access */}
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>⚡ {t('common.quickAccess')}</Text>
-            </View>
-            <QuickAccessCards navigation={navigation} standardId={standardId} />
-
-            {/* Bookmarks */}
-            <BookmarkSection bookmarks={bookmarks} navigation={navigation} />
-
-            {/* NMMS Banner */}
-            <TouchableOpacity style={styles.nmmsBanner} activeOpacity={0.8}>
-                <View style={styles.nmmsContent}>
-                    <Text style={styles.nmmsTitle}>🎯 NMMS Preparation</Text>
-                    <Text style={styles.nmmsSub}>Practice MAT & SAT questions</Text>
-                </View>
-                <View style={styles.nmmsBadge}>
-                    <Text style={styles.nmmsBadgeText}>NEW</Text>
-                </View>
-            </TouchableOpacity>
-
-            {/* Leaderboard Preview */}
-            {leaderboardEntries.length > 0 && (
-                <LeaderboardPreview entries={leaderboardEntries} />
-            )}
-
-            <View style={styles.bottomSpacer} />
-        </ScrollView>
+        </View>
     );
 }
 
@@ -563,9 +576,18 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             )}
                                         </View>
                                         <Text style={styles.chapterTitleGu}>{item.titleGu}</Text>
-                                        {item.description && (
-                                            <Text style={styles.chapterDesc} numberOfLines={1}>{item.description}</Text>
-                                        )}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' }}>
+                                            {item.startPage !== undefined && item.startPage !== null ? (
+                                                <View style={styles.pageBadge}>
+                                                    <Text style={styles.pageBadgeText}>
+                                                        📖 પાના નંબર: {item.endPage !== undefined && item.endPage !== null && item.endPage > item.startPage ? `${item.startPage} - ${item.endPage}` : item.startPage}
+                                                    </Text>
+                                                </View>
+                                            ) : null}
+                                            {item.description ? (
+                                                <Text style={styles.chapterDesc} numberOfLines={1}>{item.description}</Text>
+                                            ) : null}
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
 
@@ -1223,7 +1245,19 @@ const styles = StyleSheet.create({
     chapterDesc: {
         fontSize: typography.size.sm,
         color: studentColors.textSecondary,
-        marginTop: spacing.xs,
+    },
+    pageBadge: {
+        backgroundColor: '#EFF6FF',
+        borderColor: '#BFDBFE',
+        borderWidth: 1,
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    pageBadgeText: {
+        fontSize: 10,
+        color: '#1D4ED8',
+        fontWeight: typography.weight.bold,
     },
     lockBadge: {
         width: 36,
@@ -1715,5 +1749,21 @@ const styles = StyleSheet.create({
         fontWeight: typography.weight.semibold,
         textAlign: 'center',
         lineHeight: 14,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: spacing.xxl,
+        right: spacing.xxl,
+        backgroundColor: studentColors.secondary,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 6,
     },
 });

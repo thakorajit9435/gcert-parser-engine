@@ -1,0 +1,196 @@
+{
+  "topics": [
+    {
+      "topic_id": "sci_std_10_ch1_tp1",
+      "topic_number": 1,
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "title_gu": "રાસાયણિક સમીકરણો",
+      "title_en": null,
+      "content_type": "text",
+      "content_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "is_active": true,
+      "is_premium": false,
+      "display_order": 1,
+      "keywords": [
+        "રાસાયણિક પ્રક્રિયાઓ",
+        "રાસાયણિક સમીકરણો",
+        "સંજ્ઞાઓ"
+      ]
+    }
+  ],
+  "sub_topics": [],
+  "learning_outcomes": [],
+  "chapter_summaries": [
+    {
+      "summary_id": "sum_sci_std_10_ch1",
+      "chapter_id": "sci_std_10_ch1",
+      "standard_id": "std_10",
+      "subject_id": "sci_std_10",
+      "summary_en": null,
+      "summary_gu": "",
+      "key_points": [],
+      "important_formulas": [],
+      "diagram_references": [],
+      "revision_notes_en": null,
+      "revision_notes_gu": "રાસાયણિક પ્રક્રિયાઓને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "is_active": true
+    }
+  ],
+  "question_bank": [
+    {
+      "question_id": "q_sci_std_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "question_text_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો શાના દ્વારા લખાય છે?",
+      "question_type": "short_answer",
+      "answer_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "bloom_level": "understand",
+      "difficulty_level": "easy",
+      "marks": 2,
+      "is_hots": false,
+      "is_previous_year_pattern": false,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 0
+    }
+  ],
+  "mcq_bank": [
+    {
+      "mcq_id": "mcq_sci_std_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "question_text_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો _______ દ્વારા લખાય છે.",
+      "options": [
+        {
+          "id": "A",
+          "text_gu": "સંજ્ઞાઓ"
+        },
+        {
+          "id": "B",
+          "text_gu": "શબ્દો"
+        },
+        {
+          "id": "C",
+          "text_gu": "ચિત્રો"
+        },
+        {
+          "id": "D",
+          "text_gu": "સંખ્યાઓ"
+        }
+      ],
+      "correct_option_id": "A",
+      "explanation_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "bloom_level": "remember",
+      "difficulty_level": "easy",
+      "marks": 1,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 0
+    }
+  ],
+  "activities": [],
+  "keywords": [
+    {
+      "keyword_id": "kw_sci_std_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "keyword_en": "Chemical Reactions",
+      "keyword_gu": "રાસાયણિક પ્રક્રિયાઓ",
+      "meaning_en": "A process in which substances chemically change and form new substances.",
+      "meaning_gu": "એક પ્રક્રિયા જેમાં પદાર્થો રાસાયણિક રીતે બદલાય છે અને નવા પદાર્થો બનાવે છે.",
+      "is_active": true
+    },
+    {
+      "keyword_id": "kw_sci_std_10_ch1_2",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "keyword_en": "Chemical Equations",
+      "keyword_gu": "રાસાયણિક સમીકરણો",
+      "meaning_en": "A way to represent chemical reactions using symbols and formulas.",
+      "meaning_gu": "રાસાયણિક પ્રક્રિયાઓને સંજ્ઞાઓ અને સૂત્રોનો ઉપયોગ કરીને રજૂ કરવાની રીત.",
+      "is_active": true
+    },
+    {
+      "keyword_id": "kw_sci_std_10_ch1_3",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "keyword_en": "Symbols",
+      "keyword_gu": "સંજ્ઞાઓ",
+      "meaning_en": "Short letters or symbols used to denote elements or compounds.",
+      "meaning_gu": "તત્વો અથવા સંયોજનોને દર્શાવવા માટે વપરાતા ટૂંકા અક્ષરો અથવા પ્રતીકો.",
+      "is_active": true
+    }
+  ],
+  "glossary": [],
+  "ai_knowledge_base": [
+    {
+      "kb_id": "kb_sci_std_10_ch1_tp1",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "session": "2026-27",
+      "subject_id": "sci_std_10",
+      "chapter_id": "sci_std_10_ch1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "topic_number": 1,
+      "title_gu": "રાસાયણિક સમીકરણો",
+      "title_en": null,
+      "content_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "content_en": null,
+      "keywords": [
+        "રાસાયણિક પ્રક્રિયાઓ",
+        "રાસાયણિક સમીકરણો",
+        "સંજ્ઞાઓ"
+      ],
+      "learning_outcomes": [],
+      "important_questions": [
+        {
+          "question_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો શાના દ્વારા લખાય છે?",
+          "answer_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+          "marks": 2,
+          "is_hots": false
+        }
+      ],
+      "glossary": [],
+      "formulas": [],
+      "activities": [],
+      "revision_notes": [
+        "રાસાયણિક પ્રક્રિયાઓને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે."
+      ],
+      "difficulty_level": "medium",
+      "page_numbers": [
+        1
+      ],
+      "related_topics": [],
+      "embedding": null,
+      "vector_id": null,
+      "chunk_id": null,
+      "llm_metadata": {
+        "chunking_strategy": "semantic_topic",
+        "tokens_count": null,
+        "embedding_model": "text-embedding-004",
+        "last_indexed_at": null,
+        "source_pdf_hash": null,
+        "tags": []
+      },
+      "isDeleted": false,
+      "is_active": true
+    }
+  ]
+}

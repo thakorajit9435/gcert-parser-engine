@@ -45,7 +45,7 @@ export async function logAnalyticsEvent(
   }
 
   try {
-    await logEvent(analyticsInstance, event, eventParams);
+    await logEvent(analyticsInstance, event as string, eventParams);
   } catch (error) {
     if (__DEV__) {
       // eslint-disable-next-line no-console

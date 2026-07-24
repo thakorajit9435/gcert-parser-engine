@@ -20,6 +20,9 @@
     <!-- Install Referrer / Billing -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
+    <!-- Audio recording for Speech to Text -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"

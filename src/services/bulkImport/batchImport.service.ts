@@ -34,7 +34,18 @@ export interface SubjectImportResult extends BatchResult {
 
 /** Build lookup key for a subject — must match how chapterImport.service.ts resolves */
 export function subjectKey(standardId: string, session: string, name: string): string {
-  return `${standardId}|${session}|${name.trim().toLowerCase()}`;
+  let cleanName = name.trim().toLowerCase();
+
+  // Normalize subject names for lookup compatibility
+  if (cleanName === 'gujarati') {
+    cleanName = 'gujarati first language';
+  } else if (cleanName === 'english') {
+    cleanName = 'english second language';
+  } else if (cleanName === 'hindi') {
+    cleanName = 'hindi second language';
+  }
+
+  return `${standardId}|${session}|${cleanName}`;
 }
 
 // ─── Subject Batch Import ──────────────────────────────────────────────────────

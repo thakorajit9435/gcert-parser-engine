@@ -1,0 +1,99 @@
+{
+  "topics": [],
+  "sub_topics": [],
+  "learning_outcomes": [
+    {
+      "outcome_id": "lo_sci_std_09_ch1_1",
+      "topic_id": "sci_std_09_ch1_tp1",
+      "chapter_id": "sci_std_09_ch1",
+      "subject_id": "sci_std_09",
+      "standard_id": "std_09",
+      "outcome_text_gu": "રાસાયણિક પ્રક્રિયાઓને સંજ્ઞાઓ દ્વારા કેવી રીતે રજૂ કરાય છે તે સમજશે.",
+      "bloom_level": "Understand",
+      "measurable_verb_gu": "સમજશે",
+      "linked_question_ids": [],
+      "is_active": true,
+      "display_order": 1
+    }
+  ],
+  "chapter_summaries": [
+    {
+      "summary_id": "sum_sci_std_09_ch1",
+      "chapter_id": "sci_std_09_ch1",
+      "standard_id": "std_09",
+      "subject_id": "sci_std_09",
+      "summary_en": null,
+      "summary_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "key_points": [],
+      "important_formulas": [],
+      "diagram_references": [],
+      "revision_notes_en": null,
+      "revision_notes_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "is_active": true
+    }
+  ],
+  "question_bank": [
+    {
+      "question_id": "q_sci_std_09_ch1_1",
+      "topic_id": "sci_std_09_ch1_tp1",
+      "chapter_id": "sci_std_09_ch1",
+      "subject_id": "sci_std_09",
+      "standard_id": "std_09",
+      "standard_number": 19,
+      "question_text_gu": "રાસાયણિક સમીકરણો શા માટે સંજ્ઞાઓ દ્વારા લખવામાં આવે છે?",
+      "question_type": "short_answer",
+      "answer_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "bloom_level": "understand",
+      "difficulty_level": "easy",
+      "marks": 2,
+      "is_hots": false,
+      "is_previous_year_pattern": false,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 0
+    }
+  ],
+  "mcq_bank": [
+    {
+      "mcq_id": "mcq_sci_std_09_ch1_1",
+      "topic_id": "sci_std_09_ch1_tp1",
+      "chapter_id": "sci_std_09_ch1",
+      "subject_id": "sci_std_09",
+      "standard_id": "std_09",
+      "standard_number": 19,
+      "question_text_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો કોના દ્વારા લખાય છે?",
+      "options": [
+        {
+          "id": "A",
+          "text_gu": "સંજ્ઞાઓ"
+        },
+        {
+          "id": "B",
+          "text_gu": "શબ્દો"
+        },
+        {
+          "id": "C",
+          "text_gu": "ચિત્રો"
+        },
+        {
+          "id": "D",
+          "text_gu": "આંકડા"
+        }
+      ],
+      "correct_option_id": "A",
+      "explanation_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે.",
+      "bloom_level": "remember",
+      "difficulty_level": "easy",
+      "marks": 1,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 0
+    }
+  ],
+  "activities": [],
+  "keywords": [],
+  "glossary": [],
+  "ai_knowledge_base": []
+}

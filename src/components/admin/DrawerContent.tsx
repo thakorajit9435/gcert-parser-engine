@@ -28,6 +28,7 @@ const DRAWER_ITEMS: DrawerItem[] = [
     { label: 'Bulk Subject Import', icon: '📥', route: 'BulkSubjectStack', isSub: true },
     { label: 'Bulk Chapter Import', icon: '📥', route: 'BulkChapterStack', isSub: true },
     { label: 'Gujarat Board Import', icon: '🇮🇳', route: 'GujaratContentStack', isSub: true },
+    { label: 'PDF Processing', icon: '⚙️', route: 'PdfProcessingStack' },
     { label: 'Quizzes', icon: '📝', route: 'QuizStack' },
     { label: 'Practice MCQ', icon: '🧪', route: 'PracticeStack' },
     { label: 'Language Section', icon: '📖', route: 'LanguageSectionStack' },

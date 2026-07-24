@@ -30,6 +30,11 @@ import { AdminOldPapersScreen } from '../screens/admin/AdminOldPapersScreen';
 import { BulkSubjectImportScreen } from '../screens/admin/BulkSubjectImportScreen';
 import { BulkChapterImportScreen } from '../screens/admin/BulkChapterImportScreen';
 import { GujaratContentImportScreen } from '../screens/admin/GujaratContentImportScreen';
+import { ChapterCMSDashboard } from '../screens/admin/ChapterCMSDashboard';
+import { TopicCMSDashboard } from '../screens/admin/TopicCMSDashboard';
+import { CMSListView } from '../screens/admin/CMSListView';
+import { CMSDetailForm } from '../screens/admin/CMSDetailForm';
+import { AdminPdfProcessingDashboard } from '../screens/admin/AdminPdfProcessingDashboard';
 
 const adminScreenOptions = ({ navigation }: any) => ({
     headerStyle: { backgroundColor: adminColors.surface, elevation: 0, shadowOpacity: 0 },
@@ -64,6 +69,14 @@ function ContentStack(): React.JSX.Element {
             <ContentStackNav.Screen name="ChapterManagement" component={ManageChaptersScreen} options={{ title: '📖 Chapters' }} />
             <ContentStackNav.Screen name="AddEditChapter" component={AddEditChapterScreen} options={({ route }: any) => ({
                 title: route.params?.chapter ? '✏️ Edit Chapter' : '➕ Add Chapter',
+            })} />
+            <ContentStackNav.Screen name="ChapterCMSDashboard" component={ChapterCMSDashboard} options={{ title: '🛠️ Chapter CMS' }} />
+            <ContentStackNav.Screen name="TopicCMSDashboard" component={TopicCMSDashboard} options={{ title: '🛠️ Topic CMS' }} />
+            <ContentStackNav.Screen name="CMSListView" component={CMSListView} options={({ route }: any) => ({
+                title: route.params?.moduleName ? `📝 ${route.params.moduleName} List` : 'CMS List',
+            })} />
+            <ContentStackNav.Screen name="CMSDetailForm" component={CMSDetailForm} options={({ route }: any) => ({
+                title: route.params?.itemId ? `✏️ Edit ${route.params.moduleName}` : `➕ Add ${route.params.moduleName}`,
             })} />
         </ContentStackNav.Navigator>
     );
@@ -223,6 +236,19 @@ function GujaratContentStack(): React.JSX.Element {
     );
 }
 
+const PdfProcessingStackNav = createStackNavigator();
+function PdfProcessingStack(): React.JSX.Element {
+    return (
+        <PdfProcessingStackNav.Navigator screenOptions={adminScreenOptions}>
+            <PdfProcessingStackNav.Screen
+                name="AdminPdfProcessing"
+                component={AdminPdfProcessingDashboard}
+                options={{ title: '⚙️ PDF Processing' }}
+            />
+        </PdfProcessingStackNav.Navigator>
+    );
+}
+
 const ProfileStackNav = createStackNavigator();
 function ProfileStack(): React.JSX.Element {
     return (
@@ -268,6 +294,7 @@ export function AdminDrawerStack(): React.JSX.Element {
             <Drawer.Screen name="BulkChapterStack" component={BulkChapterStack} />
             {/* ── Gujarat Content Import (additive only) ──────────── */}
             <Drawer.Screen name="GujaratContentStack" component={GujaratContentStack} />
+            <Drawer.Screen name="PdfProcessingStack" component={PdfProcessingStack} />
         </Drawer.Navigator>
     );
 }

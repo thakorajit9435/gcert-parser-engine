@@ -1,0 +1,19 @@
+{
+  "job_id": "57def3d2-d603-427a-ba10-c6c2c1ee6b9b",
+  "status": "success",
+  "started_at": "2026-07-24T05:08:55.168532",
+  "summary": {
+    "total_documents": 678,
+    "successfully_imported": 677,
+    "duplicates_skipped": 1,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [
+    {
+      "collection": "sessions",
+      "doc_id": "session_3_sem1"
+    }
+  ],
+  "finished_at": "2026-07-24T05:09:40.399425"
+}

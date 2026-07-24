@@ -73,8 +73,7 @@ export function useStandards(): UseStandardsReturn {
     setLoading(true);
     const query = firestore()
       .collection(COLLECTIONS.STANDARDS)
-      .where('isDeleted', '==', false)
-      .orderBy('order', 'asc');
+      .where('isDeleted', '==', false);
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
@@ -94,6 +93,9 @@ export function useStandards(): UseStandardsReturn {
             id: doc.id,
             ...doc.data(),
           })) as Standard[];
+
+          // Client-side sorting to resolve missing composite index constraint
+          data.sort((a, b) => (a.order || 0) - (b.order || 0));
 
           console.log(
             `[useStandards] Loaded ${data.length} standards from Firestore.`,

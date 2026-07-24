@@ -6,6 +6,7 @@ import { usePracticeMCQs } from '../../hooks/usePracticeMCQs';
 import { useStandardContext } from '../../context/StandardContext';
 import firestore from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants';
+import { aiTutorService } from '../../services/aiTutor.service';
 
 export function PracticeQuizScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { session, subjectId, subjectName, chapterId, mode, count } = route.params;
@@ -18,6 +19,30 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
     const [isFinished, setIsFinished] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // AI Explanation States
+    const [explainModalVisible, setExplainModalVisible] = useState(false);
+    const [explanationText, setExplanationText] = useState('');
+    const [explainingId, setExplainingId] = useState<string | null>(null);
+
+    const handleExplainWithAI = async (q: any, userIndex?: number) => {
+        setExplainingId(q.id);
+        try {
+            const explanation = await aiTutorService.explainQuizQuestion(
+                q.question,
+                q.options,
+                q.correctAnswer,
+                userIndex !== undefined ? userIndex : -1
+            );
+            setExplanationText(explanation);
+            setExplainModalVisible(true);
+        } catch (err) {
+            console.error('Quiz explanation fetch failed:', err);
+            Alert.alert('Error', 'સમજૂતી મેળવવામાં નિષ્ફળ. કૃપા કરીને ફરીથી પ્રયાસ કરો.');
+        } finally {
+            setExplainingId(null);
+        }
+    };
 
     // Timer
     const [timeLeft, setTimeLeft] = useState(count * 60); // 1 minute per round roughly
@@ -176,38 +201,135 @@ export function PracticeQuizScreen({ route, navigation }: { route: any; navigati
 
         return (
             <View style={styles.container}>
-                <View style={styles.resultHeader}>
-                    <Text style={styles.resultEmoji}>🎯</Text>
-                    <Text style={styles.resultTitle}>Practice Complete!</Text>
-                    <Text style={styles.resultSub}>{subjectName} - {mode === 'mix' ? 'Mix Test' : 'Chapter Test'}</Text>
-                </View>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.huge }}>
+                    <View style={styles.resultHeader}>
+                        <Text style={styles.resultEmoji}>🎯</Text>
+                        <Text style={styles.resultTitle}>Practice Complete!</Text>
+                        <Text style={styles.resultSub}>{subjectName} - {mode === 'mix' ? 'Mix Test' : 'Chapter Test'}</Text>
+                    </View>
 
-                <View style={styles.scoreBoard}>
-                    <View style={styles.scoreItem}>
-                        <Text style={styles.scoreValue}>{correctCount}</Text>
-                        <Text style={styles.scoreLabel}>Correct</Text>
+                    <View style={styles.scoreBoard}>
+                        <View style={styles.scoreItem}>
+                            <Text style={styles.scoreValue}>{correctCount}</Text>
+                            <Text style={styles.scoreLabel}>Correct</Text>
+                        </View>
+                        <View style={styles.scoreDivider} />
+                        <View style={styles.scoreItem}>
+                            <Text style={styles.scoreValue}>{mcqs.length - correctCount}</Text>
+                            <Text style={styles.scoreLabel}>Incorrect</Text>
+                        </View>
+                        <View style={styles.scoreDivider} />
+                        <View style={styles.scoreItem}>
+                            <Text style={[styles.scoreValue, { color: studentColors.success }]}>+{correctCount * 2}</Text>
+                            <Text style={styles.scoreLabel}>XP Earned</Text>
+                        </View>
                     </View>
-                    <View style={styles.scoreDivider} />
-                    <View style={styles.scoreItem}>
-                        <Text style={styles.scoreValue}>{mcqs.length - correctCount}</Text>
-                        <Text style={styles.scoreLabel}>Incorrect</Text>
-                    </View>
-                    <View style={styles.scoreDivider} />
-                    <View style={styles.scoreItem}>
-                        <Text style={[styles.scoreValue, { color: studentColors.success }]}>+{correctCount * 2}</Text>
-                        <Text style={styles.scoreLabel}>XP Earned</Text>
-                    </View>
-                </View>
 
-                {saving ? (
-                    <ActivityIndicator color={studentColors.primary} style={{ marginTop: spacing.xl }} />
-                ) : (
-                    <TouchableOpacity
-                        style={styles.doneBtn}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Text style={styles.doneBtnText}>પૂરું કરો</Text>
-                    </TouchableOpacity>
+                    <Text style={{ fontSize: typography.size.lg, fontWeight: typography.weight.bold, marginHorizontal: spacing.xl, marginTop: spacing.xl, marginBottom: spacing.md, color: studentColors.textPrimary }}>
+                        📝 પ્રશ્નોત્તરી સમીક્ષા (Quiz Review):
+                    </Text>
+
+                    {mcqs.map((q, idx) => {
+                        const userIndex = selectedAnswers[q.id];
+                        const isCorrect = userIndex === q.correctAnswer;
+                        return (
+                            <View key={q.id} style={[styles.questionCard, { marginHorizontal: spacing.xl, borderColor: isCorrect ? studentColors.success + '40' : studentColors.error + '40', borderWidth: 1 }]}>
+                                <Text style={[styles.questionText, { fontSize: typography.size.md }]}>
+                                    {idx + 1}. {q.question}
+                                </Text>
+                                <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
+                                    {q.options.map((opt, oIdx) => {
+                                        let optStyle = {};
+                                        let textStyle = {};
+                                        if (oIdx === q.correctAnswer) {
+                                            optStyle = { backgroundColor: studentColors.success + '15', borderColor: studentColors.success };
+                                            textStyle = { color: studentColors.success, fontWeight: 'bold' };
+                                        } else if (oIdx === userIndex && !isCorrect) {
+                                            optStyle = { backgroundColor: studentColors.error + '15', borderColor: studentColors.error };
+                                            textStyle = { color: studentColors.error };
+                                        }
+                                        return (
+                                            <View key={oIdx} style={[{ padding: spacing.sm, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: studentColors.border }, optStyle]}>
+                                                <Text style={[{ fontSize: typography.size.sm }, textStyle]}>
+                                                    {opt} {oIdx === q.correctAnswer ? ' (સાચો જવાબ)' : oIdx === userIndex ? ' (તમારો જવાબ)' : ''}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                                
+                                <TouchableOpacity 
+                                    style={{ 
+                                        flexDirection: 'row', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        backgroundColor: studentColors.primary + '10', 
+                                        padding: spacing.md, 
+                                        borderRadius: borderRadius.md, 
+                                        marginTop: spacing.md 
+                                    }}
+                                    onPress={() => handleExplainWithAI(q, userIndex)}
+                                    disabled={explainingId === q.id}
+                                >
+                                    {explainingId === q.id ? (
+                                        <ActivityIndicator size="small" color={studentColors.primary} />
+                                    ) : (
+                                        <>
+                                            <Text style={{ marginRight: 8 }}>🤖</Text>
+                                            <Text style={{ color: studentColors.primary, fontWeight: 'bold', fontSize: typography.size.sm }}>
+                                                Explain with AI (ગુજરાતીમાં સમજો)
+                                            </Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        );
+                    })}
+
+                    {saving ? (
+                        <ActivityIndicator color={studentColors.primary} style={{ marginTop: spacing.xl }} />
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.doneBtn}
+                            onPress={() => navigation.goBack()}
+                        >
+                            <Text style={styles.doneBtnText}>પૂરું કરો</Text>
+                        </TouchableOpacity>
+                    )}
+                </ScrollView>
+
+                {/* AI Explanation Modal */}
+                {explainModalVisible && (
+                    <View style={StyleSheet.absoluteFillObject}>
+                        <TouchableOpacity 
+                            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} 
+                            onPress={() => setExplainModalVisible(false)} 
+                        />
+                        <View style={{ 
+                            position: 'absolute', 
+                            bottom: 0, 
+                            left: 0, 
+                            right: 0, 
+                            backgroundColor: '#FFF', 
+                            borderTopLeftRadius: borderRadius.xl, 
+                            borderTopRightRadius: borderRadius.xl, 
+                            padding: spacing.xl,
+                            paddingBottom: spacing.xxxl,
+                            ...shadows.lg
+                        }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                                <Text style={{ fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: studentColors.primary }}>
+                                    🤖 AI શિક્ષક સમજૂતી
+                                </Text>
+                                <TouchableOpacity onPress={() => setExplainModalVisible(false)}>
+                                    <Text style={{ fontSize: 18, color: studentColors.textSecondary }}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={{ fontSize: typography.size.md, color: studentColors.textPrimary, lineHeight: 24 }}>
+                                {explanationText}
+                            </Text>
+                        </View>
+                    </View>
                 )}
             </View>
         );

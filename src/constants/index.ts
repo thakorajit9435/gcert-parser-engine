@@ -25,6 +25,21 @@ export const COLLECTIONS = {
   PDF_READING_PROGRESS: 'pdfReadingProgress',
   // ── Bulk Import (additive only) ──────────────────────────────
   IMPORT_LOGS: 'importLogs',
+  // ── CMS Modules ──────────────────────────────────────────────
+  TOPICS: 'topics',
+  LEARNING_OUTCOMES: 'learning_outcomes',
+  QUESTION_BANK: 'question_bank',
+  MCQ_BANK: 'mcq_bank',
+  WORKSHEETS: 'worksheets',
+  LESSON_PLANS: 'lesson_plans',
+  FLASHCARDS: 'flashcards',
+  GLOSSARY: 'glossary',
+  VIDEOS: 'videos',
+  TEXTBOOKS: 'textbooks',
+  SUB_TOPICS: 'sub_topics',
+  CHAPTER_SUMMARIES: 'chapter_summaries',
+  ACTIVITIES: 'activities',
+  KEYWORDS: 'keywords',
 } as const;
 
 // ─── Route Names ──────────────────────────────────────────────
@@ -126,3 +141,11 @@ export const SUBSCRIPTION_PLANS = [
     durationDays: -1,
   },
 ] as const;
+
+// ─── API Configuration (Phase 2 Additions) ───────────────────────────────────
+export const API_CONFIG = {
+  BASE_URL_ANDROID: 'http://10.130.13.148:8000/api/v1',
+  BASE_URL_IOS: 'http://localhost:8000/api/v1',
+  // In production, configure your deployed backend URL:
+  BASE_URL_PROD: 'http://10.130.13.148:8000/api/v1',
+} as const;

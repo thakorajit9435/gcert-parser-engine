@@ -30,8 +30,7 @@ export function useChapters(subjectId?: string): UseChaptersReturn {
     const query = firestore()
       .collection(COLLECTIONS.CHAPTERS)
       .where('subjectId', '==', subjectId)
-      .where('isDeleted', '==', false)
-      .orderBy('order', 'asc');
+      .where('isDeleted', '==', false);
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
@@ -39,6 +38,7 @@ export function useChapters(subjectId?: string): UseChaptersReturn {
           id: doc.id,
           ...doc.data(),
         })) as Chapter[];
+        data.sort((a, b) => (a.order || 0) - (b.order || 0));
         setChapters(data);
         setLoading(false);
         setError(null);

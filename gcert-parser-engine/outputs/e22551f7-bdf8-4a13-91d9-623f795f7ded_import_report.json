@@ -1,0 +1,23 @@
+{
+  "job_id": "e22551f7-bdf8-4a13-91d9-623f795f7ded",
+  "status": "success",
+  "started_at": "2026-07-19T03:31:54.052676",
+  "summary": {
+    "total_documents": 1784,
+    "successfully_imported": 1782,
+    "duplicates_skipped": 2,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [
+    {
+      "collection": "textbooks",
+      "doc_id": "tb_O0kzQle3m2VURBmTjWZM"
+    },
+    {
+      "collection": "sessions",
+      "doc_id": "session_2_sem1"
+    }
+  ],
+  "finished_at": "2026-07-19T03:32:28.804085"
+}

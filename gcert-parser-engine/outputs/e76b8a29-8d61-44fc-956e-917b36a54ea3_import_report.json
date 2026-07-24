@@ -1,0 +1,95 @@
+{
+  "job_id": "e76b8a29-8d61-44fc-956e-917b36a54ea3",
+  "status": "success",
+  "started_at": "2026-07-23T11:45:56.712472",
+  "summary": {
+    "total_documents": 565,
+    "successfully_imported": 545,
+    "duplicates_skipped": 20,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [
+    {
+      "collection": "chapters",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch1"
+    },
+    {
+      "collection": "chapters",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch2"
+    },
+    {
+      "collection": "chapters",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3"
+    },
+    {
+      "collection": "textbooks",
+      "doc_id": "tb_pZnQSHDfExJj1rNfl2Yx"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch1_tp1"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch1_tp2"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch1_tp3"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch2_tp1"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch2_tp2"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3_tp1"
+    },
+    {
+      "collection": "topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3_tp2"
+    },
+    {
+      "collection": "sub_topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch2_tp1_sub1"
+    },
+    {
+      "collection": "sub_topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch2_tp1_sub2"
+    },
+    {
+      "collection": "sub_topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3_tp1_sub1"
+    },
+    {
+      "collection": "sub_topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3_tp1_sub2"
+    },
+    {
+      "collection": "sub_topics",
+      "doc_id": "pZnQSHDfExJj1rNfl2Yx_ch3_tp2_sub1"
+    },
+    {
+      "collection": "chapter_summaries",
+      "doc_id": "sum_pZnQSHDfExJj1rNfl2Yx_ch1"
+    },
+    {
+      "collection": "chapter_summaries",
+      "doc_id": "sum_pZnQSHDfExJj1rNfl2Yx_ch2"
+    },
+    {
+      "collection": "chapter_summaries",
+      "doc_id": "sum_pZnQSHDfExJj1rNfl2Yx_ch3"
+    },
+    {
+      "collection": "sessions",
+      "doc_id": "session_2_sem1"
+    }
+  ],
+  "finished_at": "2026-07-23T11:46:11.384265"
+}

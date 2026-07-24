@@ -1,0 +1,14 @@
+{
+  "job_id": "e79011fc-cec7-4baf-bda4-e1c8444e5a8b",
+  "status": "success",
+  "started_at": "2026-07-05T03:59:03.040888",
+  "summary": {
+    "total_documents": 4,
+    "successfully_imported": 4,
+    "duplicates_skipped": 0,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [],
+  "finished_at": "2026-07-05T03:59:06.138175"
+}

@@ -81,7 +81,7 @@ export function AdminBookManagementScreen(): React.JSX.Element {
         setEditingItem(item);
         setFormSubjectId(item.subjectId);
         setFormTitle(item.title);
-        setFormPdfUrl(item.pdfUrl);
+        setFormPdfUrl(item.pdfUrl || '');
         setFormTotalPages(String(item.totalPages || 0));
         setFormActive(item.isActive);
         setModalVisible(true);

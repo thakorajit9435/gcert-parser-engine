@@ -29,7 +29,8 @@ export function getFirestoreErrorMessage(error: unknown): string {
   // Check for firestore error code (format: "firestore/permission-denied")
   if (err.code) {
     const code = err.code.replace('firestore/', '');
-    if (ERROR_MAP[code]) return ERROR_MAP[code];
+    const msg = ERROR_MAP[code];
+    if (msg) return msg;
   }
 
   // Check for network errors

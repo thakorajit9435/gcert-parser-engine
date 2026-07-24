@@ -30,8 +30,7 @@ export function useSubjects(
     let query = firestore()
       .collection(COLLECTIONS.SUBJECTS)
       .where('standardId', '==', standardId)
-      .where('isDeleted', '==', false)
-      .orderBy('order', 'asc');
+      .where('isDeleted', '==', false);
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
@@ -42,6 +41,9 @@ export function useSubjects(
             id: doc.id,
             ...doc.data(),
           })) as Subject[];
+
+          // Client-side sorting to resolve missing composite index constraint
+          data.sort((a, b) => (a.order || 0) - (b.order || 0));
 
           if (sessionId) {
             // Client-side filter to resolve missing composite index

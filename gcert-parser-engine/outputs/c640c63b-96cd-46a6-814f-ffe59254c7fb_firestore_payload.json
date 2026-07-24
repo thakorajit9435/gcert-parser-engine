@@ -1,0 +1,27 @@
+{
+  "topics": [],
+  "sub_topics": [],
+  "learning_outcomes": [],
+  "chapter_summaries": [
+    {
+      "summary_id": "sum_sci_std_08_ch3",
+      "chapter_id": "sci_std_08_ch3",
+      "standard_id": "std_08",
+      "subject_id": "sci_std_08",
+      "summary_en": null,
+      "summary_gu": "",
+      "key_points": [],
+      "important_formulas": [],
+      "diagram_references": [],
+      "revision_notes_en": null,
+      "revision_notes_gu": "",
+      "is_active": true
+    }
+  ],
+  "question_bank": [],
+  "mcq_bank": [],
+  "activities": [],
+  "keywords": [],
+  "glossary": [],
+  "ai_knowledge_base": []
+}

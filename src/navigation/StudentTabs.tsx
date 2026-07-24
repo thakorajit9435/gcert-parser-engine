@@ -32,11 +32,16 @@ import { BlueprintDetailScreen } from '../screens/student/BlueprintDetailScreen'
 import { OldPapersListScreen } from '../screens/student/OldPapersListScreen';
 import { OldPaperDetailScreen } from '../screens/student/OldPaperDetailScreen';
 import { BookmarkListScreen } from '../screens/student/BookmarkListScreen';
+import { StudentTopicDetailScreen } from '../screens/student/StudentTopicDetailScreen';
+import { StudentResourceListScreen } from '../screens/student/StudentResourceListScreen';
+import { StudentFlashcardsScreen } from '../screens/student/StudentFlashcardsScreen';
+import { AITutorScreen } from '../screens/student/AITutorScreen';
 import { PdfViewerScreen } from '../screens/shared';
 import { PrivacyPolicyScreen, TermsConditionsScreen, PrivacyInfoScreen } from '../screens/common';
 
 type StudentRootParamList = {
     MainTabs: undefined;
+    AITutor: { sessionId?: string; subject?: string } | undefined;
     SessionScreen: { standardId: string };
     ChapterDetail: { chapterId: string };
     QuizList: { chapterId?: string; subjectId?: string; isMixed?: boolean; chapterTitle?: string };
@@ -59,6 +64,9 @@ type StudentRootParamList = {
     PrivacyPolicy: undefined;
     TermsConditions: undefined;
     PrivacyInfo: undefined;
+    StudentTopicDetail: { topicId: string; topicTitle: string };
+    StudentResourceList: { resourceType: string; chapterId: string; chapterTitle: string };
+    StudentFlashcards: { chapterId: string; chapterTitle: string };
 };
 
 type StudentTabParamList = {
@@ -436,6 +444,50 @@ export function StudentTabs(): React.JSX.Element {
                     headerTintColor: studentColors.textPrimary,
                     headerTitleStyle: { fontWeight: typography.weight.semibold },
                     title: 'Privacy & Data',
+                }}
+            />
+            <Stack.Screen
+                name="StudentTopicDetail"
+                component={StudentTopicDetailScreen}
+                options={({ route }: any) => ({
+                    headerShown: true,
+                    headerStyle: { backgroundColor: studentColors.surface },
+                    headerTintColor: studentColors.textPrimary,
+                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    title: route.params?.topicTitle || 'વિષય વિગત (Topic Detail)',
+                })}
+            />
+            <Stack.Screen
+                name="StudentResourceList"
+                component={StudentResourceListScreen}
+                options={({ route }: any) => ({
+                    headerShown: true,
+                    headerStyle: { backgroundColor: studentColors.surface },
+                    headerTintColor: studentColors.textPrimary,
+                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    title: route.params?.resourceType === 'textbooks' ? 'પાઠ્યપુસ્તકો (Textbooks)' :
+                           route.params?.resourceType === 'videos' ? 'વીડિયો લેક્ચર્સ (Videos)' :
+                           route.params?.resourceType === 'worksheets' ? 'કાર્યપત્રકો (Worksheets)' :
+                           route.params?.resourceType === 'lesson_plans' ? 'અભ્યાસ યોજના (Lesson Plans)' :
+                           'શબ્દકોશ (Glossary)',
+                })}
+            />
+            <Stack.Screen
+                name="StudentFlashcards"
+                component={StudentFlashcardsScreen}
+                options={{
+                    headerShown: true,
+                    headerStyle: { backgroundColor: studentColors.surface },
+                    headerTintColor: studentColors.textPrimary,
+                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    title: '⚡ ફ્લેશકાર્ડ્સ (Flashcards)',
+                }}
+            />
+            <Stack.Screen
+                name="AITutor"
+                component={AITutorScreen}
+                options={{
+                    headerShown: false,
                 }}
             />
         </Stack.Navigator>
