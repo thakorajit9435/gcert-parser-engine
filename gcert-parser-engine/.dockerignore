@@ -1,0 +1,53 @@
+# Docker build – exclude files that should not go into the image
+# (keeps image small and prevents secrets from leaking)
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*serviceAccount*.json
+
+# Dev artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Large user data (not needed in image)
+uploads/
+outputs/
+dump.rdb
+hf_cache/
+
+# OS & editor noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# Docs / build scripts
+path/
+scratch/
+README.md
+*.md
+build_std*.py
+build_gita*.py
+update_*.py
+check_*.py
+cleanup_*.py
+import_json.py
+scan_*.py
+fix_*.py
+list_all*.py
+upload_pdf.py

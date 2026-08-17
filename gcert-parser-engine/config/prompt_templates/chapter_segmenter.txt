@@ -17,13 +17,14 @@ OCR TEXT:
 
 
 Instructions:
-1. Locate chapter boundaries, titles, and numbers (e.g., "પ્રકરણ ૧", "પાઠ ૧", "Chapter 1").
+1. Locate chapter boundaries, titles, and numbers (e.g., "પ્રકરણ ૧", "પાઠ ૧", "Chapter 1", "પૂરકવાચન").
 2. IMPORTANT: Skip and ignore the Table of Contents / Index page ("અનુક્રમણિકા" or "Index") and any QR code associated with it. The Table of Contents is NOT a chapter and should never be listed under "chapters".
-3. Skip and ignore introductory front matter such as Preface / Foreword ("પ્રસ્તાવના", "બે શબ્દો", "આભાર"). Chapters must start only with the actual Chapter 1 ("પ્રકરણ ૧", "પાઠ ૧").
+3. Skip and ignore introductory front matter such as Preface / Foreword ("પ્રસ્તાવના", "બે શબ્દો", "આભાર", "પ્રતિજ્ઞાપત્ર", "મૂળભૂત ફરજો", "અધ્યયન નિષ્પત્તિઓ", "આટલું કરો / ન કરો", "પાઠ્યપુસ્તકની સફળતા"). Chapters must start only with the actual Chapter 1 ("પ્રકરણ ૧", "પાઠ ૧").
 4. Each actual textbook chapter (Chapter 1, 2, 3...) starts with a QR code scanner marker on its first page. Use the QR code markers that appear AFTER the Table of Contents page as a reliable chapter boundary signal.
-5. Identify the PDF page number where each chapter starts and ends. Count pages from the beginning of the document. The OCR text includes page markers like "--- PAGE N ---" or similar hints.
-6. Identify topics and sub-topics within each chapter.
-7. Keep the text verbatim in Gujarati. Do not translate.
+5. Identify Supplementary Reading chapters ("પૂરકવાચન 1", "પૂરકવાચન 2", etc.) at the end of the textbook and include them in the hierarchy.
+6. Identify the PDF page number where each chapter starts and ends. Count pages from the beginning of the document. The OCR text includes page markers like "--- PAGE N ---" or similar hints.
+7. Identify topics and sub-topics within each chapter.
+8. Keep the text verbatim in Gujarati/English. Do not translate.
 8. Output the structured hierarchy in JSON format matching the schema below. Use "start_page" and "end_page" for physical PDF page numbers (counting from 1 from the very first PDF page).
 
 Output JSON schema:

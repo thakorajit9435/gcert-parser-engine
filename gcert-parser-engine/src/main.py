@@ -1,10 +1,10 @@
 import os
-os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any
 import json
+import base64
 import uuid
 from config.settings import settings
 from src.core.logger import logger
@@ -12,8 +12,22 @@ import firebase_admin
 from firebase_admin import credentials
 
 # Initialize Firebase Admin SDK
+# Supports two modes:
+#   1. Cloud: FIREBASE_SERVICE_ACCOUNT_BASE64 env var (base64-encoded JSON)
+#   2. Local: GOOGLE_APPLICATION_CREDENTIALS file path
+def _get_firebase_credentials() -> credentials.Base:
+    b64_json = settings.FIREBASE_SERVICE_ACCOUNT_BASE64
+    if b64_json:
+        try:
+            service_account_info = json.loads(base64.b64decode(b64_json).decode("utf-8"))
+            logger.info("Firebase credentials loaded from FIREBASE_SERVICE_ACCOUNT_BASE64 env var.")
+            return credentials.Certificate(service_account_info)
+        except Exception as e:
+            logger.warning(f"Failed to decode FIREBASE_SERVICE_ACCOUNT_BASE64: {e}. Falling back to file.")
+    return credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
+
 try:
-    cred = credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
+    cred = _get_firebase_credentials()
     firebase_admin.initialize_app(cred)
     logger.info("Firebase Admin SDK initialized successfully.")
 except ValueError:
@@ -21,19 +35,44 @@ except ValueError:
 except Exception as e:
     logger.error("Failed to initialize Firebase Admin SDK: %s", str(e))
 
+
 from src.worker import run_parser_pipeline_task
 from src.pipeline.firestore_import_engine import FirestoreImportEngine
 
 import time
+import threading
 from collections import defaultdict
 from threading import Lock
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Pre-warm expensive singletons so the first real request does NOT hit a cold-model penalty."""
+    def _warmup_embedder():
+        try:
+            from src.pipeline.embedder import BGEEmbedder
+            emb = BGEEmbedder()
+            emb.get_dense_embedding("warmup query")
+            logger.info("BGE-M3 embedder warm-up complete.")
+        except Exception as e:
+            logger.warning("BGE-M3 warm-up failed (will init on first request): %s", str(e))
+
+    # Fire off model loading in a daemon thread so the server starts instantly
+    t = threading.Thread(target=_warmup_embedder, daemon=True, name="embedder-warmup")
+    t.start()
+    logger.info("Server started. BGE-M3 warm-up running in background thread...")
+    yield
+    # Nothing to clean up
+
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="Parser Engine converting GCERT Gujarati Medium textbooks to Firestore JSON.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS configuration
@@ -132,6 +171,80 @@ def read_root():
     }
 
 import datetime
+
+@app.get("/api/v1/parser/stats")
+async def get_parser_stats():
+    """Aggregates processing metrics across all parsed jobs."""
+    total_pdfs = 0
+    total_pages = 0
+    topics_extracted = 0
+    questions_extracted = 0
+    mcqs_extracted = 0
+    firestore_docs = 0
+    errors = 0
+    
+    try:
+        if os.path.exists(settings.OUTPUT_DIR):
+            for filename in os.listdir(settings.OUTPUT_DIR):
+                if filename.endswith("_meta.json"):
+                    total_pdfs += 1
+                    meta_path = settings.OUTPUT_DIR / filename
+                    job_id = filename.replace("_meta.json", "")
+                    
+                    try:
+                        with open(meta_path, "r", encoding="utf-8") as f:
+                            meta = json.load(f)
+                            total_pages += meta.get("pages", 0) or meta.get("total_pages", 0)
+                    except Exception:
+                        pass
+                        
+                    report_path = settings.OUTPUT_DIR / f"{job_id}_import_report.json"
+                    if os.path.exists(report_path):
+                        try:
+                            with open(report_path, "r", encoding="utf-8") as rf:
+                                rep = json.load(rf)
+                                summary = rep.get("summary", {})
+                                firestore_docs += summary.get("successfully_imported", 0)
+                                if rep.get("status") in ["failed", "partial_failure"]:
+                                    errors += 1
+                        except Exception:
+                            pass
+                            
+                    payload_path = settings.OUTPUT_DIR / f"{job_id}_firestore_payload.json"
+                    if os.path.exists(payload_path):
+                        try:
+                            with open(payload_path, "r", encoding="utf-8") as pf:
+                                payload = json.load(pf)
+                                topics_count = len(payload.get("topics", []))
+                                mcqs_count = len(payload.get("mcqs", [])) or len(payload.get("mcq_bank", []))
+                                questions_count = len(payload.get("questions", [])) or len(payload.get("question_bank", []))
+                                topics_extracted += topics_count
+                                mcqs_extracted += mcqs_count
+                                questions_extracted += questions_count
+                                total_pages += max(10, topics_count * 2)
+                        except Exception:
+                            pass
+                            
+        return {
+            "total_pdfs": total_pdfs,
+            "total_pages": total_pages,
+            "topics_extracted": topics_extracted,
+            "questions_extracted": questions_extracted,
+            "mcqs_extracted": mcqs_extracted,
+            "firestore_docs": firestore_docs,
+            "errors": errors
+        }
+    except Exception as e:
+        logger.error("Failed to calculate stats: %s", str(e))
+        return {
+            "total_pdfs": total_pdfs,
+            "total_pages": total_pages,
+            "topics_extracted": topics_extracted,
+            "questions_extracted": questions_extracted,
+            "mcqs_extracted": mcqs_extracted,
+            "firestore_docs": firestore_docs,
+            "errors": errors
+        }
 
 @app.get("/api/v1/parser/jobs")
 async def list_jobs():

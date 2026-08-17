@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Alert, Text, Platform, Dimensions 
 import { useNavigation } from '@react-navigation/native';
 import { Book } from '../../types';
 import { useBookProgress } from '../../hooks/useBookProgress';
-import { borderRadius, spacing, studentColors, typography } from '@/theme';
+import { borderRadius, spacing, studentColors, typography } from '../../theme';
 
 let Pdf: any = null;
 let pdfAvailable = false;

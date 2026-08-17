@@ -144,8 +144,17 @@ export const SUBSCRIPTION_PLANS = [
 
 // ─── API Configuration (Phase 2 Additions) ───────────────────────────────────
 export const API_CONFIG = {
-  BASE_URL_ANDROID: 'http://10.130.13.148:8000/api/v1',
-  BASE_URL_IOS: 'http://localhost:8000/api/v1',
-  // In production, configure your deployed backend URL:
-  BASE_URL_PROD: 'http://10.130.13.148:8000/api/v1',
+  // ── Local (same WiFi / development) ──────────────────────────────────────
+  BASE_URL_ANDROID: 'http://10.41.87.148:8000/api/v1',
+  BASE_URL_IOS:     'http://localhost:8000/api/v1',
+
+  // ── Production (Cloudflare Tunnel → FastAPI → Ollama qwen2.5:1.5b) ───────
+  // Update this URL each time you restart the tunnel:
+  //   cloudflared tunnel --url http://localhost:8000
+  BASE_URL_PROD:   'https://preliminary-noted-reform-chair.trycloudflare.com/api/v1',
+
+  // ── Ollama direct (same WiFi LAN only, bypasses FastAPI) ─────────────────
+  // Useful for direct raw inference tests — not needed for normal app usage
+  OLLAMA_LOCAL:    'http://10.41.87.148:11434',
+  OLLAMA_MODEL:    'qwen2.5:1.5b',
 } as const;

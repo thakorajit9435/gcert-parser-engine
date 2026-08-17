@@ -17,6 +17,7 @@ import DocumentPicker from 'react-native-document-picker';
 import firestore from '@react-native-firebase/firestore';
 import { adminColors, typography, spacing, borderRadius } from '../../theme';
 import { StatCard } from '../../components/admin/StatCard';
+import { getCollectionCount } from '../../services/firebase/content.service';
 
 interface ProcessingJob {
     id: string;
@@ -45,6 +46,15 @@ interface SessionOption {
     standardId: string;
 }
 
+const sanitizeApiUrl = (rawUrl: string): string => {
+    let clean = (rawUrl || '').trim();
+    if (!clean) return '';
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+        clean = `http://${clean}`;
+    }
+    return clean.replace(/\/+$/, '');
+};
+
 export function AdminPdfProcessingDashboard(): React.JSX.Element {
     const { width } = useWindowDimensions();
     const isTablet = width >= 768;
@@ -71,22 +81,23 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
 
     // API Server Config Configurable
     const [apiBaseUrl, setApiBaseUrl] = useState(
-        Platform.OS === 'android' ? 'http://10.130.13.148:8000' : 'http://localhost:8000'
+        Platform.OS === 'android' ? 'http://10.41.87.148:8000' : 'http://localhost:8000'
     );
+    const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+    const [connectionErrorMsg, setConnectionErrorMsg] = useState<string | null>(null);
 
-    // KPI Stats State
+    // KPI Stats State (Dynamic)
     const [stats, setStats] = useState({
-        totalPDFs: 14,
-        totalPages: 382,
-        topicsExtracted: 86,
-        questionsExtracted: 412,
-        mcqsExtracted: 280,
-        firestoreDocs: 1170,
-        storageUsed: '412.8 MB',
-        errors: 3
+        totalPDFs: 0,
+        totalPages: 0,
+        topicsExtracted: 0,
+        questionsExtracted: 0,
+        mcqsExtracted: 0,
+        firestoreDocs: 0,
+        storageUsed: '0 MB',
+        errors: 0
     });
 
-    // Queue Job List State
     // Queue Job List State
     const [jobs, setJobs] = useState<ProcessingJob[]>([]);
 
@@ -98,10 +109,79 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
     // Live Payload Preview State
     const [selectedPreviewPayload, setSelectedPreviewPayload] = useState<any>(null);
 
-    // Fetch existing jobs from backend
-    const fetchJobs = async () => {
+    // Fetch dynamic overview stats from Firestore & Backend API
+    const fetchOverviewStats = async (targetUrl?: string) => {
+        const formattedUrl = sanitizeApiUrl(targetUrl || apiBaseUrl);
+        if (!formattedUrl) return;
+
+        setConnectionStatus('checking');
+
+        let fsStats = {
+            topicsCount: 0,
+            mcqsCount: 0,
+            questionsCount: 0,
+            chaptersCount: 0,
+        };
+
         try {
-            const response = await fetch(`${apiBaseUrl}/api/v1/parser/jobs`);
+            const [topics, mcqs, questions, chapters] = await Promise.all([
+                getCollectionCount('topics'),
+                getCollectionCount('mcqs'),
+                getCollectionCount('questions'),
+                getCollectionCount('chapters'),
+            ]);
+            fsStats = {
+                topicsCount: topics,
+                mcqsCount: mcqs,
+                questionsCount: questions,
+                chaptersCount: chapters,
+            };
+        } catch (fsErr) {
+            console.log('Firestore overview count error:', fsErr);
+        }
+
+        try {
+            const response = await fetch(`${formattedUrl}/api/v1/parser/stats`);
+            if (response.ok) {
+                const data = await response.json();
+                setStats({
+                    totalPDFs: Math.max(fsStats.chaptersCount, data.total_pdfs || 0),
+                    totalPages: data.total_pages || 0,
+                    topicsExtracted: Math.max(fsStats.topicsCount, data.topics_extracted || 0),
+                    questionsExtracted: Math.max(fsStats.questionsCount, data.questions_extracted || 0),
+                    mcqsExtracted: Math.max(fsStats.mcqsCount, data.mcqs_extracted || 0),
+                    firestoreDocs: data.firestore_docs || 0,
+                    storageUsed: '412 MB',
+                    errors: data.errors || 0
+                });
+                setConnectionStatus('connected');
+                setConnectionErrorMsg(null);
+            } else {
+                setConnectionStatus('error');
+                setConnectionErrorMsg(`Server returned HTTP ${response.status}`);
+            }
+        } catch (e: any) {
+            const errStr = e?.message || 'Network request failed';
+            console.log('Backend stats fetch error:', errStr);
+            setConnectionStatus('error');
+            setConnectionErrorMsg(errStr);
+
+            setStats(prev => ({
+                ...prev,
+                totalPDFs: fsStats.chaptersCount || prev.totalPDFs,
+                topicsExtracted: fsStats.topicsCount || prev.topicsExtracted,
+                mcqsExtracted: fsStats.mcqsCount || prev.mcqsExtracted,
+                questionsExtracted: fsStats.questionsCount || prev.questionsExtracted,
+            }));
+        }
+    };
+
+    // Fetch existing jobs from backend
+    const fetchJobs = async (targetUrl?: string) => {
+        const formattedUrl = sanitizeApiUrl(targetUrl || apiBaseUrl);
+        if (!formattedUrl) return;
+        try {
+            const response = await fetch(`${formattedUrl}/api/v1/parser/jobs`);
             if (!response.ok) return;
             const data = await response.json();
 
@@ -115,8 +195,9 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
         }
     };
 
-    // Load jobs on mount
+    // Load jobs & stats on mount or when apiBaseUrl changes
     useEffect(() => {
+        fetchOverviewStats();
         fetchJobs();
     }, [apiBaseUrl]);
 
@@ -126,9 +207,10 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
             const activeJobs = jobs.filter(j => j.status !== 'success' && j.status !== 'failed');
             if (activeJobs.length === 0) return;
 
+            const formattedUrl = sanitizeApiUrl(apiBaseUrl);
             activeJobs.forEach(async (job) => {
                 try {
-                    const response = await fetch(`${apiBaseUrl}/api/v1/parser/status/${job.id}`);
+                    const response = await fetch(`${formattedUrl}/api/v1/parser/status/${job.id}`);
                     if (!response.ok) return;
                     const data = await response.json();
 
@@ -146,12 +228,7 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
 
                     if (data.status === 'success' || data.status === 'completed') {
                         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [SUCCESS] Job #${job.id} completed. Pulling metadata...`]);
-                        setStats(prev => ({
-                            ...prev,
-                            topicsExtracted: prev.topicsExtracted + (data.statistics?.topics_extracted || 2),
-                            mcqsExtracted: prev.mcqsExtracted + (data.statistics?.mcqs_extracted || 5)
-                        }));
-                        // Refresh the jobs list to pull full metadata
+                        fetchOverviewStats();
                         fetchJobs();
                     }
                 } catch (e: any) {
@@ -236,8 +313,6 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
             setIsUploading(true);
             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [INFO] Starting file upload for: ${res.name}`]);
 
-            // React Native fetch upload fix: Unicode characters in filenames (e.g. Gujarati script)
-            // crash React Native's native header generator. We sanitize it to a safe ASCII filename.
             const safeFileName = uploadType === 'pdf' ? 'document.pdf' : 'package.zip';
 
             const formData = new FormData();
@@ -246,13 +321,13 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
                 name: safeFileName,
                 type: res.type || (uploadType === 'pdf' ? 'application/pdf' : 'application/zip'),
             } as any);
-            // Use real Firestore subject doc ID and standard number
             formData.append('subject_id', selectedSubject.id);
             formData.append('standard_id', selectedSubject.standardId);
             formData.append('standard_number', parseInt(standardNum) as any);
             formData.append('session', selectedSession.session);
 
-            const response = await fetch(`${apiBaseUrl}/api/v1/parser/upload`, {
+            const formattedUrl = sanitizeApiUrl(apiBaseUrl);
+            const response = await fetch(`${formattedUrl}/api/v1/parser/upload`, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -281,6 +356,7 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
 
             setJobs(prevJobs => [newJob, ...prevJobs.filter(j => j.id !== newJob.id)]);
             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [INFO] Job #${data.job_id} queued successfully.`]);
+            fetchOverviewStats();
             Alert.alert('Success', 'PDF processing job queued successfully.');
 
         } catch (e: any) {
@@ -299,7 +375,8 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
     const handleLoadPreview = async (jobId: string) => {
         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [INFO] Fetching Firestore schema preview for Job #${jobId}`]);
         try {
-            const response = await fetch(`${apiBaseUrl}/api/v1/parser/jobs/${jobId}/preview`);
+            const formattedUrl = sanitizeApiUrl(apiBaseUrl);
+            const response = await fetch(`${formattedUrl}/api/v1/parser/jobs/${jobId}/preview`);
             if (!response.ok) {
                 throw new Error('Preview not ready yet. Please wait for completion.');
             }
@@ -325,13 +402,15 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
                     onPress: async () => {
                         try {
                             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [WARN] Initiating rollback for Job #${jobId}`]);
-                            const response = await fetch(`${apiBaseUrl}/api/v1/parser/jobs/${jobId}/rollback`, {
+                            const formattedUrl = sanitizeApiUrl(apiBaseUrl);
+                            const response = await fetch(`${formattedUrl}/api/v1/parser/jobs/${jobId}/rollback`, {
                                 method: 'POST'
                             });
                             const data = await response.json().catch(() => ({ deleted_count: 0 }));
                             setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [WARN] Rollback completed. Deleted ${data.deleted_count || 0} documents.`]);
                             Alert.alert('Rollback Successful', `Successfully deleted ${data.deleted_count || 0} documents from Firestore.`);
                             setJobs(prevJobs => prevJobs.filter(j => j.id !== jobId));
+                            fetchOverviewStats();
                         } catch (e: any) {
                             const errorMsg = e?.message || (typeof e === 'string' ? e : 'Rollback failed.');
                             Alert.alert('Rollback Failed', errorMsg);
@@ -346,8 +425,43 @@ export function AdminPdfProcessingDashboard(): React.JSX.Element {
         <ScrollView style={styles.container}>
             {/* API Settings Section */}
             <View style={styles.apiSettings}>
-                <Text style={styles.apiLabel}>Backend API Endpoint:</Text>
-                <TextInput style={styles.apiInput} value={apiBaseUrl} onChangeText={setApiBaseUrl} placeholder="http://localhost:8000" />
+                <View style={styles.apiHeaderRow}>
+                    <Text style={styles.apiLabel}>Backend API Endpoint:</Text>
+                    <View style={styles.statusBadgeContainer}>
+                        {connectionStatus === 'checking' && (
+                            <View style={styles.badgeWrap}>
+                                <ActivityIndicator size="small" color={adminColors.primary} style={{ marginRight: 4 }} />
+                                <Text style={[styles.connectionBadge, styles.badgeChecking]}>Checking...</Text>
+                            </View>
+                        )}
+                        {connectionStatus === 'connected' && (
+                            <Text style={[styles.connectionBadge, styles.badgeConnected]}>🟢 Connected</Text>
+                        )}
+                        {connectionStatus === 'error' && (
+                            <Text style={[styles.connectionBadge, styles.badgeError]}>🔴 Network Error</Text>
+                        )}
+                    </View>
+                </View>
+
+                <View style={styles.apiInputRow}>
+                    <TextInput
+                        style={styles.apiInput}
+                        value={apiBaseUrl}
+                        onChangeText={setApiBaseUrl}
+                        placeholder="e.g. http://192.168.1.10:8000 or http://localhost:8000"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    <TouchableOpacity style={styles.testButton} onPress={() => { fetchOverviewStats(); fetchJobs(); }}>
+                        <Text style={styles.testButtonText}>⚡ Test & Refresh</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {connectionErrorMsg && (
+                    <Text style={styles.apiErrorSubtext}>
+                        ⚠️ Network Error: {connectionErrorMsg}. Ensure Python backend is running (`uvicorn src.main:app --host 0.0.0.0 --port 8000`) and device is on the same network.
+                    </Text>
+                )}
             </View>
 
             {/* KPI Section */}
@@ -645,22 +759,84 @@ const styles = StyleSheet.create({
     apiSettings: {
         backgroundColor: adminColors.surface,
         borderRadius: borderRadius.md,
-        padding: spacing.sm,
+        padding: spacing.md,
         marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: adminColors.border
     },
+    apiHeaderRow: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-between' as const,
+        alignItems: 'center' as const,
+        marginBottom: spacing.xs
+    },
     apiLabel: {
         fontSize: typography.size.sm,
+        fontWeight: typography.weight.bold as '700',
+        color: adminColors.textPrimary,
+    },
+    statusBadgeContainer: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+    },
+    badgeWrap: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+    },
+    connectionBadge: {
+        fontSize: typography.size.xs,
+        fontWeight: typography.weight.semibold as '600',
+        paddingHorizontal: spacing.xs,
+        paddingVertical: 2,
+        borderRadius: borderRadius.sm,
+        overflow: 'hidden' as const,
+    },
+    badgeChecking: {
         color: adminColors.textSecondary,
-        marginBottom: 4
+    },
+    badgeConnected: {
+        color: adminColors.accentGreen,
+        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    },
+    badgeError: {
+        color: adminColors.accentRed,
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    },
+    apiInputRow: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: spacing.sm,
+        marginTop: 4,
     },
     apiInput: {
+        flex: 1,
         backgroundColor: adminColors.background,
         color: adminColors.textPrimary,
         borderRadius: borderRadius.sm,
-        padding: 4,
-        fontSize: typography.size.md
+        borderWidth: 1,
+        borderColor: adminColors.border,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 8,
+        fontSize: typography.size.sm,
+    },
+    testButton: {
+        backgroundColor: adminColors.primary,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 8,
+        borderRadius: borderRadius.sm,
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+    },
+    testButtonText: {
+        color: '#fff',
+        fontWeight: typography.weight.bold as '700',
+        fontSize: typography.size.xs,
+    },
+    apiErrorSubtext: {
+        color: adminColors.accentRed,
+        fontSize: typography.size.xs,
+        marginTop: spacing.xs,
+        lineHeight: 16,
     },
     sectionTitle: {
         fontSize: typography.size.lg,

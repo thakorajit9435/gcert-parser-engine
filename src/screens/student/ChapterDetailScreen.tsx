@@ -30,6 +30,8 @@ import { logAnalyticsEvent } from '../../services/analytics';
 import { Skeleton } from '../../components/common';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
+import firestore from '@react-native-firebase/firestore';
+import { COLLECTIONS } from '../../constants';
 
 
 interface Message {
@@ -177,6 +179,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
     // Chat states
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionError, setSessionError] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
@@ -191,6 +194,122 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
     const flatListRef = useRef<FlatList>(null);
     const webViewRef = useRef<any>(null);
+
+    // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
+    const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(true);
+
+    useEffect(() => {
+        if (!chapterId) return;
+
+        const fetchSuggestedQuestions = async () => {
+            setSuggestionsLoading(true);
+            try {
+                let fetchedQuestions: string[] = [];
+
+                // ── Strategy 1: Direct query on root `questions` collection by chapterId
+                // This is the most reliable path — no composite index needed.
+                try {
+                    const directSnap = await firestore()
+                        .collection(COLLECTIONS.QUESTIONS)
+                        .where('chapterId', '==', chapterId)
+                        .limit(5)
+                        .get();
+
+                    if (!directSnap.empty) {
+                        fetchedQuestions = directSnap.docs
+                            .map(doc => {
+                                const d = doc.data();
+                                return d.questionTextGu || d.questionText || d.title || d.question || '';
+                            })
+                            .filter(Boolean);
+                    }
+                } catch (innerErr) {
+                    console.warn('[SuggestedQ] Strategy 1 (questions by chapterId) failed:', innerErr);
+                }
+
+                // ── Strategy 2: Quiz document embedded questions array
+                // Fallback: find the quiz for this chapter and read embedded array.
+                if (fetchedQuestions.length === 0) {
+                    try {
+                        const quizSnap = await firestore()
+                            .collection(COLLECTIONS.QUIZZES)
+                            .where('chapterId', '==', chapterId)
+                            .limit(1)
+                            .get();
+
+                        if (!quizSnap.empty && quizSnap.docs[0]) {
+                            const quizDoc = quizSnap.docs[0];
+                            const quizData = quizDoc.data();
+                            const embedded = quizData.questions || quizData.mcqs || [];
+
+                            if (Array.isArray(embedded) && embedded.length > 0) {
+                                fetchedQuestions = embedded
+                                    .map((q: any) => q.questionTextGu || q.questionText || q.title || q.question || '')
+                                    .filter(Boolean);
+                            }
+
+                            // ── Strategy 3: Questions by quizId in root collection
+                            if (fetchedQuestions.length === 0) {
+                                const byQuizSnap = await firestore()
+                                    .collection(COLLECTIONS.QUESTIONS)
+                                    .where('quizId', '==', quizDoc.id)
+                                    .limit(5)
+                                    .get();
+
+                                if (!byQuizSnap.empty) {
+                                    fetchedQuestions = byQuizSnap.docs
+                                        .map(doc => {
+                                            const d = doc.data();
+                                            return d.questionTextGu || d.questionText || d.title || d.question || '';
+                                        })
+                                        .filter(Boolean);
+                                }
+                            }
+                        }
+                    } catch (innerErr) {
+                        console.warn('[SuggestedQ] Strategy 2/3 (quiz lookup) failed:', innerErr);
+                    }
+                }
+
+                // Also try quiz_id field (snake_case) in case of legacy data
+                if (fetchedQuestions.length === 0) {
+                    try {
+                        const legacySnap = await firestore()
+                            .collection(COLLECTIONS.QUESTIONS)
+                            .where('chapter_id', '==', chapterId)
+                            .limit(5)
+                            .get();
+
+                        if (!legacySnap.empty) {
+                            fetchedQuestions = legacySnap.docs
+                                .map(doc => {
+                                    const d = doc.data();
+                                    return d.questionTextGu || d.questionText || d.title || d.question || '';
+                                })
+                                .filter(Boolean);
+                        }
+                    } catch (innerErr) {
+                        console.warn('[SuggestedQ] Strategy 4 (chapter_id snake_case) failed:', innerErr);
+                    }
+                }
+
+                if (fetchedQuestions.length > 0) {
+                    const unique = Array.from(new Set(fetchedQuestions)).slice(0, 5);
+                    setSuggestedQuestions(unique);
+                } else {
+                    setSuggestedQuestions([]);
+                }
+            } catch (err) {
+                console.error('[SuggestedQ] Outer error:', err);
+                setSuggestedQuestions([]);
+            } finally {
+                setSuggestionsLoading(false);
+            }
+        };
+
+        fetchSuggestedQuestions();
+    }, [chapterId]);
 
     // Update opened timestamp and analytics
     useEffect(() => {
@@ -252,6 +371,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             console.error('Failed to create chapter AI session on demand:', err);
             return null;
         }
+    };
+
+    // Retry session creation — resets URL cache so it re-probes backend
+    const retrySession = async () => {
+        setSessionError(false);
+        aiTutorService.resetUrlCache();
+        const id = await getOrCreateSessionId();
+        if (!id) setSessionError(true);
     };
 
     // Initialize chat session for this chapter
@@ -495,14 +622,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     };
 
     // Handle question card press from Chapter Menu → send to Chat
-    const handleQuestionPress = async (questionTemplate: typeof CHAPTER_QUESTIONS_TEMPLATE[0]) => {
+    const handleQuestionPress = async (item: { questionText: string; displayText: string }) => {
         const chapterTitle = chapter.titleGu || chapter.title;
-        const displayQuestion = questionTemplate.displayQ(chapterTitle);
+        const displayQuestion = item.displayText;
 
         // Explicit context to ensure AI answers strictly from this open chapter
         const contextPrefix =
             `[સંદર્ભ: ધોરણ ${chapter.standardId}, વિષય: ${chapter.subjectId}, પ્રકરણ: "${chapterTitle}", પ્રકરણ ક્રમાંક: ${chapter.id}]\nવિનંતી: કૃપા કરીને ફક્ત આ ખુલેલા પ્રકરણ ("${chapterTitle}") ના જ ઉત્તરો તથા પ્રશ્નોત્તરી આપો.\n`;
-        const questionText = contextPrefix + questionTemplate.getQuestion(chapterTitle);
+        const questionText = contextPrefix + item.questionText;
 
         // Switch to chat tab first
         setActiveTab('chat');
@@ -539,9 +666,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         try {
             const activeSessionId = await getOrCreateSessionId();
             if (!activeSessionId) {
-                Alert.alert('Notice', 'AI સત્ર પ્રારંભ થઈ શક્યું નથી, કૃપા કરીને નેટવર્ક કનેક્શન ચકાસો.');
+                setSessionError(true);
+                setChatLoading(false);
                 return;
             }
+            setSessionError(false);
 
             let answer = '';
             let activeCitations: CitationItem[] | undefined = undefined;
@@ -589,6 +718,34 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     };
 
     const chapterTitle = chapter.titleGu || chapter.title;
+
+    const suggestedItems = suggestedQuestions.length > 0
+        ? suggestedQuestions.map((qText, idx) => {
+            const colors = [
+                { color: '#3b82f6', bgColor: '#eff6ff', icon: '🎯' },
+                { color: '#8b5cf6', bgColor: '#f5f3ff', icon: '📝' },
+                { color: '#ec4899', bgColor: '#fdf2f8', icon: '✏️' },
+                { color: '#f59e0b', bgColor: '#fffbeb', icon: '🌟' },
+                { color: '#10b981', bgColor: '#f0fdf4', icon: '📖' }
+            ];
+            const styleConfig = colors[idx % colors.length] || { color: '#3b82f6', bgColor: '#eff6ff', icon: '🎯' };
+            return {
+                key: `suggested_${idx}`,
+                icon: styleConfig.icon,
+                color: styleConfig.color,
+                bgColor: styleConfig.bgColor,
+                questionText: qText,
+                displayText: qText
+            };
+        })
+        : CHAPTER_QUESTIONS_TEMPLATE.map((q) => ({
+            key: q.key,
+            icon: q.icon,
+            color: q.color,
+            bgColor: q.bgColor,
+            questionText: q.getQuestion(chapterTitle),
+            displayText: q.displayQ(chapterTitle)
+        }));
 
     return (
         <KeyboardAvoidingView
@@ -707,42 +864,64 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.questionsSectionTitle}>AI ને પ્રશ્ન પૂછો</Text>
-                                <Text style={styles.questionsSectionSub}>ક્લિક કરો → AI Chat ટૅબ પર ઉત્તર આવશે</Text>
+                                <Text style={styles.questionsSectionSub}>
+                                    {suggestionsLoading
+                                        ? 'પ્રશ્નો લોડ થઈ રહ્યા છે...'
+                                        : suggestedQuestions.length > 0
+                                            ? `📚 આ પ્રકરણના ${suggestedQuestions.length} MCQ પ્રશ્નો — ક્લિક કરો → AI ઉત્તર`
+                                            : 'ક્લિક કરો → AI Chat ટૅબ પર ઉત્તર આવશે'
+                                    }
+                                </Text>
                             </View>
                         </View>
 
-                        {CHAPTER_QUESTIONS_TEMPLATE.map((q, idx) => (
-                            <TouchableOpacity
-                                key={q.key}
-                                style={[styles.questionCard, { borderLeftColor: q.color }]}
-                                onPress={() => handleQuestionPress(q)}
-                                activeOpacity={0.7}
-                            >
-                                {/* Number badge */}
-                                <View style={[styles.qNumBadge, { backgroundColor: q.bgColor }]}>
-                                    <Text style={styles.qNumBadgeIcon}>{q.icon}</Text>
-                                    <View style={[styles.qNumCircle, { backgroundColor: q.color }]}>
-                                        <Text style={styles.qNumText}>{idx + 1}</Text>
+                        {/* Loading skeleton */}
+                        {suggestionsLoading ? (
+                            [1, 2, 3, 4, 5].map((_, i) => (
+                                <View key={i} style={[styles.questionCard, { borderLeftColor: '#e2e8f0', opacity: 0.6 }]}>
+                                    <Skeleton width={52} height={68} borderRadius={10} />
+                                    <View style={{ flex: 1, marginLeft: 10, gap: 8 }}>
+                                        <Skeleton width="85%" height={14} borderRadius={4} />
+                                        <Skeleton width="60%" height={14} borderRadius={4} />
+                                        <Skeleton width={60} height={20} borderRadius={10} />
                                     </View>
+                                    <Skeleton width={18} height={18} borderRadius={9} style={{ marginLeft: 8 }} />
                                 </View>
-
-                                {/* Question text */}
-                                <View style={styles.questionCardBody}>
-                                    <Text style={styles.questionCardText}>
-                                        {q.displayQ(chapterTitle)}
-                                    </Text>
-                                    <View style={[styles.qAiChip, { backgroundColor: q.bgColor }]}>
-                                        <Ionicons name="chatbubble-ellipses" size={10} color={q.color} />
-                                        <Text style={[styles.qAiChipText, { color: q.color }]}>AI ઉત્તર</Text>
+                            ))
+                        ) : (
+                            suggestedItems.map((item, idx) => (
+                                <TouchableOpacity
+                                    key={item.key}
+                                    style={[styles.questionCard, { borderLeftColor: item.color }]}
+                                    onPress={() => handleQuestionPress(item)}
+                                    activeOpacity={0.7}
+                                >
+                                    {/* Number badge */}
+                                    <View style={[styles.qNumBadge, { backgroundColor: item.bgColor }]}>
+                                        <Text style={styles.qNumBadgeIcon}>{item.icon}</Text>
+                                        <View style={[styles.qNumCircle, { backgroundColor: item.color }]}>
+                                            <Text style={styles.qNumText}>{idx + 1}</Text>
+                                        </View>
                                     </View>
-                                </View>
 
-                                {/* Arrow */}
-                                <View style={styles.qArrowWrap}>
-                                    <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                                    {/* Question text */}
+                                    <View style={styles.questionCardBody}>
+                                        <Text style={styles.questionCardText}>
+                                            {item.displayText}
+                                        </Text>
+                                        <View style={[styles.qAiChip, { backgroundColor: item.bgColor }]}>
+                                            <Ionicons name="chatbubble-ellipses" size={10} color={item.color} />
+                                            <Text style={[styles.qAiChipText, { color: item.color }]}>AI ઉત્તર</Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Arrow */}
+                                    <View style={styles.qArrowWrap}>
+                                        <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                                    </View>
+                                </TouchableOpacity>
+                            ))
+                        )}
                     </View>
 
                     {/* Self-Assessment */}
@@ -822,6 +1001,31 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             {/* ─── CHAT TAB ─── */}
             {activeTab === 'chat' && (
                 <View style={styles.chatContainer}>
+                    {/* ── Connection Error Banner ── */}
+                    {sessionError && (
+                        <View style={styles.sessionErrorBanner}>
+                            <View style={styles.sessionErrorIconWrap}>
+                                <Ionicons name="cloud-offline-outline" size={28} color="#ef4444" />
+                            </View>
+                            <Text style={styles.sessionErrorTitle}>સર્વર સાથે જોડાઈ શકાયું નથી</Text>
+                            <Text style={styles.sessionErrorSub}>
+                                AI backend unreachable. Local server down or tunnel expired.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.sessionRetryBtn}
+                                onPress={retrySession}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="refresh" size={16} color="#fff" />
+                                <Text style={styles.sessionRetryBtnText}>ફરીથી પ્રયત્ન કરો</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.sessionErrorHint}>
+                                💡 Tip: Mac પર{' '}
+                                <Text style={{ fontWeight: '700' }}>./start_ai.sh</Text>
+                                {' '}ચલાવો
+                            </Text>
+                        </View>
+                    )}
                     <FlatList
                         ref={flatListRef}
                         data={messages}
@@ -1982,5 +2186,60 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         backgroundColor: '#e2e8f0',
         marginHorizontal: 8,
+    },
+
+    // ── Session Error Banner ──────────────────────────────────────
+    sessionErrorBanner: {
+        margin: 16,
+        marginBottom: 0,
+        backgroundColor: '#fff5f5',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#fecaca',
+        padding: 20,
+        alignItems: 'center',
+    },
+    sessionErrorIconWrap: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#fee2e2',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    sessionErrorTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#b91c1c',
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    sessionErrorSub: {
+        fontSize: 12,
+        color: '#6b7280',
+        textAlign: 'center',
+        marginBottom: 14,
+        lineHeight: 18,
+    },
+    sessionRetryBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ef4444',
+        borderRadius: 10,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        gap: 6,
+        marginBottom: 12,
+    },
+    sessionRetryBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    sessionErrorHint: {
+        fontSize: 11,
+        color: '#9ca3af',
+        textAlign: 'center',
     },
 });

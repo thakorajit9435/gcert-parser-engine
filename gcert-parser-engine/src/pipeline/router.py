@@ -1,6 +1,7 @@
 import re
 import uuid
 import datetime
+import asyncio
 import numpy as np
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends
@@ -45,6 +46,14 @@ def sanitize_prompt_injection(text: str) -> str:
     for pattern in patterns:
         text = re.sub(pattern, "[removed instruction]", text)
     return text
+
+
+def _get_active_model_name() -> str:
+    provider = settings.LLM_PROVIDER.lower()
+    if provider == "ollama":
+        return settings.OLLAMA_MODEL
+    return settings.GEMINI_MODEL
+
 
 
 # --- Schema Definitions ---
@@ -294,7 +303,12 @@ async def semantic_search(request: SearchRequest):
             if subject_val:
                 must_conditions.append(models.FieldCondition(key="subject", match=models.MatchValue(value=subject_val)))
             if f.chapter:
-                must_conditions.append(models.FieldCondition(key="chapter", match=models.MatchValue(value=f.chapter)))
+                ch_val = str(f.chapter).strip()
+                ch_digits = "".join(filter(str.isdigit, ch_val))
+                chapter_variants = {ch_val}
+                if ch_digits:
+                    chapter_variants.update([ch_digits, f"ch_{ch_digits}", f"Chapter {ch_digits}", f"પ્રકરણ {ch_digits}"])
+                must_conditions.append(models.FieldCondition(key="chapter", match=models.MatchAny(any=list(chapter_variants))))
             if f.topic:
                 must_conditions.append(models.FieldCondition(key="topic", match=models.MatchValue(value=f.topic)))
             if f.difficulty:
@@ -333,6 +347,32 @@ async def semantic_search(request: SearchRequest):
             query_filter=query_filter,
             limit=request.top_k * 3
         )
+
+        # Single-pass relaxed retrieval if filtered search returned 0 candidates
+        if not candidates.points and query_filter is not None:
+            logger.info("Filtered search returned 0 candidates. Re-using embeddings for single-pass relaxed search...")
+            candidates = client.query_points(
+                collection_name=collection_name,
+                prefetch=[
+                    models.Prefetch(
+                        query=dense_vector,
+                        using="dense-bge-m3",
+                        limit=request.top_k * 2
+                    ),
+                    models.Prefetch(
+                        query=models.SparseVector(
+                            indices=sparse_vector["indices"],
+                            values=sparse_vector["values"]
+                        ),
+                        using="sparse-bge-m3",
+                        limit=request.top_k * 2
+                    )
+                ],
+                query=models.FusionQuery(
+                    fusion=models.Fusion.RRF
+                ),
+                limit=request.top_k * 3
+            )
         
         # Prepare candidates for re-ranking
         raw_candidates = []
@@ -433,16 +473,24 @@ class SimpleTTLCache:
     def __setitem__(self, key, value):
         self.set(key, value)
 
+_topic_metadata_cache = {}
+
 async def build_rag_context(search_results, db):
     context_blocks = []
     citations_map = {}
     
-    # Parallel fetch all topic metadata from Firestore at once
+    # Parallel fetch all topic metadata from Firestore at once with in-memory caching
     async def _fetch_topic_metadata(topic_id):
+        if not topic_id:
+            return None
+        if topic_id in _topic_metadata_cache:
+            return _topic_metadata_cache[topic_id]
         try:
             kb_snap = await run_in_threadpool(db.collection("ai_knowledge_base").document(topic_id).get)
             if kb_snap.exists:
-                return kb_snap.to_dict()
+                data = kb_snap.to_dict()
+                _topic_metadata_cache[topic_id] = data
+                return data
         except Exception as ex:
             logger.error("Failed to fetch topic metadata from Firestore for %s: %s", topic_id, str(ex))
         return None
@@ -593,7 +641,7 @@ async def rag_ask(request: RagAskRequest, db=Depends(get_firestore_db)):
             citations=active_citations,
             metadata={
                 "status": "success",
-                "model": settings.GEMINI_MODEL,
+                "model": _get_active_model_name(),
                 "source": "textbook_rag" if search_res.results else "general_curriculum_llm",
                 "avg_retrieval_confidence": round(avg_confidence, 3)
             }
@@ -722,7 +770,7 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
             active_citations = cached_res.citations
             cached_hit = True
 
-        # 2. Write User Message to Firestore (async non-blocking)
+        # 2. Write User Message to Firestore (async non-blocking background task)
         user_msg_id = str(uuid.uuid4())
         user_msg_data = {
             "role": "user",
@@ -730,9 +778,7 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
             "timestamp": firestore.SERVER_TIMESTAMP,
             "language": request.filters.language if request.filters else "gu"
         }
-        await run_in_threadpool(session_ref.collection("messages").document(user_msg_id).set, user_msg_data)
-
-
+        asyncio.create_task(run_in_threadpool(session_ref.collection("messages").document(user_msg_id).set, user_msg_data))
 
         if not cached_hit:
             # 3. Fetch Context (same as RAG Ask)
@@ -779,7 +825,14 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
                 f"વિદ્યાર્થી પ્રશ્ન: {request.question}\nગુજરાતી ઉત્તર:"
             )
 
-            raw_answer = await run_in_threadpool(llm_client.generate_rag_response, system_instruction, prompt)
+            try:
+                raw_answer = await asyncio.wait_for(
+                    run_in_threadpool(llm_client.generate_rag_response, system_instruction, prompt),
+                    timeout=35.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning("LLM RAG response timed out after 35s in chat endpoint.")
+                raw_answer = "માફ કરશો, AI જવાબ મેળવવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
 
             if not raw_answer:
                 raw_answer = "માફ કરશો, AI ઉત્તર મેળવવામાં સમસ્યા આવી છે. કૃપા કરીને થોડીવાર પછી ફરીથી પ્રયત્ન કરો."
@@ -799,7 +852,7 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
                 citations=active_citations,
                 metadata={
                     "status": "success",
-                    "model": settings.GEMINI_MODEL,
+                    "model": _get_active_model_name(),
                     "avg_retrieval_confidence": round(avg_confidence, 3)
                 }
             )
@@ -811,13 +864,13 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
                 if isinstance(cached_res, RagAskResponse):
                     avg_confidence = cached_res.metadata.get("avg_retrieval_confidence", 0.0)
 
-        # 4. Write Assistant Message & Update Session Metadata in threadpool (non-blocking for UI response)
+        # 4. Write Assistant Message & Update Session Metadata in background task (non-blocking for UI response)
         assistant_msg_id = str(uuid.uuid4())
         assistant_msg_data = {
             "role": "assistant",
             "content": raw_answer,
             "timestamp": firestore.SERVER_TIMESTAMP,
-            "aiModel": settings.GEMINI_MODEL,
+            "aiModel": _get_active_model_name(),
             "retrievedChunks": [
                 {
                     "chunkId": cit.citationId,
@@ -842,14 +895,14 @@ async def send_chat_message(sessionId: str, request: ChatMessageSend, db=Depends
             except Exception as persist_err:
                 logger.error("Non-blocking Firestore persistence error: %s", str(persist_err))
 
-        await run_in_threadpool(_persist_assistant_data)
+        asyncio.create_task(run_in_threadpool(_persist_assistant_data))
         
         return {
             "answer": raw_answer,
             "citations": active_citations,
             "metadata": {
                 "status": "success",
-                "model": settings.GEMINI_MODEL,
+                "model": _get_active_model_name(),
                 "avg_retrieval_confidence": round(avg_confidence, 3)
             }
         }
@@ -942,53 +995,60 @@ async def chat_multimodal(request: MultimodalDoubtRequest):
 
         provider = settings.LLM_PROVIDER.lower()
         
-        if provider == "openai_compatible":
-            from openai import OpenAI
-            api_key = settings.OPENAI_API_KEY or "ollama"
-            base_url = settings.OPENAI_BASE_URL or None
-            client = OpenAI(api_key=api_key, base_url=base_url)
-            
-            # Format image as a data URL for OpenAI-compatible vision models
-            mime_type = request.mime_type or "image/jpeg"
-            image_data_url = f"data:{mime_type};base64,{request.image_base64}"
-            
-            response = await run_in_threadpool(
-                client.chat.completions.create,
-                model=settings.OPENAI_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_data_url
+        if provider == "ollama":
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key="ollama", base_url=settings.OLLAMA_BASE_URL or "http://localhost:11434/v1")
+                
+                # Format image as a data URL for Ollama vision models
+                mime_type = request.mime_type or "image/jpeg"
+                image_data_url = f"data:{mime_type};base64,{request.image_base64}"
+                
+                response = await run_in_threadpool(
+                    client.chat.completions.create,
+                    model=settings.OLLAMA_MODEL,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": image_data_url
+                                    }
                                 }
-                            }
-                        ]
+                            ]
+                        }
+                    ]
+                )
+                answer = response.choices[0].message.content.strip()
+                return MultimodalDoubtResponse(answer=answer)
+            except Exception as ollama_err:
+                if settings.GEMINI_API_KEY:
+                    logger.warning(f"Ollama vision call failed ({str(ollama_err)}). Falling back to Gemini...")
+                    import google.generativeai as genai
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+                    image_bytes = base64.b64decode(request.image_base64)
+                    image_part = {
+                        "mime_type": request.mime_type or "image/jpeg",
+                        "data": image_bytes
                     }
-                ]
-            )
-            answer = response.choices[0].message.content.strip()
-            return MultimodalDoubtResponse(answer=answer)
+                    model = genai.GenerativeModel(settings.GEMINI_MODEL)
+                    response = await run_in_threadpool(model.generate_content, [prompt, image_part])
+                    return MultimodalDoubtResponse(answer=response.text.strip())
+                raise ollama_err
             
         else:
             import google.generativeai as genai
-            
-            # Configure API key
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            
-            # Decode base64 image data
             image_bytes = base64.b64decode(request.image_base64)
             image_part = {
                 "mime_type": request.mime_type or "image/jpeg",
                 "data": image_bytes
             }
-            
             model = genai.GenerativeModel(settings.GEMINI_MODEL)
             response = await run_in_threadpool(model.generate_content, [prompt, image_part])
-            
             return MultimodalDoubtResponse(answer=response.text.strip())
     except Exception as e:
         logger.error("Multimodal doubt solving failed: %s", str(e))

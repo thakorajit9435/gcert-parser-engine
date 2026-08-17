@@ -6,7 +6,17 @@ import random
 import threading
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-import google.generativeai as genai
+
+# Use new google-genai SDK (replaces deprecated google.generativeai)
+try:
+    from google import genai as google_genai
+    from google.genai import types as genai_types
+    _GENAI_AVAILABLE = True
+except ImportError:
+    _GENAI_AVAILABLE = False
+    google_genai = None
+    genai_types = None
+
 from jinja2 import Template
 from config.settings import settings
 from src.core.logger import logger
@@ -21,7 +31,7 @@ class GeminiRateLimiter:
     """Thread-safe rate limiter for Gemini API calls.
     
     Enforces a minimum gap between consecutive API calls to stay within
-    Gemini's RPM (Requests Per Minute) limits. For gemini-3.1-flash-lite free tier,
+    Gemini's RPM (Requests Per Minute) limits. For gemini-2.0-flash free tier,
     the limit is typically 10 RPM, so we default to ~6 seconds between calls.
     """
     
@@ -63,7 +73,7 @@ class GeminiRateLimiter:
 
 
 # Global singleton rate limiter shared across all LLMClient instances
-_gemini_rate_limiter = GeminiRateLimiter(min_delay_seconds=6.0)
+_gemini_rate_limiter = GeminiRateLimiter(min_delay_seconds=1.0)
 
 # --- Pydantic Schema Definitions for Structured Gemini Responses ---
 
@@ -235,11 +245,22 @@ def to_gemini_schema(pydantic_model: type[BaseModel]) -> Dict[str, Any]:
 class LLMClient:
     def __init__(self):
         self.provider = settings.LLM_PROVIDER.lower()
+        self.gemini_model_name = settings.GEMINI_MODEL or "gemini-3.6-flash"
+        self.ollama_model_name = settings.OLLAMA_MODEL or "qwen2.5:1.5b"
+
+        # Initialize new google.genai client
+        self._genai_client = None
+        if settings.GEMINI_API_KEY and _GENAI_AVAILABLE:
+            try:
+                self._genai_client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+                logger.info("Initialized google.genai client for Gemini API.")
+            except Exception as ge:
+                logger.warning(f"Failed to initialize google.genai client: {str(ge)}")
         
         if self.provider == "ollama":
             api_key = "ollama"
             base_url = settings.OLLAMA_BASE_URL or "http://localhost:11434/v1"
-            self.model_name = settings.OLLAMA_MODEL or "qwen2.5:3b"
+            self.model_name = self.ollama_model_name
             try:
                 from openai import OpenAI
                 self.openai_client = OpenAI(api_key=api_key, base_url=base_url)
@@ -249,22 +270,9 @@ class LLMClient:
                 logger.warning(f"Failed to initialize Ollama client: {str(e)}")
                 self.openai_client = None
                 self.client = None
-        elif self.provider == "openai_compatible":
-            api_key = settings.OPENAI_API_KEY or "ollama"
-            base_url = settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1"
-            self.model_name = settings.OPENAI_MODEL or "llama-3.3-70b-versatile"
-            try:
-                from openai import OpenAI
-                self.openai_client = OpenAI(api_key=api_key, base_url=base_url)
-                self.client = self.openai_client
-                logger.info(f"Initialized OpenAI-compatible client for model '{self.model_name}' at '{base_url}'")
-            except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI-compatible client: {str(e)}")
-                self.openai_client = None
-                self.client = None
         else:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.model_name = settings.GEMINI_MODEL
+            self.provider = "gemini"
+            self.model_name = self.gemini_model_name
             self.openai_client = None
             self.client = None
 
@@ -279,37 +287,46 @@ class LLMClient:
         return Template(content).render(context)
 
     def _call_structured(self, prompt: str, schema: Any) -> Dict[str, Any]:
-        """Calls the configured LLM API (Ollama, Gemini or OpenAI-compatible) with JSON output."""
-        if self.provider in ["openai_compatible", "ollama"]:
-            return self._call_openai_structured(prompt, schema)
+        """Calls the configured LLM API (Ollama or Gemini) with JSON output."""
+        if self.provider == "ollama":
+            return self._call_ollama_structured(prompt, schema)
         else:
             return self._call_gemini_structured(prompt, schema)
 
-    def _call_openai_structured(self, prompt: str, schema: Any) -> Dict[str, Any]:
-        """Calls OpenAI-compatible / Ollama API with JSON schema constraint."""
+    def _call_ollama_structured(self, prompt: str, schema: Any) -> Dict[str, Any]:
+        """Calls Ollama API with JSON schema constraint, fallback to Gemini if Ollama is unavailable."""
         import time
         import random
         from openai import OpenAI
 
-        client = getattr(self, 'client', None)
-        model_name = getattr(self, 'model_name', None) or settings.OLLAMA_MODEL or "qwen2.5:3b"
+        # Quick check if Ollama is listening locally
+        if not getattr(self, '_ollama_checked', False):
+            import socket
+            try:
+                sock = socket.create_connection(("localhost", 11434), timeout=1.0)
+                sock.close()
+                self._ollama_available = True
+            except Exception:
+                self._ollama_available = False
+            self._ollama_checked = True
 
-        if not client:
-            if self.provider == "ollama":
-                api_key = "ollama"
-                base_url = settings.OLLAMA_BASE_URL or "http://localhost:11434/v1"
+        if not getattr(self, '_ollama_available', False):
+            if settings.GEMINI_API_KEY:
+                logger.info("Ollama is not running locally. Fallback to Gemini API...")
+                return self._call_gemini_structured(prompt, schema)
             else:
-                api_key = settings.OPENAI_API_KEY or "ollama"
-                base_url = settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1"
-            client = OpenAI(api_key=api_key, base_url=base_url)
+                logger.warning("Ollama is not running locally and GEMINI_API_KEY is not configured.")
+
+        client = getattr(self, 'client', None)
+        model_name = getattr(self, 'model_name', None) or settings.OLLAMA_MODEL or "qwen2.5:1.5b"
+        if not client:
+            client = OpenAI(api_key="ollama", base_url=settings.OLLAMA_BASE_URL or "http://localhost:11434/v1", timeout=5.0)
             self.client = client
 
         max_retries = 3
         base_delay = 2.0
 
         safe_prompt = prompt
-        if len(safe_prompt) > 8000 and self.provider != "ollama":
-            safe_prompt = safe_prompt[:8000] + "\n...[truncated for token limit]..."
 
         schema_json_str = ""
         if schema:
@@ -322,7 +339,7 @@ class LLMClient:
             except Exception:
                 pass
 
-        system_msg = "You are an educational curriculum parser that outputs ONLY strict valid JSON matching the requested structure. Do not include any intro, markdown code block wrappers, or text outside the raw JSON."
+        system_msg = "You are an educational curriculum parser that outputs ONLY strict valid json matching the requested structure. Respond in valid json format. Do not include any intro, markdown code block wrappers, or text outside the raw JSON."
         if schema_json_str:
             system_msg += f"\n\nJSON SCHEMA:\n{schema_json_str}"
 
@@ -353,134 +370,107 @@ class LLMClient:
                     return json.loads(content_str)
                 except Exception as e:
                     err_msg = str(e).lower()
-                    if self.provider == "ollama" and ("404" in err_msg or "model_not_found" in err_msg or "connection" in err_msg or "refused" in err_msg):
-                        logger.warning(f"Ollama model '{model_name}' not ready or server offline ({str(e)}). Falling back to Groq/Gemini...")
-                        if settings.OPENAI_API_KEY:
-                            return self._call_fallback_groq_structured(prompt, schema)
-                        elif settings.GEMINI_API_KEY:
+                    if "404" in err_msg or "model_not_found" in err_msg or "connection" in err_msg or "refused" in err_msg:
+                        logger.warning(f"Ollama model '{model_name}' not ready or server offline ({str(e)}).")
+                        if settings.GEMINI_API_KEY:
+                            logger.info("Falling back to Gemini...")
                             return self._call_gemini_structured(prompt, schema)
                         raise e
 
                     if any(x in err_msg for x in ["429", "413", "quota", "rate limit", "too many requests", "tpm"]):
                         if attempt == max_retries - 1:
-                            logger.error(f"Structured call failed after {max_retries} attempts: {str(e)}")
+                            logger.error(f"Ollama call failed after {max_retries} attempts: {str(e)}")
+                            if settings.GEMINI_API_KEY:
+                                return self._call_gemini_structured(prompt, schema)
                             raise e
                         
-                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                        delay = 2.0 + base_delay * (2 ** attempt)
                         logger.warning(f"Rate/token limit hit. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
                         time.sleep(delay)
                     else:
-                        logger.error(f"Structured call failed: {str(e)}")
+                        logger.error(f"Ollama call failed: {str(e)}")
+                        if settings.GEMINI_API_KEY:
+                            return self._call_gemini_structured(prompt, schema)
                         raise e
             return {}
         except Exception as e:
-            if self.provider == "ollama" and settings.OPENAI_API_KEY:
-                logger.warning(f"Ollama call failed ({str(e)}). Falling back to Groq...")
-                return self._call_fallback_groq_structured(prompt, schema)
+            if settings.GEMINI_API_KEY:
+                logger.warning(f"Ollama call failed ({str(e)}). Falling back to Gemini...")
+                return self._call_gemini_structured(prompt, schema)
             logger.error(f"Structured call failed: {str(e)}")
             raise LLMProcessingError(f"LLM API request error: {str(e)}")
 
-    def _call_fallback_groq_structured(self, prompt: str, schema: Any) -> Dict[str, Any]:
-        """Fallback to Groq API using OPENAI_API_KEY and OPENAI_MODEL when local Ollama is not ready."""
-        from openai import OpenAI
-        groq_client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1")
-        model_name = settings.OPENAI_MODEL or "llama-3.3-70b-versatile"
-        
-        schema_json_str = ""
-        if schema:
-            try:
-                from pydantic import BaseModel
-                if isinstance(schema, type) and issubclass(schema, BaseModel):
-                    schema_json_str = json.dumps(schema.model_json_schema(), indent=2, ensure_ascii=False)
-                elif isinstance(schema, dict):
-                    schema_json_str = json.dumps(schema, indent=2, ensure_ascii=False)
-            except Exception:
-                pass
-
-        system_msg = "You are an educational curriculum parser that outputs ONLY strict valid JSON matching the requested structure."
-        if schema_json_str:
-            system_msg += f"\n\nJSON SCHEMA:\n{schema_json_str}"
-
-        safe_prompt = prompt[:8000] if len(prompt) > 8000 else prompt
-        response = groq_client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": safe_prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        content = response.choices[0].message.content or "{}"
-        content_str = content.strip().strip("```json").strip("```").strip()
-        return json.loads(content_str)
-
     def _call_gemini_structured(self, prompt: str, schema: Any) -> Dict[str, Any]:
-        """Calls Gemini API with enforced JSON schema constraint with automatic fallback to Groq on 429."""
+        """Calls Gemini API with enforced JSON schema constraint using new google.genai SDK."""
         if not settings.GEMINI_API_KEY:
-            if settings.OPENAI_API_KEY:
-                logger.warning("GEMINI_API_KEY is not configured in settings. Falling back to Groq...")
-                return self._call_openai_structured(prompt, schema)
-            logger.warning("Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured. Returning empty JSON structure.")
+            logger.warning("GEMINI_API_KEY is not configured in settings. Returning empty JSON structure.")
             return {}
 
-        max_retries = 3
-        base_delay = 2.0  # seconds
+        if not _GENAI_AVAILABLE:
+            logger.error("google-genai SDK not installed. Cannot call Gemini structured API.")
+            return {}
 
-        try:
-            model = genai.GenerativeModel(self.model_name)
-            
-            # Convert Pydantic model to a Gemini-compatible clean dict schema
-            from pydantic import BaseModel
-            if isinstance(schema, type) and issubclass(schema, BaseModel):
-                api_schema = to_gemini_schema(schema)
-            else:
-                api_schema = schema
-                
+        client = getattr(self, '_genai_client', None)
+        if not client:
+            try:
+                client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+                self._genai_client = client
+            except Exception as e:
+                logger.error("Failed to create google.genai client: %s", str(e))
+                return {}
+
+        target_model = getattr(self, 'gemini_model_name', None) or settings.GEMINI_MODEL or "gemini-3.6-flash"
+        if any(x in target_model.lower() for x in ["qwen", "ollama", "llama", "gemini-2.0", "gemini-1.5"]):
+            target_model = "gemini-3.6-flash"
+
+        models_to_try = [target_model] + [
+            m for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-latest"]
+            if m != target_model
+        ]
+
+        # Convert Pydantic model to a flat, dereferenced schema
+        from pydantic import BaseModel
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            api_schema = to_gemini_schema(schema)
+        else:
+            api_schema = schema
+
+        for m_name in models_to_try:
+            max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    # Enforce rate limiting before each API call
                     _gemini_rate_limiter.wait_if_needed()
-                    
-                    response = model.generate_content(
-                        prompt,
-                        generation_config=genai.GenerationConfig(
+
+                    response = client.models.generate_content(
+                        model=m_name,
+                        contents=prompt,
+                        config=genai_types.GenerateContentConfig(
                             response_mime_type="application/json",
-                            response_schema=api_schema
+                            response_schema=api_schema,
                         )
                     )
                     _gemini_rate_limiter.record_success()
                     return json.loads(response.text)
+
                 except Exception as e:
                     err_msg = str(e).lower()
-                    if "429" in err_msg or "quota" in err_msg or "rate limit" in err_msg or "resourceexhausted" in err_msg:
+                    if any(k in err_msg for k in ["404", "not found", "no longer available", "not_found"]):
+                        logger.warning(f"Gemini model '{m_name}' not available. Trying next fallback...")
+                        break  # Try next model
+                    if any(k in err_msg for k in ["429", "quota", "rate limit", "resource_exhausted", "resourceexhausted"]):
                         _gemini_rate_limiter.record_rate_limit()
-                        
-                        if settings.OPENAI_API_KEY:
-                            logger.warning(f"Gemini Rate Limit (429) hit. Switching immediately to Groq ({settings.OPENAI_MODEL})...")
-                            try:
-                                return self._call_openai_structured(prompt, schema)
-                            except Exception as groq_err:
-                                logger.error(f"Groq fallback error: {str(groq_err)}")
-
                         if attempt == max_retries - 1:
-                            logger.error(f"Gemini API structured call failed after {max_retries} attempts: {str(e)}")
-                            raise e
-                        
-                        delay = base_delay * (2 ** attempt) + random.uniform(1, 2)
-                        logger.warning(f"Gemini API rate limit (429) hit. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
+                            logger.error(f"Gemini structured call failed after {max_retries} attempts on {m_name}: {str(e)}")
+                            break
+                        delay = 2.0 * (2 ** attempt) + random.uniform(1, 2)
+                        logger.warning(f"Gemini rate limit hit on {m_name}. Retrying in {delay:.1f}s...")
                         time.sleep(delay)
                     else:
-                        logger.error(f"Gemini API structured call failed: {str(e)}")
-                        raise e
-            return {}
-        except LLMProcessingError:
-            raise
-        except Exception as e:
-            if settings.OPENAI_API_KEY:
-                logger.warning(f"Gemini call failed ({str(e)}). Switching to Groq ({settings.OPENAI_MODEL})...")
-                return self._call_openai_structured(prompt, schema)
-            logger.error(f"Gemini API structured call failed: {str(e)}")
-            raise LLMProcessingError(f"LLM API request error: {str(e)}")
+                        logger.error(f"Gemini structured call failed on {m_name}: {str(e)}")
+                        break  # Non-recoverable error, try next model
+
+        return {}
+
 
     @staticmethod
     def _parse_retry_after(error_message: str) -> float:
@@ -499,7 +489,7 @@ class LLMClient:
         return 0.0
 
     def _chunk_text(self, text: str, chunk_size: int = 7000, overlap: int = 700) -> List[str]:
-        """Splits text into chunks of chunk_size with overlap to fit within LLM token limits (e.g. Groq 12k TPM)."""
+        """Splits text into chunks of chunk_size with overlap to fit within LLM token limits."""
         chunks = []
         start = 0
         n = len(text)
@@ -511,13 +501,32 @@ class LLMClient:
             start += chunk_size - overlap
         return chunks
 
+    @staticmethod
+    def _clean_int(val: Any) -> Optional[int]:
+        if val is None:
+            return None
+        if isinstance(val, int):
+            return val
+        s = str(val).strip()
+        guj_to_asc = str.maketrans("૦૧૨૩૪૫૬૭૮૯", "0123456789")
+        s = s.translate(guj_to_asc)
+        import re
+        m = re.search(r'\d+', s)
+        if m:
+            try:
+                res = int(m.group(0))
+                return res if res > 0 else None
+            except ValueError:
+                pass
+        return None
+
     def _extract_official_toc(self, raw_text: str) -> List[Dict[str, Any]]:
         """Extracts the official list of chapters from the Table of Contents (Index) page."""
-        # Table of Contents usually appears in the first 25000 characters
-        toc_chunk = raw_text[:25000]
+        # Table of Contents usually appears in the first 7000 characters
+        toc_chunk = raw_text[:7000]
         
         prompt = f"""
-        You are an educational curriculum parser. Analyze the following OCR text from a textbook's introductory pages and extract the official list of chapters from the Table of Contents (અનુક્રમણિકા / Index).
+        You are an educational curriculum parser. Analyze the following OCR text from a textbook's introductory pages and extract the official list of chapters from the Table of Contents (અનુક્રમણિકા / Index). Output strictly valid json.
         
         OCR TEXT:
         ---
@@ -535,11 +544,19 @@ class LLMClient:
         try:
             logger.info("Extracting official Table of Contents from introductory pages...")
             response = self._call_structured(prompt, TOCResponse)
-            chapters = response.get("chapters", [])
-            logger.info(f"Successfully extracted {len(chapters)} official chapters from TOC.")
-            for ch in chapters:
+            raw_chapters = response.get("chapters", [])
+            valid_chapters = []
+            for ch in raw_chapters:
+                if not isinstance(ch, dict):
+                    continue
+                num = self._clean_int(ch.get("chapter_number"))
+                if num is not None and ch.get("title_gu"):
+                    ch["chapter_number"] = num
+                    valid_chapters.append(ch)
+            logger.info(f"Successfully extracted {len(valid_chapters)} official chapters from TOC.")
+            for ch in valid_chapters:
                 logger.info(f"  - Chapter {ch.get('chapter_number')}: {ch.get('title_gu')}")
-            return chapters
+            return valid_chapters
         except Exception as e:
             logger.error(f"Failed to extract Table of Contents: {str(e)}")
             return []
@@ -552,13 +569,23 @@ class LLMClient:
         if len(raw_text) <= 7000:
             prompt = self._render_prompt("chapter_segmenter.txt", {"ocr_text": raw_text, "official_chapters": official_chapters})
             logger.info("Requesting LLM to segment document hierarchy...")
-            return self._call_structured(prompt, HierarchyResponse)
+            res = self._call_structured(prompt, HierarchyResponse)
+            if "chapters" in res and isinstance(res["chapters"], list):
+                for ch in res["chapters"]:
+                    num = self._clean_int(ch.get("chapter_number") or ch.get("order"))
+                    if num is not None:
+                        ch["chapter_number"] = num
+            return res
 
         logger.info(f"Raw text is large ({len(raw_text)} chars). Splitting into chunks for hierarchy segmentation...")
         chunks = self._chunk_text(raw_text, chunk_size=7000, overlap=700)
         
-        # Group chapters by their official chapter number to merge chunks correctly
-        chapters_map = {}
+        ignored_kw = [
+            "અનુક્રમણિકા", "અનોક્રમણિકા", "પ્રસ્તાવના", "બે શબ્દો", "આભાર",
+            "પ્રતિજ્ઞાપત્ર", "મૂળભૂત ફરજો", "અધ્યયન નિષ્પત્તિઓ", "અધ્યાયન નિષ્પત્તિઓ",
+            "આટલું કરો", "આટલું ન કરો", "પાઠ્યપુસ્તકની સફળતા", "સંપાદકીય", "સલાહકાર",
+            "index", "preface", "table of contents", "foreword", "contents", "acknowledgment", "pledge"
+        ]
         
         for idx, chunk in enumerate(chunks):
             # Throttle between chunks to avoid hitting Gemini rate limits
@@ -573,17 +600,24 @@ class LLMClient:
                 res = self._call_structured(prompt, HierarchyResponse)
                 if "chapters" in res and isinstance(res["chapters"], list):
                     for ch in res["chapters"]:
-                        # Identify the chapter number
-                        num = ch.get("chapter_number") or ch.get("order")
-                        if not num:
+                        if not isinstance(ch, dict):
                             continue
-                        
-                        # Validate chapter number against official TOC if TOC was successfully parsed
-                        if official_chapters:
-                            official_nums = [o.get("chapter_number") for o in official_chapters]
-                            if num not in official_nums:
-                                logger.warning(f"Skipping parsed chapter {num} ({ch.get('chapter_title_gu') or ch.get('title_gu')}) not in official TOC.")
-                                continue
+                        # Identify the chapter number
+                        raw_num = ch.get("chapter_number") or ch.get("order")
+                        num = self._clean_int(raw_num)
+
+                        title_gu = (ch.get("chapter_title_gu") or ch.get("title_gu") or "").lower()
+                        title_en = (ch.get("title_en") or "").lower()
+
+                        # Skip front-matter chapters right away
+                        if any(kw in title_gu or kw in title_en for kw in ignored_kw):
+                            logger.info(f"Skipping front-matter entry: {ch.get('chapter_title_gu') or ch.get('title_gu')}")
+                            continue
+
+                        if num is None:
+                            continue
+
+                        ch["chapter_number"] = num
                         
                         # Merge content if chapter already exists, otherwise add it
                         if num not in chapters_map:
@@ -593,15 +627,25 @@ class LLMClient:
                         else:
                             existing_ch = chapters_map[num]
                             
+                            # Update title if existing one is generic/missing
+                            if not existing_ch.get("title_gu") and ch.get("title_gu"):
+                                existing_ch["title_gu"] = ch.get("title_gu")
+                            if not existing_ch.get("chapter_title_gu") and ch.get("chapter_title_gu"):
+                                existing_ch["chapter_title_gu"] = ch.get("chapter_title_gu")
+
                             # Merge topics
                             new_topics = ch.get("topics", [])
                             if new_topics:
                                 if "topics" not in existing_ch:
                                     existing_ch["topics"] = []
-                                # De-duplicate topics by title
-                                existing_topic_titles = {t.get("title_gu") for t in existing_ch["topics"] if t.get("title_gu")}
+                                existing_topic_titles = {
+                                    t.get("title_gu") if isinstance(t, dict) else str(t)
+                                    for t in existing_ch["topics"]
+                                    if (isinstance(t, dict) and t.get("title_gu")) or isinstance(t, str)
+                                }
                                 for t in new_topics:
-                                    if t.get("title_gu") not in existing_topic_titles:
+                                    t_title = t.get("title_gu") if isinstance(t, dict) else str(t)
+                                    if t_title not in existing_topic_titles:
                                         existing_ch["topics"].append(t)
                             
                             # Merge page ranges
@@ -615,16 +659,23 @@ class LLMClient:
             except Exception as e:
                 logger.error(f"Failed to segment hierarchy for chunk {idx+1}: {str(e)}")
         
-        # Enforce official titles if we have TOC
+        # Enforce official titles & ensure ALL official chapters from TOC exist
         if official_chapters:
-            for num, ch in chapters_map.items():
-                matching_official = next((o for o in official_chapters if o.get("chapter_number") == num), None)
-                if matching_official:
-                    ch["chapter_title_gu"] = matching_official.get("title_gu")
-                    ch["title_gu"] = matching_official.get("title_gu")
-                    # Clean title field to match expected keys
-                    if "chapter_title_gu" in ch and not ch.get("chapter_title_gu"):
-                        ch["chapter_title_gu"] = matching_official.get("title_gu")
+            for o in official_chapters:
+                num = o.get("chapter_number")
+                title_gu = o.get("title_gu")
+                if num is not None and title_gu:
+                    if num not in chapters_map:
+                        logger.info(f"Adding missing chapter {num} from official TOC: {title_gu}")
+                        chapters_map[num] = {
+                            "chapter_number": num,
+                            "chapter_title_gu": title_gu,
+                            "title_gu": title_gu,
+                            "topics": []
+                        }
+                    else:
+                        chapters_map[num]["chapter_title_gu"] = title_gu
+                        chapters_map[num]["title_gu"] = title_gu
 
         # Sort the merged chapters by chapter number
         sorted_chapters = [chapters_map[k] for k in sorted(chapters_map.keys())]
@@ -707,134 +758,113 @@ class LLMClient:
 
     def generate_rag_response(self, system_instruction: str, prompt: str) -> str:
         """Generates a text answer from the configured LLM under a strict system instruction."""
-        if self.provider in ["openai_compatible", "ollama"]:
-            return self._generate_openai_rag_response(system_instruction, prompt)
+        if self.provider == "ollama":
+            return self._generate_ollama_rag_response(system_instruction, prompt)
         else:
             return self._generate_gemini_rag_response(system_instruction, prompt)
 
-    def _generate_openai_rag_response(self, system_instruction: str, prompt: str) -> str:
-        """Generates a text answer from OpenAI-compatible / Ollama model under a strict system instruction."""
-        client = getattr(self, 'client', None)
-        model_name = getattr(self, 'model_name', None) or settings.OLLAMA_MODEL or "qwen2.5:3b"
+    def _generate_ollama_rag_response(self, system_instruction: str, prompt: str) -> str:
+        """Generates a text answer from Ollama model under a strict system instruction."""
+        import socket
 
-        if not client:
-            import time
-            import random
-            from openai import OpenAI
-            if self.provider == "ollama":
-                api_key = "ollama"
-                base_url = settings.OLLAMA_BASE_URL or "http://localhost:11434/v1"
-            else:
-                api_key = settings.OPENAI_API_KEY or "ollama"
-                base_url = settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1"
-            client = OpenAI(api_key=api_key, base_url=base_url)
-
-        max_retries = 3
-        base_delay = 2.0
-
+        # Fast socket pre-check — skip Ollama entirely if server is unreachable
         try:
-            for attempt in range(max_retries):
-                try:
-                    response = client.chat.completions.create(
-                        model=model_name,
-                        messages=[
-                            {"role": "system", "content": system_instruction},
-                            {"role": "user", "content": prompt}
-                        ]
-                    )
-                    return response.choices[0].message.content.strip()
-                except Exception as e:
-                    err_msg = str(e).lower()
-                    if self.provider == "ollama" and ("404" in err_msg or "model_not_found" in err_msg or "connection" in err_msg or "refused" in err_msg):
-                        logger.warning(f"Ollama model '{model_name}' not ready or server offline ({str(e)}). Falling back to Groq/Gemini RAG...")
-                        if settings.OPENAI_API_KEY:
-                            return self._generate_fallback_groq_rag(system_instruction, prompt)
-                        elif settings.GEMINI_API_KEY:
-                            return self._generate_gemini_rag_response(system_instruction, prompt)
-                        raise e
-
-                    if any(x in err_msg for x in ["429", "quota", "rate limit", "too many requests"]):
-                        if attempt == max_retries - 1:
-                            logger.error(f"OpenAI-compatible RAG generation failed after {max_retries} attempts: {str(e)}")
-                            raise e
-                        
-                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                        logger.warning(f"OpenAI-compatible RAG rate limit (429) hit. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                    else:
-                        raise e
-            return "માફ કરશો, AI જવાબ મેળવવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
-        except Exception as e:
-            if self.provider == "ollama" and settings.OPENAI_API_KEY:
-                logger.warning(f"Ollama RAG failed ({str(e)}). Falling back to Groq RAG...")
-                return self._generate_fallback_groq_rag(system_instruction, prompt)
-            logger.error("OpenAI-compatible RAG generation failed: %s", str(e))
-            return "માફ કરશો, AI ઉત્તર મેળવવામાં સમસ્યા આવી છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
-
-    def _generate_fallback_groq_rag(self, system_instruction: str, prompt: str) -> str:
-        """Fallback to Groq RAG generation when local Ollama model is not active."""
-        from openai import OpenAI
-        groq_client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_BASE_URL or "https://api.groq.com/openai/v1")
-        model_name = settings.OPENAI_MODEL or "llama-3.3-70b-versatile"
-        
-        response = groq_client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-
-    def _generate_gemini_rag_response(self, system_instruction: str, prompt: str) -> str:
-        """Generates a text answer from Gemini under a strict system instruction with automatic fallback to Groq on 429."""
-        if not settings.GEMINI_API_KEY:
-            if settings.OPENAI_API_KEY:
-                logger.warning("GEMINI_API_KEY not configured. Falling back to Groq RAG...")
-                return self._generate_openai_rag_response(system_instruction, prompt)
+            sock = socket.create_connection(("localhost", 11434), timeout=1.0)
+            sock.close()
+        except Exception:
+            logger.info("Ollama server not reachable. Switching directly to Gemini RAG...")
+            if settings.GEMINI_API_KEY:
+                return self._generate_gemini_rag_response(system_instruction, prompt)
             return "માફ કરશો, AI API Key કન્ફિગર થયેલ નથી."
 
-        max_retries = 3
-        base_delay = 2.0  # seconds
+        from openai import OpenAI
+
+        client = getattr(self, 'client', None)
+        model_name = getattr(self, 'ollama_model_name', None) or settings.OLLAMA_MODEL or "qwen2.5:1.5b"
+        if not client:
+            client = OpenAI(api_key="ollama", base_url=settings.OLLAMA_BASE_URL or "http://localhost:11434/v1", timeout=15.0)
 
         try:
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_instruction
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=512,
+                timeout=15.0,
             )
-            for attempt in range(max_retries):
-                try:
-                    # Enforce rate limiting before each API call
-                    _gemini_rate_limiter.wait_if_needed()
-                    
-                    response = model.generate_content(prompt)
-                    _gemini_rate_limiter.record_success()
-                    return response.text.strip()
-                except Exception as e:
-                    err_msg = str(e).lower()
-                    if "429" in err_msg or "quota" in err_msg or "rate limit" in err_msg or "resourceexhausted" in err_msg:
-                        _gemini_rate_limiter.record_rate_limit()
-                        
-                        if settings.OPENAI_API_KEY:
-                            logger.warning(f"Gemini RAG Rate Limit (429) hit. Switching immediately to Groq ({settings.OPENAI_MODEL})...")
-                            try:
-                                return self._generate_openai_rag_response(system_instruction, prompt)
-                            except Exception as groq_err:
-                                logger.error(f"Groq RAG fallback error: {str(groq_err)}")
-
-                        if attempt == max_retries - 1:
-                            logger.error(f"Gemini RAG generation failed after {max_retries} attempts: {str(e)}")
-                            raise e
-                        
-                        delay = base_delay * (2 ** attempt) + random.uniform(1, 2)
-                        logger.warning(f"Gemini RAG rate limit (429) hit. Retrying in {delay:.2f} seconds... (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                    else:
-                        raise e
-            return "માફ કરશો, AI જવાબ મેળવવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
+            answer = response.choices[0].message.content.strip()
+            if not answer:
+                raise ValueError("Empty response from Ollama")
+            return answer
         except Exception as e:
-            if settings.OPENAI_API_KEY:
-                logger.warning(f"Gemini RAG failed ({str(e)}). Switching to Groq ({settings.OPENAI_MODEL})...")
-                return self._generate_openai_rag_response(system_instruction, prompt)
-            logger.error("Gemini RAG generation failed: %s", str(e))
+            err_msg = str(e).lower()
+            logger.warning(f"Ollama RAG call failed ({str(e)}). Falling back to Gemini RAG...")
+            if settings.GEMINI_API_KEY:
+                return self._generate_gemini_rag_response(system_instruction, prompt)
+            logger.error("Ollama RAG generation failed and no Gemini key: %s", str(e))
             return "માફ કરશો, AI ઉત્તર મેળવવામાં સમસ્યા આવી છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
+
+
+    def _generate_gemini_rag_response(self, system_instruction: str, prompt: str) -> str:
+        """Generates a text answer from Gemini under a strict system instruction using google.genai SDK."""
+        if not settings.GEMINI_API_KEY:
+            return "માફ કરશો, AI API Key કન્ફિગર થયેલ નથી."
+
+        if not _GENAI_AVAILABLE:
+            return "માફ કરશો, Gemini SDK ઇન્સ્ટોલ નથી. `pip install google-genai` ચલાવો."
+
+        client = getattr(self, '_genai_client', None)
+        if not client:
+            try:
+                client = google_genai.Client(api_key=settings.GEMINI_API_KEY)
+                self._genai_client = client
+            except Exception as e:
+                logger.error("Failed to create google.genai client: %s", str(e))
+                return "માફ કરશો, AI ઉત્તર મેળવવામાં સમસ્યા આવી છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."
+
+        target_model = getattr(self, 'gemini_model_name', None) or settings.GEMINI_MODEL or "gemini-3.6-flash"
+        # Filter out any non-Gemini or legacy model names
+        if any(x in target_model.lower() for x in ["qwen", "ollama", "llama", "gemini-2.0", "gemini-1.5"]):
+            target_model = "gemini-3.6-flash"
+
+        models_to_try = [target_model] + [
+            m for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-latest"]
+            if m != target_model
+        ]
+
+        for m_name in models_to_try:
+            try:
+                _gemini_rate_limiter.wait_if_needed()
+
+                response = client.models.generate_content(
+                    model=m_name,
+                    contents=prompt,
+                    config=genai_types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        max_output_tokens=800,
+                    )
+                )
+                _gemini_rate_limiter.record_success()
+                answer = response.text.strip() if response.text else ""
+                if not answer:
+                    raise ValueError(f"Empty response from Gemini model {m_name}")
+                logger.info(f"Gemini RAG response generated using model: {m_name}")
+                return answer
+
+            except Exception as e:
+                err_msg = str(e).lower()
+                if any(k in err_msg for k in ["404", "not found", "no longer available", "not_found"]):
+                    logger.warning(f"Gemini model '{m_name}' unavailable. Trying next fallback...")
+                    continue
+                if any(k in err_msg for k in ["429", "quota", "rate limit", "resource_exhausted", "resourceexhausted"]):
+                    _gemini_rate_limiter.record_rate_limit()
+                    delay = 3.0 + random.uniform(1, 2)
+                    logger.warning(f"Gemini rate limit hit on {m_name}. Waiting {delay:.1f}s...")
+                    time.sleep(delay)
+                    continue
+                logger.error("Gemini RAG generation failed for model %s: %s", m_name, str(e))
+                continue
+
+        return "માફ કરશો, AI ઉત્તર મેળવવામાં સમસ્યા આવી છે. કૃપા કરીને ફરીથી પ્રયત્ન કરો."

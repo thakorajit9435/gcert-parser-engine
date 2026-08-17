@@ -20,31 +20,41 @@ class Step01Upload:
         
         context["file_size_mb"] = file_size_mb
 
-        # Upload file to Firebase Storage
-        storage_pdf_url = ""
+        # Upload file to Firebase Storage (or use fallback URL if offline / slow)
         bucket_name = "quizapp-1627022258976.appspot.com"
-        try:
+        blob_name = f"textbooks/{job_id}.pdf"
+        encoded_name = urllib.parse.quote_plus(blob_name)
+        fallback_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_name}?alt=media"
+
+        if os.environ.get("SKIP_STORAGE_UPLOAD") == "1":
+            logger.info(f"[{job_id}] SKIP_STORAGE_UPLOAD set. Using Storage URL: {fallback_url}")
+            context["storage_pdf_url"] = fallback_url
+            return
+
+        def perform_upload():
             try:
-                firebase_admin.get_app()
-            except ValueError:
-                cred = credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
-                firebase_admin.initialize_app(cred, {
-                    "storageBucket": bucket_name
-                })
-                
-            bucket = storage.bucket(bucket_name)
-            blob_name = f"textbooks/{job_id}.pdf"
-            blob = bucket.blob(blob_name)
-            blob.upload_from_filename(file_path, content_type="application/pdf", timeout=600)
-            
-            encoded_name = urllib.parse.quote_plus(blob_name)
-            storage_pdf_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_name}?alt=media"
-            logger.info(f"[{job_id}] Successfully uploaded PDF to Storage: {storage_pdf_url}")
-        except Exception as e:
-            logger.error(f"[{job_id}] Firebase Storage PDF upload failed: {str(e)}")
-            encoded_name = urllib.parse.quote_plus(f"textbooks/{job_id}.pdf")
-            storage_pdf_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_name}?alt=media"
-            logger.info(f"[{job_id}] Fallback Storage URL created: {storage_pdf_url}")
-            
-        context["storage_pdf_url"] = storage_pdf_url
+                try:
+                    firebase_admin.get_app()
+                except ValueError:
+                    cred_path = settings.GOOGLE_APPLICATION_CREDENTIALS
+                    if not os.path.exists(cred_path):
+                        cred_path = str(settings.BASE_DIR.parent / "serviceAccountKey.json")
+                    if os.path.exists(cred_path):
+                        cred = credentials.Certificate(cred_path)
+                        firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
+                    else:
+                        return
+                bucket = storage.bucket(bucket_name)
+                blob = bucket.blob(blob_name)
+                blob.upload_from_filename(file_path, content_type="application/pdf", timeout=10)
+                logger.info(f"[{job_id}] Successfully uploaded PDF to Storage: {fallback_url}")
+            except Exception as e:
+                logger.warning(f"[{job_id}] Background Storage PDF upload failed: {str(e)}")
+
+        import threading
+        upload_thread = threading.Thread(target=perform_upload, daemon=True)
+        upload_thread.start()
+
+        context["storage_pdf_url"] = fallback_url
+        logger.info(f"[{job_id}] Assigned Storage URL: {fallback_url}")
 

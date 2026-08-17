@@ -1,4 +1,5 @@
 import json
+from typing import Any, Dict, List, Optional
 from src.core.logger import logger
 from src.core.exceptions import FileValidationError
 from src.models.topic import Topic
@@ -18,9 +19,32 @@ class Step07Generator:
         logger.info(f"[%s] Pipeline Step 7: Structuring & validating Firestore-ready JSON...", context["job_id"])
         
         job_id = context["job_id"]
-        hierarchy = context["extracted_hierarchy"]
-        features = context["extracted_features"]
-        questions = context["extracted_questions"]
+        
+        def _safe_dict(val: Any) -> dict:
+            if isinstance(val, dict):
+                return val
+            if isinstance(val, str):
+                try:
+                    res = json.loads(val)
+                    if isinstance(res, dict):
+                        return res
+                except Exception:
+                    pass
+            return {}
+
+        def _ensure_str(val: Any, fallback: str = "") -> str:
+            """Coerce a value to str. If the LLM returns a list of strings, join them."""
+            if isinstance(val, str):
+                return val
+            if isinstance(val, list):
+                return " ".join(str(item) for item in val if item)
+            if val is None:
+                return fallback
+            return str(val)
+
+        hierarchy = _safe_dict(context.get("extracted_hierarchy"))
+        features = _safe_dict(context.get("extracted_features"))
+        questions = _safe_dict(context.get("extracted_questions"))
         
         subject_id = context["subject_id"]
         standard_id = context["standard_id"]
@@ -28,11 +52,22 @@ class Step07Generator:
 
         # Filter out any extracted chapters that are actually Table of Contents, Preface, or Forewords
         ignored_keywords = [
-            "અנוક્રમણિકા", "અનુક્રમણિકા", "પ્રસ્તાવના", "બે શબ્દો", "આભાર",
-            "index", "table of contents", "preface", "foreword", "contents", "acknowledgment"
+            "અનોક્રમણિકા", "અનુક્રમણિકા", "પ્રસ્તાવના", "બે શબ્દો", "આભાર",
+            "પ્રતિજ્ઞાપત્ર", "મૂળભૂત ફરજો", "અધ્યયન નિષ્પત્તિઓ", "અધ્યાયન નિષ્પત્તિઓ",
+            "આટલું કરો", "આટલું ન કરો", "પાઠ્યપુસ્તકની સફળતા", "સંપાદકીય", "સલાહકાર",
+            "index", "table of contents", "preface", "foreword", "contents", "acknowledgment", "pledge"
         ]
+        raw_chapters = hierarchy.get("chapters", [])
+        if not isinstance(raw_chapters, list):
+            raw_chapters = []
+
         filtered_chapters = []
-        for ch in hierarchy.get("chapters", []):
+        for ch in raw_chapters:
+            if isinstance(ch, str):
+                ch = {"title_gu": ch, "chapter_title_gu": ch}
+            elif not isinstance(ch, dict):
+                continue
+
             title_gu = (ch.get("title_gu") or ch.get("chapter_title_gu") or "").lower()
             title_en = (ch.get("title_en") or "").lower()
             
@@ -48,6 +83,7 @@ class Step07Generator:
                 logger.info(f"[%s] Skipping non-chapter front matter: {ch.get('chapter_title_gu') or ch.get('title_gu') or 'Unnamed'}", job_id)
         
         final_payload = {
+            "subjects": [],
             "chapters": [],
             "textbooks": [],
             "topics": [],
@@ -92,8 +128,34 @@ class Step07Generator:
         }
         final_payload["textbooks"].append(textbook_doc)
 
+        # Resolve session value early (needed by subject and session documents below)
+        session = str(context.get("session") or "1")
+
+        # Populate subject document (required for student app navigation: Standard → Subject → Chapters)
+        subject_doc = {
+            "id": subject_id,
+            "subject_id": subject_id,
+            "subjectId": subject_id,
+            "standardId": str(standard_number),
+            "standard_id": standard_id,
+            "standard_number": int(standard_number),
+            "standard": str(standard_number),
+            "session": session,
+            "name": textbook_doc["title_en"],
+            "nameGu": textbook_doc["title_gu"],
+            "name_en": textbook_doc["title_en"],
+            "name_gu": textbook_doc["title_gu"],
+            "icon": "",
+            "order": 1,
+            "total_chapters": len(filtered_chapters),
+            "isDeleted": False,
+            "is_deleted": False,
+            "isActive": True,
+            "is_active": True,
+        }
+        final_payload["subjects"].append(subject_doc)
+
         # Upsert a Session document so Sessions Screen always shows this standard
-        session = context.get("session") or "1"
         session_id = f"session_{standard_id}_sem{session}"
         session_doc = {
             "session_id": session_id,
@@ -133,6 +195,8 @@ class Step07Generator:
 
             # Preprocess and estimate page ranges
             for i, chapter in enumerate(filtered_chapters):
+                if not isinstance(chapter, dict):
+                    continue
                 start_p = chapter.get('start_page') or chapter.get('startPage')
                 title_gu = chapter.get('title_gu') or chapter.get('chapter_title_gu') or ""
                 
@@ -151,18 +215,19 @@ class Step07Generator:
                     if i == 0:
                         start_p = 1
                     else:
-                        prev_end = filtered_chapters[i-1].get('end_page') or filtered_chapters[i-1].get('endPage')
+                        prev_ch = filtered_chapters[i-1] if isinstance(filtered_chapters[i-1], dict) else {}
+                        prev_end = prev_ch.get('end_page') or prev_ch.get('endPage')
                         start_p = (int(prev_end) + 1) if prev_end is not None else (i * 15 + 1)
                 
                 try:
                     chapter['start_page'] = max(1, int(start_p))
-                except ValueError:
+                except (ValueError, TypeError):
                     chapter['start_page'] = i * 15 + 1
                     
                 end_p = chapter.get('end_page') or chapter.get('endPage')
                 if end_p is None:
                     if i < len(filtered_chapters) - 1:
-                        next_ch = filtered_chapters[i+1]
+                        next_ch = filtered_chapters[i+1] if isinstance(filtered_chapters[i+1], dict) else {}
                         next_start = next_ch.get('start_page') or next_ch.get('startPage')
                         if next_start is not None:
                             try:
@@ -177,23 +242,25 @@ class Step07Generator:
                 
                 try:
                     chapter['end_page'] = max(chapter['start_page'], int(end_p))
-                except ValueError:
+                except (ValueError, TypeError):
                     chapter['end_page'] = chapter['start_page'] + 14
 
             # Determine front-matter page offset based on Chapter 1 start page
             pdf_offset = 0
-            if filtered_chapters:
-                first_ch_start = filtered_chapters[0]['start_page']
+            if filtered_chapters and isinstance(filtered_chapters[0], dict):
+                first_ch_start = filtered_chapters[0].get('start_page', 1)
                 pdf_offset = max(0, first_ch_start - 1)
             logger.info(f"[%s] Computed PDF front-matter offset: {pdf_offset} pages", job_id)
 
             # Map chapter hierarchical elements
             for ch_idx, chapter in enumerate(filtered_chapters):
+                if not isinstance(chapter, dict):
+                    continue
                 chapter_num = ch_idx + 1
                 chapter_id = f"{subject_id}_ch{chapter_num}"
 
-                start_page = chapter['start_page']
-                end_page = chapter['end_page']
+                start_page = chapter.get('start_page', 1)
+                end_page = chapter.get('end_page', start_page + 14)
                 book_start_page = max(1, start_page - pdf_offset)
                 initial_page = max(0, start_page - 1)
 
@@ -214,11 +281,15 @@ class Step07Generator:
                     "titleGu": chapter.get("title_gu") or chapter.get("chapter_title_gu") or f"પ્રકરણ {chapter_num}",
                     "title_gu": chapter.get("title_gu") or chapter.get("chapter_title_gu") or f"પ્રકરણ {chapter_num}",
                     "title_en": chapter.get("title_en") or f"Chapter {chapter_num}",
-                    "description": chapter.get("description", ""),
-                    "descriptionGu": chapter.get("description_gu", ""),
-                    "description_gu": chapter.get("description_gu", ""),
+                    "description": _ensure_str(chapter.get("description"), ""),
+                    "descriptionGu": _ensure_str(chapter.get("description_gu"), ""),
+                    "description_gu": _ensure_str(chapter.get("description_gu"), ""),
+                    "textbook_id": f"tb_{subject_id}",
+                    "textbookId": f"tb_{subject_id}",
                     "pdfUrl": storage_pdf_url,
                     "pdf_url": storage_pdf_url,
+                    "file_url": storage_pdf_url,
+                    "url": storage_pdf_url,
                     "swadhyayPdfUrl": storage_pdf_url,
                     "swadhyay_pdf_url": storage_pdf_url,
                     "hasSwadhyay": True,
@@ -232,6 +303,8 @@ class Step07Generator:
                     "chapter_number": chapter_num,
                     "isDeleted": False,
                     "is_deleted": False,
+                    "isActive": True,
+                    "is_active": True,
                     "isPremium": False,
                     "is_premium": False,
                     "startPage": start_page,
@@ -254,19 +327,43 @@ class Step07Generator:
                 }
                 final_payload["chapters"].append(chapter_doc)
                 
-                # Map chapter summary
-                key_points = [{"text_gu": kp.get("text_gu"), "text_en": kp.get("text_en")} for kp in features.get("key_points", [])]
-                formulas = [{"formula": f.get("formula"), "description_gu": f.get("description_gu")} for f in features.get("formulas", [])]
-                
+                # Map chapter summary safely handling string or dict items
+                key_points = []
+                raw_kp = features.get("key_points", [])
+                if isinstance(raw_kp, list):
+                    for kp in raw_kp:
+                        if isinstance(kp, str):
+                            key_points.append({"text_gu": kp, "text_en": None})
+                        elif isinstance(kp, dict):
+                            key_points.append({"text_gu": _ensure_str(kp.get("text_gu"), "મુખ્ય મુદ્દો"), "text_en": kp.get("text_en")})
+
+                formulas = []
+                raw_form = features.get("formulas", [])
+                if isinstance(raw_form, list):
+                    for f in raw_form:
+                        if isinstance(f, str):
+                            formulas.append({"formula": f, "description_gu": None})
+                        elif isinstance(f, dict):
+                            formulas.append({"formula": _ensure_str(f.get("formula"), "N/A"), "description_gu": f.get("description_gu")})
+
+                raw_rev = features.get("revision_notes_gu", [])
+                revision_notes_list = []
+                if isinstance(raw_rev, list):
+                    for r in raw_rev:
+                        if isinstance(r, str):
+                            revision_notes_list.append(r)
+                        elif isinstance(r, dict):
+                            revision_notes_list.append(r.get("text_gu") or r.get("note") or str(r))
+
                 summary_data = {
                     "summary_id": f"sum_{chapter_id}",
                     "chapter_id": chapter_id,
                     "standard_id": standard_id,
                     "subject_id": subject_id,
-                    "summary_gu": chapter.get("summary_gu", "સારાંશ માહિતી"),
+                    "summary_gu": _ensure_str(chapter.get("summary_gu"), "સારાંશ માહિતી"),
                     "key_points": key_points,
                     "important_formulas": formulas,
-                    "revision_notes_gu": "\n".join(features.get("revision_notes_gu", []))
+                    "revision_notes_gu": "\n".join(revision_notes_list)
                 }
                 final_payload["chapter_summaries"].append(ChapterSummary(**summary_data).model_dump())
                 
@@ -274,11 +371,36 @@ class Step07Generator:
                 fallback_topic_id = f"{chapter_id}_tp1"
                 
                 # Map topics and sub-topics
-                for t_idx, topic in enumerate(chapter.get("topics", [])):
+                raw_topics = chapter.get("topics", [])
+                if not isinstance(raw_topics, list):
+                    raw_topics = []
+
+                for t_idx, topic in enumerate(raw_topics):
+                    if isinstance(topic, str):
+                        topic = {"title_gu": topic}
+                    elif not isinstance(topic, dict):
+                        continue
+
                     topic_num = topic.get('topic_number', t_idx + 1)
+                    if not isinstance(topic_num, int):
+                        try:
+                            topic_num = int(topic_num)
+                        except (ValueError, TypeError):
+                            topic_num = t_idx + 1
+
                     topic_id = f"{chapter_id}_tp{topic_num}"
                     if t_idx == 0:
                         fallback_topic_id = topic_id
+
+                    # Extract keywords list safely
+                    kw_strings = []
+                    raw_kw_list = features.get("keywords_list", [])
+                    if isinstance(raw_kw_list, list):
+                        for kw in raw_kw_list:
+                            if isinstance(kw, str):
+                                kw_strings.append(kw)
+                            elif isinstance(kw, dict) and kw.get("keyword_gu"):
+                                kw_strings.append(kw.get("keyword_gu"))
                     
                     topic_obj = Topic(
                         topic_id=topic_id,
@@ -287,68 +409,106 @@ class Step07Generator:
                         subject_id=subject_id,
                         standard_id=standard_id,
                         standard_number=standard_number,
-                        title_gu=topic.get("title_gu", ""),
+                        title_gu=_ensure_str(topic.get("title_gu"), "વિષય"),
                         title_en=topic.get("title_en"),
-                        content_gu=topic.get("content_gu", ""),
+                        content_gu=_ensure_str(topic.get("content_gu"), ""),
                         display_order=t_idx + 1,
-                        keywords=[kw.get("keyword_gu") for kw in features.get("keywords_list", [])]
+                        keywords=kw_strings
                     )
                     final_payload["topics"].append(topic_obj.model_dump())
                     
                     # Map sub-topics
-                    for s_idx, sub in enumerate(topic.get("sub_topics", [])):
-                        sub_topic_id = f"{topic_id}_sub{s_idx + 1}"
-                        sub_obj = SubTopic(
-                            sub_topic_id=sub_topic_id,
-                            topic_id=topic_id,
-                            title_gu=sub.get("title_gu"),
-                            title_en=sub.get("title_en"),
-                            display_order=s_idx + 1
-                        )
-                        final_payload["sub_topics"].append(sub_obj.model_dump())
+                    raw_subs = topic.get("sub_topics", [])
+                    if isinstance(raw_subs, list):
+                        for s_idx, sub in enumerate(raw_subs):
+                            if isinstance(sub, str):
+                                sub = {"title_gu": sub}
+                            elif not isinstance(sub, dict):
+                                continue
+
+                            sub_topic_id = f"{topic_id}_sub{s_idx + 1}"
+                            sub_obj = SubTopic(
+                                sub_topic_id=sub_topic_id,
+                                topic_id=topic_id,
+                                title_gu=_ensure_str(sub.get("title_gu"), "ઉપ-વિષય"),
+                                title_en=sub.get("title_en"),
+                                display_order=s_idx + 1
+                            )
+                            final_payload["sub_topics"].append(sub_obj.model_dump())
 
                 # Map Learning Outcomes
-                for o_idx, outcome in enumerate(features.get("learning_outcomes", [])):
-                    outcome_id = f"lo_{subject_id}_ch{chapter_num}_{o_idx + 1}"
-                    outcome_obj = LearningOutcome(
-                        outcome_id=outcome_id,
-                        topic_id=fallback_topic_id,
-                        chapter_id=chapter_id,
-                        subject_id=subject_id,
-                        standard_id=standard_id,
-                        outcome_text_gu=outcome.get("outcome_text_gu", ""),
-                        bloom_level=outcome.get("bloom_level", "understand"),
-                        measurable_verb_gu=outcome.get("measurable_verb_gu", ""),
-                        display_order=o_idx + 1
-                    )
-                    final_payload["learning_outcomes"].append(outcome_obj.model_dump())
+                raw_outcomes = features.get("learning_outcomes", [])
+                if isinstance(raw_outcomes, list):
+                    for o_idx, outcome in enumerate(raw_outcomes):
+                        if isinstance(outcome, str):
+                            outcome = {"outcome_text_gu": outcome}
+                        elif not isinstance(outcome, dict):
+                            continue
+
+                        outcome_id = f"lo_{subject_id}_ch{chapter_num}_{o_idx + 1}"
+                        outcome_obj = LearningOutcome(
+                            outcome_id=outcome_id,
+                            topic_id=fallback_topic_id,
+                            chapter_id=chapter_id,
+                            subject_id=subject_id,
+                            standard_id=standard_id,
+                            outcome_text_gu=_ensure_str(outcome.get("outcome_text_gu"), "અધ્યયન નિષ્પત્તિ"),
+                            bloom_level=_ensure_str(outcome.get("bloom_level"), "understand"),
+                            measurable_verb_gu=_ensure_str(outcome.get("measurable_verb_gu"), "સમજે છે"),
+                            display_order=o_idx + 1
+                        )
+                        final_payload["learning_outcomes"].append(outcome_obj.model_dump())
 
                 # Map Keywords
-                for k_idx, kw in enumerate(features.get("keywords_list", [])):
-                    kw_id = f"kw_{subject_id}_ch{chapter_num}_{k_idx + 1}"
-                    kw_obj = Keyword(
-                        keyword_id=kw_id,
-                        topic_id=fallback_topic_id,
-                        chapter_id=chapter_id,
-                        subject_id=subject_id,
-                        standard_id=standard_id,
-                        keyword_gu=kw.get("keyword_gu"),
-                        keyword_en=kw.get("keyword_en"),
-                        meaning_gu=kw.get("meaning_gu"),
-                        meaning_en=kw.get("meaning_en")
-                    )
-                    final_payload["keywords"].append(kw_obj.model_dump())
+                raw_keywords = features.get("keywords_list", [])
+                if isinstance(raw_keywords, list):
+                    for k_idx, kw in enumerate(raw_keywords):
+                        if isinstance(kw, str):
+                            kw = {"keyword_gu": kw}
+                        elif not isinstance(kw, dict):
+                            continue
+
+                        kw_id = f"kw_{subject_id}_ch{chapter_num}_{k_idx + 1}"
+                        kw_obj = Keyword(
+                            keyword_id=kw_id,
+                            topic_id=fallback_topic_id,
+                            chapter_id=chapter_id,
+                            subject_id=subject_id,
+                            standard_id=standard_id,
+                            keyword_gu=_ensure_str(kw.get("keyword_gu"), "મુખ્ય શબ્દ"),
+                            keyword_en=kw.get("keyword_en"),
+                            meaning_gu=_ensure_str(kw.get("meaning_gu") or kw.get("keyword_gu"), "શબ્દનો અર્થ"),
+                            meaning_en=kw.get("meaning_en")
+                        )
+                        final_payload["keywords"].append(kw_obj.model_dump())
 
                 # Map Glossary & Difficult Words
-                glossary_list = features.get("glossary", [])
-                for diff_word in features.get("difficult_words", []):
-                    # Standardize difficult words into the glossary collection format
-                    glossary_list.append({
-                        "word_gu": diff_word.get("word_gu"),
-                        "definition_gu": diff_word.get("meaning_gu")
-                    })
+                glossary_list = []
+                raw_gl = features.get("glossary", [])
+                if isinstance(raw_gl, list):
+                    for gl in raw_gl:
+                        if isinstance(gl, str):
+                            glossary_list.append({"word_gu": gl, "definition_gu": ""})
+                        elif isinstance(gl, dict):
+                            glossary_list.append(gl)
+
+                raw_dw = features.get("difficult_words", [])
+                if isinstance(raw_dw, list):
+                    for diff_word in raw_dw:
+                        if isinstance(diff_word, str):
+                            glossary_list.append({"word_gu": diff_word, "definition_gu": ""})
+                        elif isinstance(diff_word, dict):
+                            glossary_list.append({
+                                "word_gu": diff_word.get("word_gu"),
+                                "definition_gu": diff_word.get("meaning_gu") or diff_word.get("definition_gu")
+                            })
                     
                 for g_idx, gl in enumerate(glossary_list):
+                    if isinstance(gl, str):
+                        gl = {"word_gu": gl, "definition_gu": ""}
+                    elif not isinstance(gl, dict):
+                        continue
+
                     gl_id = f"gl_{subject_id}_ch{chapter_num}_{g_idx + 1}"
                     gl_obj = Glossary(
                         glossary_id=gl_id,
@@ -357,60 +517,89 @@ class Step07Generator:
                         standard_id=standard_id,
                         standard_number=standard_number,
                         subject_code=subject_id.upper()[:5],
-                        word_gu=gl.get("word_gu"),
+                        word_gu=_ensure_str(gl.get("word_gu"), "શબ્દ"),
                         word_en=gl.get("word_en"),
-                        definition_gu=gl.get("definition_gu")
+                        definition_gu=_ensure_str(gl.get("definition_gu") or gl.get("meaning_gu"), "વ્યાખ્યા")
                     )
                     final_payload["glossary"].append(gl_obj.model_dump())
 
                 # Map Activities
-                for a_idx, act in enumerate(features.get("activities", [])):
-                    act_id = f"act_{subject_id}_ch{chapter_num}_{a_idx + 1}"
-                    act_obj = Activity(
-                        activity_id=act_id,
-                        topic_id=fallback_topic_id,
-                        chapter_id=chapter_id,
-                        subject_id=subject_id,
-                        standard_id=standard_id,
-                        title_gu=act.get("title_gu"),
-                        instructions_gu=act.get("instructions_gu"),
-                        materials_needed=act.get("materials_needed", []),
-                        duration_minutes=act.get("duration_minutes"),
-                        activity_type=act.get("activity_type", "experiment")
-                    )
-                    final_payload["activities"].append(act_obj.model_dump())
+                raw_activities = features.get("activities", [])
+                if isinstance(raw_activities, list):
+                    for a_idx, act in enumerate(raw_activities):
+                        if isinstance(act, str):
+                            act = {"title_gu": act, "instructions_gu": act}
+                        elif not isinstance(act, dict):
+                            continue
+
+                        act_id = f"act_{subject_id}_ch{chapter_num}_{a_idx + 1}"
+                        act_obj = Activity(
+                            activity_id=act_id,
+                            topic_id=fallback_topic_id,
+                            chapter_id=chapter_id,
+                            subject_id=subject_id,
+                            standard_id=standard_id,
+                            title_gu=_ensure_str(act.get("title_gu"), "પ્રવૃત્તિ"),
+                            instructions_gu=_ensure_str(act.get("instructions_gu") or act.get("title_gu"), "પ્રવૃત્તિ વિગતો"),
+                            materials_needed=act.get("materials_needed", []) if isinstance(act.get("materials_needed"), list) else [],
+                            duration_minutes=act.get("duration_minutes"),
+                            activity_type=act.get("activity_type") or "experiment"
+                        )
+                        final_payload["activities"].append(act_obj.model_dump())
 
                 # Map Questions
-                for q_idx, q in enumerate(questions.get("questions", [])):
-                    q_id = f"q_{subject_id}_ch{chapter_num}_{q_idx + 1}"
-                    q_obj = Question(
-                        question_id=q_id,
-                        topic_id=fallback_topic_id,
-                        chapter_id=chapter_id,
-                        subject_id=subject_id,
-                        standard_id=standard_id,
-                        standard_number=standard_number,
-                        question_text_gu=q.get("question_text_gu"),
-                        question_type=q.get("question_type", "short_answer"),
-                        answer_gu=q.get("answer_gu"),
-                        bloom_level=q.get("bloom_level", "understand"),
-                        difficulty_level=q.get("difficulty_level", "medium"),
-                        marks=q.get("marks", 2),
-                        is_hots=q.get("is_hots", False),
-                        is_previous_year_pattern=q.get("is_previous_year_pattern", False)
-                    )
-                    final_payload["question_bank"].append(q_obj.model_dump())
+                raw_questions = questions.get("questions", [])
+                if isinstance(raw_questions, list):
+                    for q_idx, q in enumerate(raw_questions):
+                        if isinstance(q, str):
+                            q = {"question_text_gu": q, "answer_gu": ""}
+                        elif not isinstance(q, dict):
+                            continue
+
+                        q_id = f"q_{subject_id}_ch{chapter_num}_{q_idx + 1}"
+                        q_obj = Question(
+                            question_id=q_id,
+                            topic_id=fallback_topic_id,
+                            chapter_id=chapter_id,
+                            subject_id=subject_id,
+                            standard_id=standard_id,
+                            standard_number=standard_number,
+                            question_text_gu=_ensure_str(q.get("question_text_gu"), "પ્રશ્ન"),
+                            question_type=_ensure_str(q.get("question_type"), "short_answer"),
+                            answer_gu=_ensure_str(q.get("answer_gu"), "જવાબ"),
+                            bloom_level=_ensure_str(q.get("bloom_level"), "understand"),
+                            difficulty_level=_ensure_str(q.get("difficulty_level"), "medium"),
+                            marks=q.get("marks") if isinstance(q.get("marks"), int) else 2,
+                            is_hots=bool(q.get("is_hots", False)),
+                            is_previous_year_pattern=bool(q.get("is_previous_year_pattern", False))
+                        )
+                        final_payload["question_bank"].append(q_obj.model_dump())
 
                 # Map MCQs & Ensure at least 5 MCQs per chapter
                 chapter_title_gu = chapter.get("title_gu") or chapter.get("chapter_title_gu") or f"પ્રકરણ {chapter_num}"
                 chapter_title_en = chapter.get("title_en") or f"Chapter {chapter_num}"
                 
-                mcq_list = list(questions.get("mcqs", []))
+                raw_mcqs = questions.get("mcqs", [])
+                mcq_list = []
+                if isinstance(raw_mcqs, list):
+                    for item in raw_mcqs:
+                        if isinstance(item, str):
+                            mcq_list.append({
+                                "question_text_gu": item,
+                                "options": [],
+                                "correct_option_id": "A",
+                                "explanation_gu": "",
+                                "bloom_level": "remember",
+                                "difficulty_level": "easy",
+                                "marks": 1
+                            })
+                        elif isinstance(item, dict):
+                            mcq_list.append(item)
                 
                 if len(mcq_list) < 5:
                     needed = 5 - len(mcq_list)
-                    topic_titles = [t.get("title_gu") for t in chapter.get("topics", []) if t.get("title_gu")]
-                    key_points_text = [kp.get("text_gu") for kp in features.get("key_points", []) if kp.get("text_gu")]
+                    topic_titles = [t.get("title_gu") if isinstance(t, dict) else str(t) for t in raw_topics if (isinstance(t, dict) and t.get("title_gu")) or isinstance(t, str)]
+                    key_points_text = [kp.get("text_gu") if isinstance(kp, dict) else str(kp) for kp in (raw_kp if isinstance(raw_kp, list) else []) if (isinstance(kp, dict) and kp.get("text_gu")) or isinstance(kp, str)]
                     
                     for idx in range(needed):
                         mcq_num = len(mcq_list) + 1
@@ -451,7 +640,25 @@ class Step07Generator:
                         })
 
                 for m_idx, mcq in enumerate(mcq_list):
+                    if not isinstance(mcq, dict):
+                        continue
+
                     mcq_id = f"mcq_{subject_id}_ch{chapter_num}_{m_idx + 1}"
+                    raw_opts = mcq.get("options", [])
+                    cleaned_opts = []
+                    if isinstance(raw_opts, list):
+                        for opt_idx, opt in enumerate(raw_opts):
+                            if isinstance(opt, str):
+                                opt_letter = chr(65 + opt_idx) if opt_idx < 4 else f"O{opt_idx+1}"
+                                cleaned_opts.append({"id": opt_letter, "text": opt, "text_gu": opt, "textGu": opt})
+                            elif isinstance(opt, dict):
+                                cleaned_opts.append({
+                                    "id": opt.get("id"),
+                                    "text": opt.get("text_gu") or opt.get("text") or "",
+                                    "text_gu": opt.get("text_gu") or opt.get("text") or "",
+                                    "textGu": opt.get("text_gu") or opt.get("text") or ""
+                                })
+
                     mcq_doc = {
                         "id": mcq_id,
                         "mcq_id": mcq_id,
@@ -469,10 +676,7 @@ class Step07Generator:
                         "question_text_gu": mcq.get("question_text_gu"),
                         "questionText": mcq.get("question_text_gu"),
                         "questionTextGu": mcq.get("question_text_gu"),
-                        "options": [
-                            {"id": opt.get("id"), "text": opt.get("text_gu", ""), "text_gu": opt.get("text_gu", ""), "textGu": opt.get("text_gu", "")}
-                            for opt in mcq.get("options", [])
-                        ],
+                        "options": cleaned_opts,
                         "correct_option_id": mcq.get("correct_option_id", "A"),
                         "correctOptionId": mcq.get("correct_option_id", "A"),
                         "explanation_gu": mcq.get("explanation_gu", ""),
@@ -492,8 +696,25 @@ class Step07Generator:
                 
                 quiz_q_docs_list = []
                 for m_idx, mcq in enumerate(mcq_list):
+                    if not isinstance(mcq, dict):
+                        continue
+
                     quiz_q_id = f"qz_q_{chapter_id}_{m_idx + 1}"
-                    opts_dict = {opt.get("id"): opt.get("text_gu", "") for opt in mcq.get("options", [])}
+                    raw_opts = mcq.get("options", [])
+                    opts_dict = {}
+                    quiz_opts = []
+                    if isinstance(raw_opts, list):
+                        for opt_idx, opt in enumerate(raw_opts):
+                            if isinstance(opt, str):
+                                opt_letter = chr(65 + opt_idx) if opt_idx < 4 else f"O{opt_idx+1}"
+                                opts_dict[opt_letter] = opt
+                                quiz_opts.append({"id": opt_letter, "text": opt, "textGu": opt, "text_gu": opt})
+                            elif isinstance(opt, dict):
+                                opt_id = opt.get("id") or (chr(65 + opt_idx) if opt_idx < 4 else f"O{opt_idx+1}")
+                                opt_txt = opt.get("text_gu") or opt.get("text") or ""
+                                opts_dict[opt_id] = opt_txt
+                                quiz_opts.append({"id": opt_id, "text": opt_txt, "textGu": opt_txt, "text_gu": opt_txt})
+
                     quiz_q_doc = {
                         "id": quiz_q_id,
                         "question_id": quiz_q_id,
@@ -516,15 +737,7 @@ class Step07Generator:
                         "question_text_gu": mcq.get("question_text_gu") or "પ્રશ્ન માહિતી",
                         "question_text": mcq.get("question_text_gu") or "પ્રશ્ન માહિતી",
                         "question": mcq.get("question_text_gu") or "પ્રશ્ન માહિતી",
-                        "options": [
-                            {
-                                "id": opt.get("id"),
-                                "text": opt.get("text_gu", ""),
-                                "textGu": opt.get("text_gu", ""),
-                                "text_gu": opt.get("text_gu", "")
-                            }
-                            for opt in mcq.get("options", [])
-                        ],
+                        "options": quiz_opts,
                         "optionA": opts_dict.get("A", ""),
                         "optionB": opts_dict.get("B", ""),
                         "optionC": opts_dict.get("C", ""),
@@ -610,43 +823,70 @@ class Step07Generator:
 
                 # Map Flashcards for Student Flashcards Screen (Ensure min 5-10 per chapter)
                 flashcard_items = []
-                for kp in features.get("key_points", []):
-                    if kp.get("text_gu"):
+                for kp in (raw_kp if isinstance(raw_kp, list) else []):
+                    txt = kp.get("text_gu") if isinstance(kp, dict) else (kp if isinstance(kp, str) else None)
+                    if txt:
                         flashcard_items.append({
                             "front": f"મુખ્ય મુદ્દો ({chapter_title_gu})",
-                            "back": kp.get("text_gu"),
+                            "back": _ensure_str(txt),
                             "type": "concept"
                         })
-                for kw in features.get("keywords_list", []):
-                    if kw.get("keyword_gu") and kw.get("meaning_gu"):
+                for kw in (raw_kw_list if isinstance(raw_kw_list, list) else []):
+                    if isinstance(kw, dict) and kw.get("keyword_gu") and kw.get("meaning_gu"):
                         flashcard_items.append({
                             "front": f"શબ્દાર્થ: {kw.get('keyword_gu')}",
-                            "back": kw.get("meaning_gu"),
+                            "back": _ensure_str(kw.get("meaning_gu")),
                             "type": "keyword"
                         })
-                for gl in features.get("glossary", []) + features.get("difficult_words", []):
-                    w = gl.get("word_gu")
-                    m = gl.get("definition_gu") or gl.get("meaning_gu")
-                    if w and m:
+                    elif isinstance(kw, str) and kw:
                         flashcard_items.append({
-                            "front": f"અર્થ: {w}",
-                            "back": m,
+                            "front": "શબ્દાર્થ",
+                            "back": kw,
+                            "type": "keyword"
+                        })
+                for gl in glossary_list:
+                    if isinstance(gl, dict):
+                        w = gl.get("word_gu")
+                        m = gl.get("definition_gu") or gl.get("meaning_gu")
+                        if w and m:
+                            flashcard_items.append({
+                                "front": f"અર્થ: {_ensure_str(w)}",
+                                "back": _ensure_str(m),
+                                "type": "glossary"
+                            })
+                    elif isinstance(gl, str) and gl:
+                        flashcard_items.append({
+                            "front": "અર્થ",
+                            "back": gl,
                             "type": "glossary"
                         })
-                for form in features.get("formulas", []):
-                    if form.get("formula"):
+                for form in (raw_form if isinstance(raw_form, list) else []):
+                    if isinstance(form, dict) and form.get("formula"):
                         flashcard_items.append({
-                            "front": f"સૂત્ર: {form.get('formula')}",
-                            "back": form.get("description_gu") or f"પ્રકરણ {chapter_num} અગત્યનું સૂત્ર",
+                            "front": f"સૂત્ર: {_ensure_str(form.get('formula'))}",
+                            "back": _ensure_str(form.get("description_gu")) or f"પ્રકરણ {chapter_num} અગત્યનું સૂત્ર",
                             "type": "formula"
                         })
-                for topic in chapter.get("topics", []):
-                    t_title = topic.get("title_gu")
-                    t_content = topic.get("content_gu")
-                    if t_title and t_content:
+                    elif isinstance(form, str) and form:
                         flashcard_items.append({
-                            "front": f"સંકલ્પના: {t_title}",
-                            "back": t_content[:250] + ("..." if len(t_content) > 250 else ""),
+                            "front": "સૂત્ર",
+                            "back": form,
+                            "type": "formula"
+                        })
+                for topic in raw_topics:
+                    if isinstance(topic, dict):
+                        t_title = _ensure_str(topic.get("title_gu"))
+                        t_content = _ensure_str(topic.get("content_gu"))
+                        if t_title and t_content:
+                            flashcard_items.append({
+                                "front": f"સંકલ્પના: {t_title}",
+                                "back": t_content[:250] + ("..." if len(t_content) > 250 else ""),
+                                "type": "concept"
+                            })
+                    elif isinstance(topic, str) and topic:
+                        flashcard_items.append({
+                            "front": "સંકલ્પના",
+                            "back": topic,
                             "type": "concept"
                         })
 
@@ -664,6 +904,7 @@ class Step07Generator:
                     fc_doc = {
                         "id": fc_id,
                         "flashcard_id": fc_id,
+                        "flashcardId": fc_id,
                         "chapter_id": chapter_id,
                         "chapterId": chapter_id,
                         "topic_id": fallback_topic_id,
@@ -672,42 +913,96 @@ class Step07Generator:
                         "subjectId": subject_id,
                         "standard_id": str(standard_number),
                         "standardId": str(standard_number),
+                        "standard_number": int(standard_number),
+                        "standardNumber": int(standard_number),
+                        "front": fc["front"],
+                        "frontGu": fc["front"],
+                        "front_gu": fc["front"],
                         "front_text_gu": fc["front"],
                         "question_gu": fc["front"],
+                        "question": fc["front"],
+                        "back": fc["back"],
+                        "backGu": fc["back"],
+                        "back_gu": fc["back"],
                         "back_text_gu": fc["back"],
                         "answer_gu": fc["back"],
+                        "answer": fc["back"],
+                        "cardType": fc.get("type", "concept"),
                         "card_type": fc.get("type", "concept"),
+                        "type": fc.get("type", "concept"),
+                        "order": fc_idx + 1,
                         "difficulty_level": "easy",
                         "is_active": True,
                         "isActive": True,
                         "is_premium": False,
                         "is_ai_generated": True,
-                        "isDeleted": False
+                        "isDeleted": False,
+                        "is_deleted": False
                     }
                     final_payload["flashcards"].append(fc_doc)
 
                 # Generate AI Knowledge Base document for each topic in this chapter
-                for t_idx, topic in enumerate(chapter.get("topics", [])):
+                for t_idx, topic in enumerate(raw_topics):
+                    if isinstance(topic, str):
+                        topic = {"title_gu": topic}
+                    elif not isinstance(topic, dict):
+                        continue
+
                     topic_num = topic.get('topic_number', t_idx + 1)
+                    if not isinstance(topic_num, int):
+                        try:
+                            topic_num = int(topic_num)
+                        except (ValueError, TypeError):
+                            topic_num = t_idx + 1
                     topic_id = f"{chapter_id}_tp{topic_num}"
                     
-                    # Gather related outcomes, questions, activities, keywords
-                    topic_outcomes = [lo.get("outcome_text_gu") for lo in final_payload["learning_outcomes"] if lo["topic_id"] == topic_id]
+                    # Gather related outcomes, questions, activities, keywords safely
+                    topic_outcomes = [
+                        lo.get("outcome_text_gu", "") if isinstance(lo, dict) else str(lo)
+                        for lo in final_payload["learning_outcomes"]
+                        if isinstance(lo, dict) and lo.get("topic_id") == topic_id
+                    ]
                     topic_questions = [
-                        {"question_gu": q["question_text_gu"], "answer_gu": q["answer_gu"], "marks": q["marks"], "is_hots": q.get("is_hots", False)}
-                        for q in final_payload["question_bank"] if q["topic_id"] == topic_id
+                        {
+                            "question_gu": _ensure_str(q.get("question_text_gu"), "પ્રશ્ન"),
+                            "answer_gu": _ensure_str(q.get("answer_gu"), "ઉત્તર"),
+                            "marks": q.get("marks") if isinstance(q.get("marks"), int) else 2,
+                            "is_hots": bool(q.get("is_hots", False))
+                        }
+                        for q in final_payload["question_bank"]
+                        if isinstance(q, dict) and q.get("topic_id") == topic_id
                     ]
                     topic_glossary = [
-                        {"word_gu": g["word_gu"], "word_en": g.get("word_en"), "definition_gu": g["definition_gu"]}
-                        for g in final_payload["glossary"] if g["topic_id"] == topic_id
+                        {
+                            "word_gu": _ensure_str(g.get("word_gu"), "શબ્દ"),
+                            "word_en": g.get("word_en"),
+                            "definition_gu": _ensure_str(g.get("definition_gu") or g.get("meaning_gu"), "વ્યાખ્યા")
+                        }
+                        for g in final_payload["glossary"]
+                        if isinstance(g, dict) and g.get("topic_id") == topic_id
                     ]
                     topic_formulas = [
-                        {"formula": f["formula"], "description_gu": f.get("description_gu")}
+                        {
+                            "name_gu": _ensure_str(f.get("description_gu"), "સૂત્ર"),
+                            "latex_formula": _ensure_str(f.get("formula"), "N/A"),
+                            "explanation_gu": _ensure_str(f.get("description_gu"), "")
+                        }
                         for f in formulas
+                        if isinstance(f, dict)
                     ]
                     topic_activities = [
-                        {"title_gu": a["title_gu"], "instructions_gu": a["instructions_gu"]}
-                        for a in final_payload["activities"] if a["topic_id"] == topic_id
+                        {
+                            "title_gu": _ensure_str(a.get("title_gu"), "પ્રવૃત્તિ"),
+                            "objective_gu": _ensure_str(a.get("instructions_gu"), ""),
+                            "procedure_gu": _ensure_str(a.get("instructions_gu"), "")
+                        }
+                        for a in final_payload["activities"]
+                        if isinstance(a, dict) and a.get("topic_id") == topic_id
+                    ]
+                    topic_keywords = [
+                        kw.get("keyword_gu") if isinstance(kw, dict) else str(kw)
+                        for kw in final_payload["keywords"]
+                        if isinstance(kw, dict) and kw.get("topic_id") == topic_id and kw.get("keyword_gu")
                     ]
                     
                     kb_doc = AIKnowledgeBase(
@@ -719,18 +1014,18 @@ class Step07Generator:
                         chapter_id=chapter_id,
                         topic_id=topic_id,
                         topic_number=topic_num,
-                        title_gu=topic.get("title_gu", ""),
+                        title_gu=_ensure_str(topic.get("title_gu"), "વિષય"),
                         title_en=topic.get("title_en"),
-                        content_gu=topic.get("content_gu", ""),
-                        keywords=[kw["keyword_gu"] for kw in final_payload["keywords"] if kw["topic_id"] == topic_id],
+                        content_gu=_ensure_str(topic.get("content_gu"), ""),
+                        keywords=topic_keywords,
                         learning_outcomes=topic_outcomes,
                         important_questions=topic_questions,
                         glossary=topic_glossary,
                         formulas=topic_formulas,
                         activities=topic_activities,
-                        revision_notes=features.get("revision_notes_gu", []),
+                        revision_notes=revision_notes_list,
                         difficulty_level="medium",
-                        page_numbers=[chapter['start_page'] + t_idx],
+                        page_numbers=[start_page + t_idx],
                         related_topics=[]
                     )
                     final_payload["ai_knowledge_base"].append(kb_doc.model_dump())

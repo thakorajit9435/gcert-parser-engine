@@ -20,14 +20,22 @@ class Step03OCR:
             total_pages = len(doc)
             logger.info(f"[%s] PDF loaded successfully. Total pages: {total_pages}", context["job_id"])
             
+            import re
+            guj_regex = re.compile(r'[\u0A80-\u0AFF]')
+
             extracted_text_list = []
             for page_num in range(total_pages):
                 page = doc.load_page(page_num)
                 page_text = page.get_text("text")
                 
-                # If page contains no selectable text, fallback to Tesseract OCR
-                if not page_text.strip():
-                    logger.info(f"[%s] Page {page_num+1} has no selectable text. Running Tesseract OCR...", context["job_id"])
+                # Check for legacy non-Unicode font gibberish in Gujarati PDFs
+                guj_count = len(guj_regex.findall(page_text))
+                total_chars = len(page_text.strip())
+                ratio = guj_count / total_chars if total_chars > 0 else 0
+                
+                # If page contains no selectable text OR contains legacy font gibberish, fallback to Tesseract OCR
+                if not page_text.strip() or ratio < 0.25:
+                    logger.info(f"[%s] Page {page_num+1} has missing or font-gibberish text (guj_ratio={ratio:.2f}). Running Tesseract OCR...", context["job_id"])
                     # Render page to high-quality pixmap (3x zoom for higher OCR accuracy)
                     pix = page.get_pixmap(matrix=fitz.Matrix(3, 3))
                     

@@ -121,6 +121,7 @@ class FirestoreImportEngine:
         
         batch = self.db.batch()
         batch_operations: List[tuple] = []  # Tracks document tags in active batch
+        batch_doc_data_map: Dict[str, Dict[str, Any]] = {}  # Maps doc_id -> doc_data for sub-batch retry
         processed_count = 0
         
         for collection_name, doc_id, doc_data in all_docs:
@@ -132,17 +133,7 @@ class FirestoreImportEngine:
                 report["summary"]["successfully_imported"] += 1
                 continue
                 
-            # 2. Skip and log if duplicate is active in Firestore
-            if self.check_duplicate(collection_name, doc_id):
-                report["skipped_duplicates"].append({
-                    "collection": collection_name,
-                    "doc_id": doc_id
-                })
-                report["summary"]["duplicates_skipped"] += 1
-                self.committed_ids.add(doc_id)
-                continue
-                
-            # Prepare doc metadata
+            # 2. Upsert/overwrite document in Firestore (batch.set performs atomic upsert)
             doc_data["updatedAt"] = firestore.SERVER_TIMESTAMP
             if "createdAt" not in doc_data:
                 doc_data["createdAt"] = firestore.SERVER_TIMESTAMP
@@ -150,22 +141,25 @@ class FirestoreImportEngine:
             doc_ref = self.db.collection(collection_name).document(doc_id)
             batch.set(doc_ref, doc_data)
             batch_operations.append((collection_name, doc_id))
+            batch_doc_data_map[doc_id] = doc_data
             
-            # If this is a quiz question, ALSO write to quizzes/{quiz_id}/questions/{doc_id} subcollection for student app query
+            # If this is a quiz question, ALSO write to subcollections under quizzes/{quiz_id} for student app queries
             quiz_id = doc_data.get("quizId") or doc_data.get("quiz_id")
-            if collection_name == "questions" and quiz_id:
-                subcol_ref = self.db.collection("quizzes").document(quiz_id).collection("questions").document(doc_id)
-                batch.set(subcol_ref, doc_data)
+            if collection_name in ["questions", "mcqs", "question_bank"] and quiz_id:
+                for subcol_name in ["questions", "mcqs", "question_bank"]:
+                    subcol_ref = self.db.collection("quizzes").document(quiz_id).collection(subcol_name).document(doc_id)
+                    batch.set(subcol_ref, doc_data)
             
             # Commit batch at Firestore threshold of 500
             if len(batch_operations) >= 450:
-                self._commit_batch(batch, batch_operations, report)
+                self._commit_batch(batch, batch_operations, report, batch_doc_data_map)
                 batch = self.db.batch()
                 batch_operations = []
+                batch_doc_data_map = {}
                 
         # Commit final remaining batch operations
         if len(batch_operations) > 0:
-            self._commit_batch(batch, batch_operations, report)
+            self._commit_batch(batch, batch_operations, report, batch_doc_data_map)
             
         # Finish and save report
         report["finished_at"] = datetime.datetime.utcnow().isoformat()
@@ -183,8 +177,19 @@ class FirestoreImportEngine:
         logger.info(f"[%s] Import finished. Status: {report['status']}. Report saved to {self.report_file}", self.job_id)
         return report
 
-    def _commit_batch(self, batch: firestore.WriteBatch, operations: List[tuple], report: Dict[str, Any]) -> None:
-        """Commits batch transactions and logs failure/resumption states."""
+    def _commit_batch(self, batch: firestore.WriteBatch, operations: List[tuple], report: Dict[str, Any], doc_data_map: Dict[str, Dict[str, Any]] = None) -> None:
+        """Commits batch transactions and logs failure/resumption states.
+        
+        If a commit fails due to Firestore's payload size limit (11MB), the batch
+        is automatically split into smaller sub-batches and retried recursively.
+        
+        Args:
+            batch: The Firestore WriteBatch to commit.
+            operations: List of (collection_name, doc_id) tuples in this batch.
+            report: The import report dictionary to update.
+            doc_data_map: Optional mapping of doc_id -> doc_data for rebuilding
+                         sub-batches on retry. If None, failed batches cannot be split.
+        """
         try:
             batch.commit()
             # On success, add all batch doc IDs to checkpoint state
@@ -193,16 +198,47 @@ class FirestoreImportEngine:
             report["summary"]["successfully_imported"] += len(operations)
             self._save_checkpoint()
         except Exception as e:
-            # Batch rollbacks automatically on commit exceptions. Log failure details.
-            logger.error(f"[%s] Firestore batch write transaction failed. Rollback triggered: {str(e)}", self.job_id)
-            report["summary"]["errors_encountered"] += len(operations)
-            report["failures"].append({
-                "error": str(e),
-                "timestamp": datetime.datetime.utcnow().isoformat(),
-                "documents": [{"collection": col, "doc_id": did} for col, did in operations]
-            })
-            # Save checkpoint without failed IDs so they can be retried later.
-            self._save_checkpoint()
+            error_msg = str(e)
+            is_payload_too_large = "payload size exceeds the limit" in error_msg.lower()
+            
+            # If payload is too large and we can split, retry with smaller sub-batches
+            if is_payload_too_large and doc_data_map and len(operations) > 1:
+                mid = len(operations) // 2
+                left_ops = operations[:mid]
+                right_ops = operations[mid:]
+                
+                logger.warning(
+                    f"[%s] Batch payload too large ({len(operations)} docs). "
+                    f"Splitting into sub-batches of {len(left_ops)} and {len(right_ops)} docs.",
+                    self.job_id
+                )
+                
+                for sub_ops in [left_ops, right_ops]:
+                    sub_batch = self.db.batch()
+                    for col, doc_id in sub_ops:
+                        doc_ref = self.db.collection(col).document(doc_id)
+                        sub_batch.set(doc_ref, doc_data_map[doc_id])
+                        
+                        # Replicate subcollection write for quiz questions
+                        doc_data = doc_data_map[doc_id]
+                        quiz_id = doc_data.get("quizId") or doc_data.get("quiz_id")
+                        if col == "questions" and quiz_id:
+                            subcol_ref = self.db.collection("quizzes").document(quiz_id).collection("questions").document(doc_id)
+                            sub_batch.set(subcol_ref, doc_data)
+                    
+                    # Recursively commit the sub-batch (will split further if still too large)
+                    self._commit_batch(sub_batch, sub_ops, report, doc_data_map)
+            else:
+                # Cannot split further or different error — record as permanent failure
+                logger.error(f"[%s] Firestore batch write transaction failed. Rollback triggered: {str(e)}", self.job_id)
+                report["summary"]["errors_encountered"] += len(operations)
+                report["failures"].append({
+                    "error": error_msg,
+                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                    "documents": [{"collection": col, "doc_id": did} for col, did in operations]
+                })
+                # Save checkpoint without failed IDs so they can be retried later.
+                self._save_checkpoint()
 
     def rollback(self) -> int:
         """Deletes all successfully committed document IDs associated with this job run."""
@@ -211,7 +247,7 @@ class FirestoreImportEngine:
         # 1. Gather document IDs to delete by collection
         doc_ids_by_collection: Dict[str, Set[str]] = {}
         collections = [
-            "chapters", "textbooks", "topics", "sub_topics", 
+            "subjects", "chapters", "textbooks", "topics", "sub_topics", 
             "learning_outcomes", "chapter_summaries", "question_bank", 
             "mcq_bank", "mcqs", "quizzes", "questions", "flashcards",
             "activities", "keywords", "glossary", 

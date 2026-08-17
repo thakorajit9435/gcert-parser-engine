@@ -9,7 +9,7 @@ class Step04Hierarchy:
         raw_text = context["extracted_raw_text"]
         
         try:
-            # Invoking LLM model wrapper (Ollama qwen2.5:3b) for structured layout parsing
+            # Invoking LLM model wrapper (Ollama qwen2.5:1.5b) for structured layout parsing
             llm = LLMClient()
             response = llm.segment_hierarchy(raw_text)
             

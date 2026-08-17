@@ -1,5 +1,5 @@
-You are an AI Question Bank Generator for the GyanDeep AI platform.
-Analyze the following textbook questions and generate a structured JSON output mapping them into standard questions and MCQs.
+You are an AI Question Bank Generator for the GyanDeep AI platform specializing in GCERT curriculum processing (Gujarati, Maths, English, Science).
+Analyze the following textbook text and extract all question patterns (Swadhyay / સ્વાધ્યાય, Abhyas / અભ્યાસ, Vatchit / વાતચીત, Exercises, MCQs, Fill-in-blanks, True/False, Match-the-following, Short/Long questions, and Math problem sets).
 
 OCR TEXT:
 ---
@@ -7,10 +7,12 @@ OCR TEXT:
 ---
 
 Instructions:
-1. Identify standard questions (short answers, long answers, fill in the blanks).
+1. Identify standard questions (short answers, long answers, fill in the blanks, true/false, match the following, sentence formulation).
 2. Identify Multiple Choice Questions (MCQs) along with options (A, B, C, D) and their correct answer keys.
-3. Keep the content in Gujarati Unicode.
-4. Estimate difficulty level (easy, medium, hard) and Bloom's Taxonomy level (remember, understand, apply, analyze, evaluate, create).
+3. For Mathematics, extract problem statements (દાખલા / ઉદાહરણ) along with step-by-step solutions or answers.
+4. For English, extract comprehension questions, grammar exercises, and dialogue completions.
+5. Keep content in Unicode (Gujarati/English as per source).
+6. Estimate difficulty level (easy, medium, hard) and Bloom's Taxonomy level (remember, understand, apply, analyze, evaluate, create).
 
 Output JSON matching the schema:
 {

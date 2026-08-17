@@ -16,7 +16,13 @@ class Step08Loader:
             
             context["import_report"] = report
             if report.get("status") == "partial_failure":
-                raise FirestoreLoaderError(f"Import finished with partial errors. Check import report.")
+                summary = report.get("summary", {})
+                logger.warning(
+                    f"[%s] Import completed with partial failures. "
+                    f"Imported: {summary.get('successfully_imported', 0)}/{summary.get('total_documents', 0)}. "
+                    f"Errors: {summary.get('errors_encountered', 0)}. Check import report for details.",
+                    context["job_id"]
+                )
                 
             # Run embedding and vector database indexing
             try:
