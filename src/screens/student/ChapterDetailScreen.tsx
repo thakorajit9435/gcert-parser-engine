@@ -15,7 +15,7 @@ import {
     Modal,
     Image,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DocumentPicker from 'react-native-document-picker';
 import ReactNativeBlobUtil from 'react-native-blob-util';
@@ -165,7 +165,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     const { chapterId } = route.params || {};
     const { chapter, loading, error } = useChapterDetail(chapterId);
     const { userProfile } = useAuth();
-    const insets = useSafeAreaInsets();
 
     const { progressMap } = useUserProgress(chapter?.subjectId);
     const chapterProgress = progressMap[chapterId];
@@ -768,77 +767,80 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         }));
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            {/* Header bar */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={22} color="#1f2937" />
-                </TouchableOpacity>
-                <View style={styles.headerTitleContainer}>
-                    <Text style={styles.headerTitle} numberOfLines={1}>
-                        {chapterTitle}
-                    </Text>
-                    <Text style={styles.headerSubtitle} numberOfLines={1}>
-                        {chapter.title}
-                    </Text>
+        <View style={styles.container}>
+            {/* Header & Tabs wrapped with Top-only Safe Area */}
+            <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
+                {/* Header bar */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={22} color="#1f2937" />
+                    </TouchableOpacity>
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.headerTitle} numberOfLines={1}>
+                            {chapterTitle}
+                        </Text>
+                        <Text style={styles.headerSubtitle} numberOfLines={1}>
+                            {chapter.title}
+                        </Text>
+                    </View>
+                    <TouchableOpacity onPress={handleToggleBookmark} style={styles.bookmarkBtn} disabled={updating}>
+                        {updating ? (
+                            <ActivityIndicator size="small" color={studentColors.secondary} />
+                        ) : (
+                            <Ionicons
+                                name={isChapterBookmarked ? 'bookmark' : 'bookmark-outline'}
+                                size={22}
+                                color={isChapterBookmarked ? studentColors.secondary : '#6b7280'}
+                            />
+                        )}
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={handleToggleBookmark} style={styles.bookmarkBtn} disabled={updating}>
-                    {updating ? (
-                        <ActivityIndicator size="small" color={studentColors.secondary} />
-                    ) : (
-                        <Ionicons
-                            name={isChapterBookmarked ? 'bookmark' : 'bookmark-outline'}
-                            size={22}
-                            color={isChapterBookmarked ? studentColors.secondary : '#6b7280'}
-                        />
-                    )}
-                </TouchableOpacity>
-            </View>
 
-            {/* Segmented Tab Row */}
-            <View style={styles.tabContainer}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'menu' && styles.activeTab]}
-                    onPress={() => setActiveTab('menu')}
-                >
-                    <Ionicons
-                        name="grid-outline"
-                        size={15}
-                        color={activeTab === 'menu' ? studentColors.secondary : '#6b7280'}
-                        style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'menu' && styles.activeTabText]}>Chapter Menu</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
-                    onPress={() => setActiveTab('chat')}
-                >
-                    <Ionicons
-                        name="chatbubbles-outline"
-                        size={15}
-                        color={activeTab === 'chat' ? studentColors.secondary : '#6b7280'}
-                        style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>AI Chat</Text>
-                    {messages.length > 0 && (
-                        <View style={styles.tabBadge}>
-                            <Text style={styles.tabBadgeText}>{messages.length}</Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'help' && styles.activeTab]}
-                    onPress={() => setActiveTab('help')}
-                >
-                    <Ionicons
-                        name="help-circle-outline"
-                        size={15}
-                        color={activeTab === 'help' ? studentColors.secondary : '#6b7280'}
-                        style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'help' && styles.activeTabText]}>Help</Text>
-                </TouchableOpacity>
-            </View>
+                {/* Segmented Tab Row */}
+                <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'menu' && styles.activeTab]}
+                        onPress={() => setActiveTab('menu')}
+                    >
+                        <Ionicons
+                            name="grid-outline"
+                            size={15}
+                            color={activeTab === 'menu' ? studentColors.secondary : '#6b7280'}
+                            style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'menu' && styles.activeTabText]}>Chapter Menu</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
+                        onPress={() => setActiveTab('chat')}
+                    >
+                        <Ionicons
+                            name="chatbubbles-outline"
+                            size={15}
+                            color={activeTab === 'chat' ? studentColors.secondary : '#6b7280'}
+                            style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>AI Chat</Text>
+                        {messages.length > 0 && (
+                            <View style={styles.tabBadge}>
+                                <Text style={styles.tabBadgeText}>{messages.length}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'help' && styles.activeTab]}
+                        onPress={() => setActiveTab('help')}
+                    >
+                        <Ionicons
+                            name="help-circle-outline"
+                            size={15}
+                            color={activeTab === 'help' ? studentColors.secondary : '#6b7280'}
+                            style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'help' && styles.activeTabText]}>Help</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
 
             {/* ─── MENU TAB ─── */}
             {activeTab === 'menu' && (
@@ -1177,10 +1179,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     )}
 
                     {/* Input Bar */}
-                    <View style={[
-                        styles.chatInputBar,
-                        { paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 8) : 8 }
-                    ]}>
+                    <View style={styles.chatInputBar}>
                         <TouchableOpacity onPress={handleVoicePress} style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}>
                             <Ionicons
                                 name={recording ? 'mic-sharp' : 'mic-outline'}
@@ -1365,7 +1364,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     navigation.navigate('PremiumAccess');
                 }}
             />
-        </SafeAreaView>
+        </View>
     );
 }
 
