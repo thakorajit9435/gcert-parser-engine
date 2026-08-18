@@ -10,6 +10,8 @@ import {
     FlatList,
     TextInput,
     KeyboardAvoidingView,
+    Keyboard,
+    SafeAreaView,
     Platform,
     Modal,
     Image,
@@ -325,13 +327,22 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         }
     }, [chapter?.id, userProfile?.uid]);
 
-    // Show premium modal if locked
+    // Auto-scroll chat when keyboard appears
     useEffect(() => {
-        const isLocked = chapter?.isPremium && !isPremiumUser;
-        if (isLocked) {
-            setPremiumModalVisible(true);
-        }
-    }, [chapter?.isPremium, isPremiumUser]);
+        const keyboardListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            () => {
+                if (activeTab === 'chat') {
+                    setTimeout(() => {
+                        flatListRef.current?.scrollToEnd({ animated: true });
+                    }, 100);
+                }
+            }
+        );
+        return () => {
+            keyboardListener.remove();
+        };
+    }, [activeTab]);
 
     const getOrCreateSessionId = async (): Promise<string | null> => {
         if (sessionId) return sessionId;
@@ -757,11 +768,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         }));
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
+        <SafeAreaView style={styles.container}>
             {/* Header bar */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -1009,7 +1016,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
             {/* ─── CHAT TAB ─── */}
             {activeTab === 'chat' && (
-                <View style={styles.chatContainer}>
+                <KeyboardAvoidingView
+                    style={styles.chatContainer}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
                         <View style={styles.sessionErrorBanner}>
@@ -1199,7 +1210,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             <Ionicons name="send" size={17} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             )}
 
             {/* ─── HELP TAB ─── */}
@@ -1349,7 +1360,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     navigation.navigate('PremiumAccess');
                 }}
             />
-        </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
