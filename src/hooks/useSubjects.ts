@@ -23,19 +23,36 @@ export function useSubjects(
 
   useEffect(() => {
     if (!standardId) {
+      setSubjects([]);
       setLoading(false);
       return;
     }
 
-    let query = firestore()
+    setLoading(true);
+
+    // 1. Normalize standardId to handle "std_7", "7", 7, "std_07" etc.
+    const rawStr = String(standardId).trim();
+    const numericStr = rawStr.replace(/[^0-9]/g, '');
+    const possibleIds = Array.from(
+      new Set(
+        [
+          rawStr,
+          numericStr,
+          numericStr ? Number(numericStr) : null,
+          numericStr ? `std_${numericStr}` : null,
+        ].filter((val): val is string | number => val !== null && val !== '')
+      )
+    );
+
+    // 2. Query Firestore using 'in' operator (supports up to 10 candidates)
+    // We avoid composite orderBy in Firestore query to prevent missing composite index crashes on real devices
+    const query = firestore()
       .collection(COLLECTIONS.SUBJECTS)
-      .where('standardId', '==', standardId)
-      .where('isDeleted', '==', false)
-      .orderBy('order', 'asc');
+      .where('standardId', 'in', possibleIds.slice(0, 10));
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
-        if (snapshot.empty) {
+        if (!snapshot || snapshot.empty) {
           setSubjects([]);
         } else {
           let data = snapshot.docs.map(doc => ({
@@ -43,10 +60,25 @@ export function useSubjects(
             ...doc.data(),
           })) as Subject[];
 
+          // Client-side filter for active subjects (isDeleted is false or undefined)
+          data = data.filter(s => s.isDeleted !== true);
+
+          // Client-side filter for session if specified
           if (sessionId) {
-            // Client-side filter to resolve missing composite index
-            data = data.filter(s => !s.session || s.session === sessionId);
+            const cleanSession = String(sessionId).toLowerCase().trim();
+            data = data.filter(s => {
+              if (!s.session) return true;
+              const subSession = String(s.session).toLowerCase().trim();
+              return (
+                subSession === cleanSession ||
+                subSession.includes(cleanSession) ||
+                cleanSession.includes(subSession)
+              );
+            });
           }
+
+          // Client-side sort by order ascending
+          data.sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999));
 
           setSubjects(data);
         }
@@ -54,6 +86,7 @@ export function useSubjects(
         setError(null);
       },
       err => {
+        console.warn('[useSubjects] Firestore subscription error:', err.message);
         setError(err.message);
         setSubjects([]);
         setLoading(false);

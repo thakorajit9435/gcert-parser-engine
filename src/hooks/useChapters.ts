@@ -11,7 +11,7 @@ interface UseChaptersReturn {
   refresh: () => void;
 }
 
-export function useChapters(subjectId?: string): UseChaptersReturn {
+export function useChapters(subjectId?: string, standardId?: string): UseChaptersReturn {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,37 +23,58 @@ export function useChapters(subjectId?: string): UseChaptersReturn {
 
   useEffect(() => {
     if (!subjectId) {
+      setChapters([]);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+
+    // Query chapters by subjectId without compound orderBy to prevent missing index crashes
     const query = firestore()
       .collection(COLLECTIONS.CHAPTERS)
-      .where('subjectId', '==', subjectId)
-      .where('isDeleted', '==', false)
-      .orderBy('order', 'asc');
+      .where('subjectId', '==', subjectId);
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Chapter[];
-        setChapters(data);
+        if (!snapshot || snapshot.empty) {
+          setChapters([]);
+        } else {
+          let data = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Chapter[];
+
+          // Filter out deleted chapters
+          data = data.filter(ch => ch.isDeleted !== true);
+
+          // Client-side sort by chapter order / number ascending
+          data.sort(
+            (a, b) =>
+              (Number(a.order ?? a.chapterNumber) || 999) -
+              (Number(b.order ?? b.chapterNumber) || 999)
+          );
+
+          setChapters(data);
+        }
         setLoading(false);
         setError(null);
       },
       err => {
+        console.warn('[useChapters] Firestore error:', err.message);
         setError(err.message);
+        setChapters([]);
         setLoading(false);
       },
     );
 
     return unsubscribe;
-  }, [subjectId, refreshTrigger]);
+  }, [subjectId, standardId, refreshTrigger]);
 
   const chaptersWithProgress = useMemo(() => {
-    if (!chapters.length) {return [];}
+    if (!chapters.length) {
+      return [];
+    }
     return chapters.map(ch => ({
       ...ch,
       isCompleted: progressMap[ch.id]?.isCompleted ?? false,
