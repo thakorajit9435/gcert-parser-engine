@@ -142,19 +142,16 @@ export const SUBSCRIPTION_PLANS = [
   },
 ] as const;
 
-// ─── API Configuration (Phase 2 Additions) ───────────────────────────────────
+// ─── API Configuration (GyanDeep GCERT AI Backend) ───────────────────────────
 export const API_CONFIG = {
-  // ── Local (same WiFi / development) ──────────────────────────────────────
-  BASE_URL_ANDROID: 'http://10.41.87.148:8000/api/v1',
-  BASE_URL_IOS:     'http://localhost:8000/api/v1',
+  // ── Production & Live Cloud Backend (Render.com) ─────────────────────────
+  BASE_URL_PROD:    'https://gcert-parser-engine.onrender.com/api/v1',
 
-  // ── Production (Cloudflare Tunnel → FastAPI → Ollama qwen2.5:1.5b) ───────
-  // Update this URL each time you restart the tunnel:
-  //   cloudflared tunnel --url http://localhost:8000
-  BASE_URL_PROD:   'https://preliminary-noted-reform-chair.trycloudflare.com/api/v1',
+  // ── Development Fallback ──────────────────────────────────────────────────
+  BASE_URL_ANDROID: 'https://gcert-parser-engine.onrender.com/api/v1',
+  BASE_URL_IOS:     'https://gcert-parser-engine.onrender.com/api/v1',
 
-  // ── Ollama direct (same WiFi LAN only, bypasses FastAPI) ─────────────────
-  // Useful for direct raw inference tests — not needed for normal app usage
-  OLLAMA_LOCAL:    'http://10.41.87.148:11434',
-  OLLAMA_MODEL:    'qwen2.5:1.5b',
+  // ── Direct LLM Model Config ──────────────────────────────────────────────
+  GEMINI_MODEL:     'gemini-3.6-flash',
 } as const;
+
