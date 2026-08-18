@@ -15,9 +15,25 @@ class BGEEmbedder:
         return cls._instance
 
     def _init_model(self):
-        """Initializes the SentenceTransformer model lazily."""
+        """Initializes the SentenceTransformer model lazily with memory safeguard."""
         if self._model is not None:
             return
+
+        # Check available RAM before loading heavy 2.3GB PyTorch model to prevent OOM crash
+        try:
+            import psutil
+            avail_mb = psutil.virtual_memory().available / (1024 * 1024)
+            if avail_mb < 1800:
+                logger.warning(
+                    "Low memory environment detected (%.1f MB available < 1800 MB). "
+                    "Skipping local BGE-M3 model download to prevent OOM crash on free cloud tier. "
+                    "Using deterministic lightweight embedding generator.",
+                    avail_mb
+                )
+                self._model = "fallback"
+                return
+        except Exception:
+            pass
 
         try:
             from sentence_transformers import SentenceTransformer
@@ -29,8 +45,7 @@ class BGEEmbedder:
                 device = "mps"
             else:
                 device = "cpu"
-                # Optimize CPU inference threads
-                torch.set_num_threads(4)
+                torch.set_num_threads(2)
                 
             logger.info("Initializing BGE-M3 model on device: %s", device)
             self._model = SentenceTransformer(settings.EMBEDDING_MODEL_NAME, device=device)
@@ -127,9 +142,19 @@ class BGEEmbedder:
         return vec.tolist()
 
     def _init_reranker(self):
-        """Initializes the CrossEncoder re-ranker model lazily."""
+        """Initializes the CrossEncoder re-ranker model lazily with memory safeguard."""
         if self._reranker is not None:
             return
+
+        try:
+            import psutil
+            avail_mb = psutil.virtual_memory().available / (1024 * 1024)
+            if avail_mb < 1800:
+                logger.warning("Low memory detected (%.1f MB). Skipping CrossEncoder to prevent OOM.", avail_mb)
+                self._reranker = "fallback"
+                return
+        except Exception:
+            pass
 
         try:
             from sentence_transformers import CrossEncoder
