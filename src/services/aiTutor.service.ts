@@ -141,29 +141,41 @@ export const aiTutorService = {
     filters?: SearchFilters,
   ): Promise<RagResponse> {
     const BASE_URL = await getBaseUrl();
-    try {
-      const response = await fetch(
-        `${BASE_URL}/chat/sessions/${sessionId}/messages`,
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({question, filters: filters || {}}),
-        },
-      );
+    let lastError: any = null;
 
-      if (!response.ok) {
+    // Retry up to 2 times to absorb Render free tier cold-starts
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(
+          `${BASE_URL}/chat/sessions/${sessionId}/messages`,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question, filters: filters || {}}),
+          },
+        );
+
+        if (response.ok) {
+          return await response.json();
+        }
+
+        if (response.status >= 500 && attempt < 2) {
+          console.warn(`[AI] Server waking up (${response.status}). Retrying attempt ${attempt + 1}...`);
+          await new Promise(r => setTimeout(r, 2500));
+          continue;
+        }
+
         throw new Error(`Failed to send chat message: ${response.status}`);
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
-
-      return await response.json();
-    } catch (error) {
-      if (resolvedBaseUrl === LOCAL_URL) {
-        resolvedBaseUrl = null;
-        healthCheckPromise = null;
-      }
-      console.error('Error sending chat message:', error);
-      throw error;
     }
+
+    console.error('Error sending chat message:', lastError);
+    throw lastError;
   },
 
   /**
