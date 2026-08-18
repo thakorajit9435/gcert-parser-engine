@@ -85,8 +85,9 @@ export function useBookmarks(userId?: string): UseBookmarksReturn {
 
   const isBookmarkedFn = useCallback(
     (chapterId: string): boolean => {
-      if (optimisticState[chapterId] !== undefined) {
-        return optimisticState[chapterId].isBookmarked;
+      const opt = optimisticState[chapterId];
+      if (opt !== undefined) {
+        return opt.isBookmarked;
       }
       return bookmarks.some(b => b.chapterId === chapterId);
     },

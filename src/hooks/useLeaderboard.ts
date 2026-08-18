@@ -24,18 +24,20 @@ export function useLeaderboard(limit: number = 10): UseLeaderboardReturn {
             if (result.success && result.data) {
                 const ranked: LeaderboardEntry[] = result.data.map((user, index) => ({
                     uid: user.uid,
-                    name: user.name || 'Student',
+                    name: user.name || (user as any).full_name_gu || 'Student',
                     standard: user.standard,
-                    points: user.points,
+                    points: user.points ?? (user as any).total_points ?? 0,
                     rank: index + 1,
-                    streak: user.streak,
-                    premium: user.premium,
+                    streak: user.streak ?? (user as any).streak_days ?? 0,
+                    premium: user.premium ?? (user as any).is_premium ?? false,
                 }));
                 setEntries(ranked);
+                setError(null);
             } else {
                 setError(result.error ?? 'Failed to load leaderboard.');
             }
         } catch (err) {
+            console.error('Leaderboard error:', err);
             setError((err as Error).message);
         } finally {
             setLoading(false);

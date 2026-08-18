@@ -53,7 +53,7 @@ export function useBookProgress(bookId: string) {
       if (!userId || !bookId) {return;}
 
       // Optimistically update local state immediately
-      setProgress(prev => {
+      setProgress((prev: UserBookProgress | null) => {
         if (prev) {
           return {...prev, lastPage: page, totalPages};
         }

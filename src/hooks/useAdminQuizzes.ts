@@ -54,15 +54,13 @@ export function useAdminQuizzes(standardId?: string): UseAdminQuizzesReturn {
 
     let query: any = firestore()
       .collection(COLLECTIONS.QUIZZES)
-      .where('isDeleted', '==', false)
-      .orderBy('createdAt', 'desc');
+      .where('isDeleted', '==', false);
 
     if (standardId) {
       query = firestore()
         .collection(COLLECTIONS.QUIZZES)
         .where('standardId', '==', standardId)
-        .where('isDeleted', '==', false)
-        .orderBy('createdAt', 'desc');
+        .where('isDeleted', '==', false);
     }
 
     const unsubscribe = query.onSnapshot(
@@ -74,6 +72,14 @@ export function useAdminQuizzes(standardId?: string): UseAdminQuizzesReturn {
           id: doc.id,
           ...doc.data(),
         })) as Quiz[];
+
+        // Client-side sorting to resolve missing composite index constraint
+        data.sort((a, b) => {
+          const t1 = a.createdAt?.seconds || 0;
+          const t2 = b.createdAt?.seconds || 0;
+          return t2 - t1;
+        });
+
         setQuizzes(data);
         setLoading(false);
         setError(null);

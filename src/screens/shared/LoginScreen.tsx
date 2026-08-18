@@ -2,19 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { adminColors, typography, spacing, borderRadius } from '../../theme';
 import { Button, TextInput } from '../../components/common';
-import { signInWithPhone, verifyOTP } from '../../services/firebase/auth.service';
-import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { validatePhone } from '../../validators';
 
 /**
  * Login screen with phone number + OTP verification.
  */
-export function LoginScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
+export function LoginScreen({ route }: { route: any; navigation?: any }): React.JSX.Element {
     const [phone, setPhone] = useState('+918758072298');
     const [otp, setOtp] = useState('123456');
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
     const [loading, setLoading] = useState(false);
-    const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
     const handleSendOTP = async (): Promise<void> => {
         const validation = validatePhone(phone);
@@ -101,7 +98,7 @@ export function LoginScreen({ route, navigation }: { route: any; navigation: any
                         <Button
                             title="Change Number"
                             variant="ghost"
-                            onPress={() => { setStep('phone'); setOtp(''); setConfirmation(null); }}
+                            onPress={() => { setStep('phone'); setOtp(''); }}
                             style={styles.changeButton}
                         />
                     </View>

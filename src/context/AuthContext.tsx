@@ -2,8 +2,8 @@ import React, { createContext, useContext, useEffect, useRef, useState, ReactNod
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { UserProfile, UserRole } from '../types';
-import { onAuthStateChanged, loginWithEmail, signupWithEmail, logoutUser, signInWithGoogle, sendVerificationEmail as firebaseSendVerificationEmail, reloadCurrentUser } from '../services/firebase/authService';
-import { getUserProfile, createStudentProfile, createAdminProfile, createGoogleStudentProfile } from '../services/firebase/userService';
+import { onAuthStateChanged, loginWithEmail, signupWithEmail, logoutUser, signInWithGoogle, sendVerificationEmail as firebaseSendVerificationEmail, reloadCurrentUser } from '../services/firebase/auth.service';
+import { getUserProfile, createStudentProfile, createAdminProfile, createGoogleStudentProfile } from '../services/firebase/users.service';
 import { subscribeToUser } from '../services/firebase/users.service';
 import { removeFCMToken } from '../services/firebase/fcm.service';
 import { logAnalyticsEvent, setAnalyticsUser } from '../services/analytics';

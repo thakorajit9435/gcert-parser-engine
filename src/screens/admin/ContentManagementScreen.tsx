@@ -10,15 +10,18 @@ import {
     ActivityIndicator,
     TextInput,
     useWindowDimensions,
+    ScrollView,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { adminColors, typography, spacing, borderRadius } from '../../theme';
 import { Modal } from '../../components/common/Modal';
 import { COLLECTIONS } from '../../constants';
 import { Subject } from '../../types';
+import { useStandards } from '../../hooks/useStandards';
 
 export function ContentManagementScreen({ navigation }: { navigation: any }): React.JSX.Element {
     const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [chapterCounts, setChapterCounts] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -26,6 +29,9 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
     const [saving, setSaving] = useState(false);
     const { width } = useWindowDimensions();
     const isTablet = width >= 768;
+
+    const { standards } = useStandards();
+    const [selectedStandard, setSelectedStandard] = useState<string>('All');
 
     const [formName, setFormName] = useState('');
     const [formNameGu, setFormNameGu] = useState('');
@@ -36,12 +42,28 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
 
     const fetchSubjects = useCallback(async () => {
         try {
-            const snapshot = await firestore()
-                .collection(COLLECTIONS.SUBJECTS)
-                .orderBy('order', 'asc')
-                .get();
+            const [subjectsSnapshot, chaptersSnapshot] = await Promise.all([
+                firestore()
+                    .collection(COLLECTIONS.SUBJECTS)
+                    .orderBy('order', 'asc')
+                    .get(),
+                firestore()
+                    .collection(COLLECTIONS.CHAPTERS)
+                    .get()
+            ]);
 
-            const data = snapshot.docs
+            const counts: Record<string, number> = {};
+            chaptersSnapshot.docs.forEach((doc) => {
+                const data = doc.data();
+                if (data.isDeleted) return;
+                const subjectId = data.subjectId;
+                if (subjectId) {
+                    counts[subjectId] = (counts[subjectId] || 0) + 1;
+                }
+            });
+            setChapterCounts(counts);
+
+            const data = subjectsSnapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }) as Subject)
                 .filter((s) => !s.isDeleted);
 
@@ -67,12 +89,12 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
         setEditingSubject(null);
         setFormName('');
         setFormNameGu('');
-        setFormStandardId('1');
+        setFormStandardId(selectedStandard === 'All' ? '1' : selectedStandard);
         setFormSession('1');
         setFormIcon('📚');
         setFormOrder(String(subjects.length + 1));
         setModalVisible(true);
-    }, [subjects.length]);
+    }, [subjects.length, selectedStandard]);
 
     const openEditModal = useCallback((subject: Subject) => {
         setEditingSubject(subject);
@@ -161,6 +183,11 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
         );
     }, [fetchSubjects]);
 
+    const filteredSubjects = subjects.filter((subj) => {
+        if (selectedStandard === 'All') return true;
+        return subj.standardId === selectedStandard;
+    });
+
     if (loading) {
         return (
             <View style={styles.centered}>
@@ -173,7 +200,12 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Manage Subjects</Text>
+                <View>
+                    <Text style={styles.title}>Manage Subjects</Text>
+                    <Text style={{ fontSize: typography.size.sm, color: adminColors.textSecondary, marginTop: spacing.xxs }}>
+                        Total: {subjects.length} | Filtered: {filteredSubjects.length}
+                    </Text>
+                </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity style={[styles.addButton, { backgroundColor: adminColors.surfaceElevated, borderWidth: 1, borderColor: adminColors.border }]} onPress={() => navigation.navigate('ManageSessions')}>
                         <Text style={styles.addButtonText}>Sessions</Text>
@@ -184,8 +216,57 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
                 </View>
             </View>
 
+            {/* Standard Filter Chips */}
+            <View style={styles.filterContainer}>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterScroll}
+                >
+                    <TouchableOpacity
+                        style={[
+                            styles.filterChip,
+                            selectedStandard === 'All' && styles.filterChipActive,
+                        ]}
+                        onPress={() => setSelectedStandard('All')}
+                    >
+                        <Text
+                            style={[
+                                styles.filterChipText,
+                                selectedStandard === 'All' && styles.filterChipTextActive,
+                            ]}
+                        >
+                            All Standards
+                        </Text>
+                    </TouchableOpacity>
+                    {standards.map((std) => {
+                        const stdStr = String(std.number);
+                        const isActive = selectedStandard === stdStr;
+                        return (
+                            <TouchableOpacity
+                                key={std.id}
+                                style={[
+                                    styles.filterChip,
+                                    isActive && styles.filterChipActive,
+                                ]}
+                                onPress={() => setSelectedStandard(stdStr)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterChipText,
+                                        isActive && styles.filterChipTextActive,
+                                    ]}
+                                >
+                                    {std.labelGu || std.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+
             <FlatList
-                data={subjects}
+                data={filteredSubjects}
                 keyExtractor={(item) => item.id}
                 numColumns={isTablet ? 2 : 1}
                 initialNumToRender={10}
@@ -207,7 +288,7 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
                             <View style={styles.subjectInfo}>
                                 <Text style={styles.subjectName}>{item.name}</Text>
                                 <Text style={styles.subjectNameGu}>{item.nameGu}</Text>
-                                <Text style={styles.subjectMeta}>Std {item.standardId} • Order: {item.order}</Text>
+                                <Text style={styles.subjectMeta}>Std {item.standardId} • Chapters: {chapterCounts[item.id] || 0} • Order: {item.order}</Text>
                             </View>
                         </View>
                         <View style={styles.subjectActions}>
@@ -221,7 +302,7 @@ export function ContentManagementScreen({ navigation }: { navigation: any }): Re
                                 style={styles.chaptersBtn}
                                 onPress={() => navigation.navigate('ChapterManagement', { subjectId: item.id, subjectName: item.name })}
                             >
-                                <Text style={styles.chaptersBtnText}>Chapters</Text>
+                                <Text style={styles.chaptersBtnText}>Chapters ({chapterCounts[item.id] || 0})</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.deleteBtn}
@@ -503,5 +584,36 @@ const styles = StyleSheet.create({
         fontSize: typography.size.md,
         fontWeight: typography.weight.bold,
         color: '#FFFFFF',
+    },
+    filterContainer: {
+        paddingBottom: spacing.md,
+        paddingHorizontal: spacing.xl,
+        borderBottomWidth: 1,
+        borderColor: adminColors.border,
+    },
+    filterScroll: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    filterChip: {
+        backgroundColor: adminColors.surfaceElevated,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: adminColors.border,
+    },
+    filterChipActive: {
+        backgroundColor: adminColors.primary,
+        borderColor: adminColors.primary,
+    },
+    filterChipText: {
+        fontSize: typography.size.sm,
+        fontWeight: typography.weight.semibold,
+        color: adminColors.textSecondary,
+    },
+    filterChipTextActive: {
+        color: adminColors.textInverse,
     },
 });

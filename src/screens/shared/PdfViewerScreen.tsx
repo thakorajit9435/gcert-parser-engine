@@ -21,9 +21,10 @@ const LOADING_TIMEOUT_MS = 15000;
 const MAX_RETRIES = 2;
 
 export function PdfViewerScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
-    const { url, title, pdfId, pdfType } = route.params;
+    const { url, title, pdfId, pdfType, startPage, endPage, bookStartPage } = route.params;
     const { userProfile } = useAuth();
     const userId = userProfile?.uid;
+
 
     const [loading, setLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
@@ -126,7 +127,8 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
     };
 
     const handleNextPage = () => {
-        if (currentPage < totalPages) {
+        const maxPage = endPage || totalPages;
+        if (currentPage < maxPage) {
             const nextPage = currentPage + 1;
             pdfRef.current?.setPage(nextPage);
             setCurrentPage(nextPage);
@@ -135,7 +137,8 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
     };
 
     const handlePrevPage = () => {
-        if (currentPage > 1) {
+        const minPage = startPage || 1;
+        if (currentPage > minPage) {
             const prevPage = currentPage - 1;
             pdfRef.current?.setPage(prevPage);
             setCurrentPage(prevPage);
@@ -148,8 +151,16 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
         navigation.goBack();
     };
 
+    const handleAskAI = () => {
+        navigation.navigate('AITutor', {
+            subject: 'Science',
+        });
+    };
+
     const source = { uri: url, cache: true };
-    const progressPercent = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
+    const totalPagesRange = (startPage && endPage) ? (endPage - startPage + 1) : totalPages;
+    const currentPageIndex = (startPage) ? (currentPage - startPage + 1) : currentPage;
+    const progressPercent = totalPagesRange > 0 ? (currentPageIndex / totalPagesRange) * 100 : 0;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -176,6 +187,7 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                     ref={pdfRef}
                     key={webViewKey}
                     source={source}
+                    page={startPage || 1}
                     trustAllCerts={false}
                     enablePaging={true}
                     horizontal={false}
@@ -187,17 +199,26 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                         setLoading(false);
                         clearLoadingTimeout();
 
-                        // Restore progress if available
-                        if (progress && progress.currentPage > 1) {
-                            setTimeout(() => {
-                                pdfRef.current?.setPage(progress.currentPage);
-                                setCurrentPage(progress.currentPage);
-                            }, 300);
-                        }
+                        const initialPage = (progress && startPage && endPage && progress.currentPage >= startPage && progress.currentPage <= endPage)
+                            ? progress.currentPage
+                            : (startPage || 1);
+
+                        setTimeout(() => {
+                            pdfRef.current?.setPage(initialPage);
+                            setCurrentPage(initialPage);
+                        }, 100);
                     }}
                     onPageChanged={(page, numberOfPages) => {
-                        setCurrentPage(page);
-                        saveProgress(page, numberOfPages);
+                        if (startPage && page < startPage) {
+                            pdfRef.current?.setPage(startPage);
+                            setCurrentPage(startPage);
+                        } else if (endPage && page > endPage) {
+                            pdfRef.current?.setPage(endPage);
+                            setCurrentPage(endPage);
+                        } else {
+                            setCurrentPage(page);
+                            saveProgress(page, numberOfPages);
+                        }
                     }}
                     onError={(error) => {
                         logCrashError(error, 'pdf_error', { url, pdfId });
@@ -223,7 +244,7 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                     <View style={styles.controlsRow}>
                         {/* Page Indicator */}
                         <Text style={styles.pageText}>
-                            પેજ {currentPage} / {totalPages}
+                            પેજ {startPage && endPage ? `${currentPage - startPage + 1} / ${endPage - startPage + 1}` : `${currentPage} / ${totalPages}`} {startPage && endPage ? `(બુક પેજ ${(bookStartPage || 1) + currentPage - startPage})` : ''}
                         </Text>
 
                         {/* Navigation Actions */}
@@ -249,6 +270,13 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                                 <Text style={styles.buttonText}>
                                     {isFullscreen ? '🔍' : '🔎'}
                                 </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.iconButton, { backgroundColor: studentColors.primary }]}
+                                onPress={handleAskAI}
+                            >
+                                <Text style={[styles.buttonText, { color: '#FFF' }]}>🤖</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity

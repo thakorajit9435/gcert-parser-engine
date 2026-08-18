@@ -1,0 +1,41 @@
+{
+  "chapters": [],
+  "textbooks": [
+    {
+      "textbook_id": "tb_HWC3a4kdFqCvfGB0bPUl",
+      "title_gu": "ધોરણ 1 પાઠ્યપુસ્તક",
+      "title_en": "Standard 1 Textbook",
+      "subject_id": "HWC3a4kdFqCvfGB0bPUl",
+      "standard_id": "1",
+      "standard_number": 1,
+      "pdf_url": "https://firebasestorage.googleapis.com/v0/b/quizapp-1627022258976.appspot.com/o/textbooks%2F651848e2-e7a2-44c8-8652-eecb0fe59d96.pdf?alt=media",
+      "is_active": true,
+      "isDeleted": false,
+      "publisher": "GSSTB",
+      "edition_year": "2024",
+      "is_downloadable": true,
+      "total_chapters": 0
+    }
+  ],
+  "topics": [],
+  "sub_topics": [],
+  "learning_outcomes": [],
+  "chapter_summaries": [],
+  "question_bank": [],
+  "mcq_bank": [],
+  "activities": [],
+  "keywords": [],
+  "glossary": [],
+  "ai_knowledge_base": [],
+  "sessions": [
+    {
+      "session_id": "session_1_sem1",
+      "standardId": "1",
+      "session": "1",
+      "title": "પ્રથમ સત્ર",
+      "type": "textbook",
+      "order": 1,
+      "isDeleted": false
+    }
+  ]
+}

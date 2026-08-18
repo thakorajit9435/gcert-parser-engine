@@ -25,6 +25,21 @@ export const COLLECTIONS = {
   PDF_READING_PROGRESS: 'pdfReadingProgress',
   // ── Bulk Import (additive only) ──────────────────────────────
   IMPORT_LOGS: 'importLogs',
+  // ── CMS Modules ──────────────────────────────────────────────
+  TOPICS: 'topics',
+  LEARNING_OUTCOMES: 'learning_outcomes',
+  QUESTION_BANK: 'question_bank',
+  MCQ_BANK: 'mcq_bank',
+  WORKSHEETS: 'worksheets',
+  LESSON_PLANS: 'lesson_plans',
+  FLASHCARDS: 'flashcards',
+  GLOSSARY: 'glossary',
+  VIDEOS: 'videos',
+  TEXTBOOKS: 'textbooks',
+  SUB_TOPICS: 'sub_topics',
+  CHAPTER_SUMMARIES: 'chapter_summaries',
+  ACTIVITIES: 'activities',
+  KEYWORDS: 'keywords',
 } as const;
 
 // ─── Route Names ──────────────────────────────────────────────
@@ -127,3 +142,17 @@ export const SUBSCRIPTION_PLANS = [
     durationDays: -1,
   },
 ] as const;
+
+// ─── API Configuration (GyanDeep GCERT AI Backend) ───────────────────────────
+export const API_CONFIG = {
+  // ── Production & Live Cloud Backend (Render.com) ─────────────────────────
+  BASE_URL_PROD:    'https://gcert-parser-engine.onrender.com/api/v1',
+
+  // ── Development Fallback ──────────────────────────────────────────────────
+  BASE_URL_ANDROID: 'https://gcert-parser-engine.onrender.com/api/v1',
+  BASE_URL_IOS:     'https://gcert-parser-engine.onrender.com/api/v1',
+
+  // ── Direct LLM Model Config ──────────────────────────────────────────────
+  GEMINI_MODEL:     'gemini-3.6-flash',
+} as const;
+

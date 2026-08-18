@@ -137,6 +137,9 @@ export interface Chapter {
   order: number;
   isDeleted: boolean;
   isPremium: boolean;
+  startPage?: number;
+  endPage?: number;
+  bookStartPage?: number;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
@@ -525,6 +528,7 @@ export type AdminDrawerParamList = {
   BulkChapterStack: undefined;
   // ── Gujarat Content Import (additive only) ───────────────────────────────
   GujaratContentStack: undefined;
+  PdfProcessingStack: undefined;
 };
 
 export type AdminDashboardStackParamList = {
@@ -615,4 +619,48 @@ export interface PaginatedResult<T> {
   data: T[];
   lastDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot | null;
   hasMore: boolean;
+}
+
+// ─── Digital Books / Textbooks (Phase 2 Additions) ──────────────────────────
+export interface Book {
+  id: string;
+  title: string;
+  subjectId: string;
+  standard: string;
+  semester?: string;
+  totalPages?: number;
+  isActive: boolean;
+  pdfUrl?: string;
+  coverUrl?: string;
+  createdAt?: FirebaseFirestoreTypes.Timestamp | FirebaseFirestoreTypes.FieldValue;
+  updatedAt?: FirebaseFirestoreTypes.Timestamp | FirebaseFirestoreTypes.FieldValue;
+}
+
+export interface UserBookProgress {
+  id: string;
+  userId: string;
+  bookId: string;
+  lastPage: number;
+  totalPages: number;
+  updatedAt?: FirebaseFirestoreTypes.Timestamp | FirebaseFirestoreTypes.FieldValue;
+}
+
+// ─── Subscriptions (Phase 2 Additions) ──────────────────────────────────────
+export type SubscriptionPlanType = 'monthly' | 'quarterly' | 'yearly' | 'lifetime' | string;
+export type SubscriptionStatus = 'active' | 'cancelled' | 'expired';
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  planType: SubscriptionPlanType;
+  startDate: FirebaseFirestoreTypes.Timestamp;
+  endDate: FirebaseFirestoreTypes.Timestamp;
+  status: SubscriptionStatus;
+  razorpayPaymentId?: string | null;
+  razorpayOrderId?: string | null;
+  amount: number;
+  currency: string;
+  isManual?: boolean;
+  createdAt?: FirebaseFirestoreTypes.Timestamp | FirebaseFirestoreTypes.FieldValue;
+  updatedAt?: FirebaseFirestoreTypes.Timestamp | FirebaseFirestoreTypes.FieldValue;
 }

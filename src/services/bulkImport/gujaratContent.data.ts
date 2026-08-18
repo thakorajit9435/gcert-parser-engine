@@ -60,11 +60,10 @@ function ch(
 
 // ─── SUBJECTS — 84 total ──────────────────────────────────────────────────────
 
-export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
+const BASE_SUBJECTS = [
   // Dhoran 1
   {
     standardId: '1',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી (પ્રથમ ભાષા)',
     icon: '📚',
@@ -72,7 +71,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '1',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત (આનંદદાયી ગણિત)',
     icon: '🔢',
@@ -80,7 +78,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '1',
-    session: '1',
     name: 'Gujarati Second Language',
     nameGu: 'ગુજરાતી (દ્વિતીય ભાષા)',
     icon: '📖',
@@ -89,7 +86,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 2
   {
     standardId: '2',
-    session: '2',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી (પ્રથમ ભાષા)',
     icon: '📚',
@@ -97,7 +93,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '2',
-    session: '2',
     name: 'Mathematics',
     nameGu: 'ગણિત (આનંદદાયી ગણિત)',
     icon: '🔢',
@@ -105,7 +100,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '2',
-    session: '2',
     name: 'Gujarati Second Language',
     nameGu: 'ગુજરાતી (દ્વિતીય ભાષા)',
     icon: '📖',
@@ -114,7 +108,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 3
   {
     standardId: '3',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી (કલશોર)',
     icon: '📚',
@@ -122,7 +115,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '3',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત (ગણિત મેળો)',
     icon: '🔢',
@@ -130,7 +122,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '3',
-    session: '1',
     name: 'Environmental Studies',
     nameGu: 'પર્યાવરણ (આપણી અદ્ભુત દુનિયા)',
     icon: '🌱',
@@ -138,7 +129,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '3',
-    session: '1',
     name: 'English Second Language',
     nameGu: 'અંગ્રેજી (દ્વિતીય ભાષા)',
     icon: '🔤',
@@ -146,7 +136,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '3',
-    session: '1',
     name: 'Gujarati Second Language',
     nameGu: 'ગુજરાતી (મયુર - દ્વિતીય ભાષા)',
     icon: '📖',
@@ -155,7 +144,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 4
   {
     standardId: '4',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી (કુહૂ)',
     icon: '📚',
@@ -163,7 +151,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '4',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત',
     icon: '🔢',
@@ -171,7 +158,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '4',
-    session: '1',
     name: 'Environmental Studies',
     nameGu: 'પર્યાવરણ',
     icon: '🌱',
@@ -179,7 +165,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '4',
-    session: '1',
     name: 'Hindi Second Language',
     nameGu: 'હિન્દી (દ્વિતીય ભાષા)',
     icon: '📙',
@@ -187,7 +172,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '4',
-    session: '1',
     name: 'Gujarati Second Language',
     nameGu: 'ગુજરાતી (પતરંગો)',
     icon: '📖',
@@ -196,7 +180,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 5
   {
     standardId: '5',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી (કેકારવ)',
     icon: '📚',
@@ -204,7 +187,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '5',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત',
     icon: '🔢',
@@ -212,7 +194,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '5',
-    session: '1',
     name: 'Environmental Studies',
     nameGu: 'પર્યાવરણ',
     icon: '🌱',
@@ -220,7 +201,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '5',
-    session: '1',
     name: 'English Second Language',
     nameGu: 'અંગ્રેજી (દ્વિતીય ભાષા)',
     icon: '🔤',
@@ -228,7 +208,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '5',
-    session: '1',
     name: 'Hindi Second Language',
     nameGu: 'હિન્દી (તિતલી)',
     icon: '📙',
@@ -236,7 +215,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '5',
-    session: '1',
     name: 'Gujarati Second Language',
     nameGu: 'ગુજરાતી (કુક્કુટ)',
     icon: '📖',
@@ -245,7 +223,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 6
   {
     standardId: '6',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી',
     icon: '📚',
@@ -253,7 +230,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત',
     icon: '🔢',
@@ -261,7 +237,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'Science',
     nameGu: 'વિજ્ઞાન',
     icon: '🔬',
@@ -269,7 +244,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'Social Science',
     nameGu: 'સામાજિક વિજ્ઞાન',
     icon: '🌍',
@@ -277,7 +251,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'English Second Language',
     nameGu: 'અંગ્રેજી (દ્વિતીય ભાષા)',
     icon: '🔤',
@@ -285,7 +258,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'Hindi Second Language',
     nameGu: 'હિન્દી (દ્વિતીય ભાષા)',
     icon: '📙',
@@ -293,7 +265,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '6',
-    session: '1',
     name: 'Sanskrit',
     nameGu: 'સંસ્કૃત',
     icon: '🕉️',
@@ -302,7 +273,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 7
   {
     standardId: '7',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી',
     icon: '📚',
@@ -310,7 +280,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત',
     icon: '🔢',
@@ -318,7 +287,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'Science',
     nameGu: 'વિજ્ઞાન',
     icon: '🔬',
@@ -326,7 +294,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'Social Science',
     nameGu: 'સામાજિક વિજ્ઞાન',
     icon: '🌍',
@@ -334,7 +301,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'English Second Language',
     nameGu: 'અંગ્રેજી (દ્વિતીય ભાષા)',
     icon: '🔤',
@@ -342,7 +308,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'Hindi Second Language',
     nameGu: 'હિન્દી (દ્વિતીય ભાષા)',
     icon: '📙',
@@ -350,7 +315,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '7',
-    session: '1',
     name: 'Sanskrit',
     nameGu: 'સંસ્કૃત',
     icon: '🕉️',
@@ -359,7 +323,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   // Dhoran 8
   {
     standardId: '8',
-    session: '1',
     name: 'Gujarati First Language',
     nameGu: 'ગુજરાતી',
     icon: '📚',
@@ -367,7 +330,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'Mathematics',
     nameGu: 'ગણિત',
     icon: '🔢',
@@ -375,7 +337,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'Science',
     nameGu: 'વિજ્ઞાન',
     icon: '🔬',
@@ -383,7 +344,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'Social Science',
     nameGu: 'સામાજિક વિજ્ઞાન',
     icon: '🌍',
@@ -391,7 +351,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'English Second Language',
     nameGu: 'અંગ્રેજી (દ્વિતીય ભાષા)',
     icon: '🔤',
@@ -399,7 +358,6 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'Hindi Second Language',
     nameGu: 'હિન્દી (દ્વિતીય ભાષા)',
     icon: '📙',
@@ -407,12 +365,16 @@ export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
   },
   {
     standardId: '8',
-    session: '1',
     name: 'Sanskrit',
     nameGu: 'સંસ્કૃત',
     icon: '🕉️',
     order: 7,
   },
+];
+
+export const GUJARAT_SUBJECTS: SubjectDefinition[] = [
+  ...BASE_SUBJECTS.map(s => ({ ...s, session: '1' })),
+  ...BASE_SUBJECTS.map(s => ({ ...s, session: '2' })),
 ];
 
 // ─── CHAPTERS ────────────────────────────────────────────────────────────────

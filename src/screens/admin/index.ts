@@ -24,3 +24,11 @@ export {BulkChapterImportScreen} from './BulkChapterImportScreen';
 
 // ── Gujarat Content Import (additive only) ────────────────────────────
 export {GujaratContentImportScreen} from './GujaratContentImportScreen';
+
+// ── CMS Screens ───────────────────────────────────────────────
+export {ChapterCMSDashboard} from './ChapterCMSDashboard';
+export {TopicCMSDashboard} from './TopicCMSDashboard';
+export {CMSListView} from './CMSListView';
+export {CMSDetailForm} from './CMSDetailForm';
+export {AdminPdfProcessingDashboard} from './AdminPdfProcessingDashboard';
+

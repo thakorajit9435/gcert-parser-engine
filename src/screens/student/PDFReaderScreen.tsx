@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Alert, Text, Platform, Dimensions 
 import { useNavigation } from '@react-navigation/native';
 import { Book } from '../../types';
 import { useBookProgress } from '../../hooks/useBookProgress';
-import { borderRadius, spacing, studentColors, typography } from '@/theme';
+import { borderRadius, spacing, studentColors, typography } from '../../theme';
 
 let Pdf: any = null;
 let pdfAvailable = false;
@@ -20,7 +20,17 @@ try {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export function PDFReaderScreen({ route }: { route: any }): React.JSX.Element {
+import { ErrorBoundary } from '../../components/common/ErrorBoundary';
+
+export function PDFReaderScreen(props: any): React.JSX.Element {
+    return (
+        <ErrorBoundary fallbackMessage="પીડીએફ લોડ કરવામાં સમસ્યા આવી.">
+            <PDFReaderScreenContent {...props} />
+        </ErrorBoundary>
+    );
+}
+
+function PDFReaderScreenContent({ route }: { route: any }): React.JSX.Element {
     const { book, initialPage = 1 } = route.params as { book: Book; initialPage?: number };
     const navigation = useNavigation();
 
@@ -110,8 +120,15 @@ export function PDFReaderScreen({ route }: { route: any }): React.JSX.Element {
 
             {(!firstPageReady || loading) && (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={studentColors.primary} />
-                    <Text style={styles.loadingText}>Loading your book...</Text>
+                    <View style={{ width: SCREEN_WIDTH * 0.8, height: SCREEN_HEIGHT * 0.65, backgroundColor: '#f8fafc', borderRadius: 12, padding: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+                        <ActivityIndicator size="large" color={studentColors.primary} style={{ marginBottom: 24 }} />
+                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                            <Text style={{ fontSize: 40 }}>📖</Text>
+                        </View>
+                        <View style={{ width: '80%', height: 16, backgroundColor: '#e2e8f0', borderRadius: 4, marginBottom: 12 }} />
+                        <View style={{ width: '50%', height: 12, backgroundColor: '#e2e8f0', borderRadius: 4, marginBottom: 32 }} />
+                        <Text style={styles.loadingText}>ડિજિટલ પુસ્તક લોડ થઈ રહ્યું છે...</Text>
+                    </View>
                 </View>
             )}
 

@@ -211,16 +211,47 @@ export async function getQuizQuestions(
   quizId: string,
 ): Promise<ServiceResult<Question[]>> {
   try {
+    // 1. Try subcollection quizzes/{quizId}/questions
     const snapshot = await firestore()
       .collection(COLLECTIONS.QUIZZES)
       .doc(quizId)
       .collection(COLLECTIONS.QUESTIONS)
-      .orderBy('order', 'asc')
       .get();
-    const data = snapshot.docs
+      
+    let data = snapshot.docs
       .map(doc => ({id: doc.id, ...doc.data()} as Question))
-      .filter(q => !q.isDeleted);
-    return {success: true, data};
+      .filter(q => !q.isDeleted && (q as any).is_deleted !== true);
+
+    if (data.length > 0) {
+      data.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
+      return {success: true, data};
+    }
+
+    // 2. Fallback: check embedded questions/mcqs array in quiz document
+    const quizDoc = await firestore().collection(COLLECTIONS.QUIZZES).doc(quizId).get();
+    if (quizDoc.exists) {
+      const quizData = quizDoc.data();
+      const embeddedQuestions = quizData?.questions || quizData?.mcqs;
+      if (Array.isArray(embeddedQuestions) && embeddedQuestions.length > 0) {
+        return {success: true, data: embeddedQuestions as Question[]};
+      }
+    }
+
+    // 3. Fallback: check root questions collection for quizId or quiz_id
+    const rootSnap = await firestore()
+      .collection(COLLECTIONS.QUESTIONS)
+      .where('quizId', '==', quizId)
+      .get();
+
+    if (!rootSnap.empty) {
+      data = rootSnap.docs
+        .map(doc => ({id: doc.id, ...doc.data()} as Question))
+        .filter(q => !q.isDeleted && (q as any).is_deleted !== true);
+      data.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
+      return {success: true, data};
+    }
+
+    return {success: true, data: []};
   } catch (error) {
     logCrashError(error, 'quiz_error', {action: 'getQuizQuestions', quizId});
     return {success: false, error: (error as Error).message};

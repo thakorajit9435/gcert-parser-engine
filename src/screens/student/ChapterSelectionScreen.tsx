@@ -4,7 +4,7 @@ import { studentColors, typography, spacing, borderRadius, shadows } from '../..
 import { useChapters } from '../../hooks/useChapters';
 import { usePracticeSettings } from '../../hooks/usePracticeSettings';
 import { PracticeModeModal } from '../../components/student/PracticeModeModal';
-import { useStandardContext } from '@/context/StandardContext';
+import { useStandardContext } from '../../context/StandardContext';
 
 export function ChapterSelectionScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { subjectId, subjectName, session } = route.params;

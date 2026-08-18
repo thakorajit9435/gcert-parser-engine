@@ -25,7 +25,6 @@ export function PremiumManagementScreen(): React.JSX.Element {
     const [hasMore, setHasMore] = useState(true);
     const [lastDoc, setLastDoc] = useState<FirebaseFirestoreTypes.QueryDocumentSnapshot | null>(null);
     const [totalRevenue, setTotalRevenue] = useState(0);
-    const [activatingUserId, setActivatingUserId] = useState('');
 
     const loadSubscriptions = useCallback(async (): Promise<void> => {
         setLoading(true);
@@ -66,7 +65,6 @@ export function PremiumManagementScreen(): React.JSX.Element {
                 text: 'Next',
                 onPress: (userId) => {
                     if (!userId?.trim()) {return;}
-                    setActivatingUserId(userId.trim());
                     showPlanSelection(userId.trim());
                 },
             },

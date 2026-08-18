@@ -1,0 +1,777 @@
+{
+  "standards": [
+    {
+      "standard_id": "std_1",
+      "standard_number": 1,
+      "display_name_gu": "ધોરણ ૧",
+      "display_name_en": "Standard 1",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_1",
+        "math_std_1"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_1.png",
+      "color_hex": "#4A90E2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_1_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_2",
+      "standard_number": 2,
+      "display_name_gu": "ધોરણ ૨",
+      "display_name_en": "Standard 2",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_2",
+        "math_std_2"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_2.png",
+      "color_hex": "#4A90E2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_2_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_3",
+      "standard_number": 3,
+      "display_name_gu": "ધોરણ ૩",
+      "display_name_en": "Standard 3",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_3",
+        "math_std_3"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_3.png",
+      "color_hex": "#4A90E2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_3_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_4",
+      "standard_number": 4,
+      "display_name_gu": "ધોરણ ૪",
+      "display_name_en": "Standard 4",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_4",
+        "math_std_4"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_4.png",
+      "color_hex": "#4A90E2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_4_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_5",
+      "standard_number": 5,
+      "display_name_gu": "ધોરણ ૫",
+      "display_name_en": "Standard 5",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "env_std_5",
+        "math_std_5"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_5.png",
+      "color_hex": "#50E3C2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_5_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_6",
+      "standard_number": 6,
+      "display_name_gu": "ધોરણ ૬",
+      "display_name_en": "Standard 6",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_6",
+        "math_std_6"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_6.png",
+      "color_hex": "#50E3C2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_6_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_7",
+      "standard_number": 7,
+      "display_name_gu": "ધોરણ ૭",
+      "display_name_en": "Standard 7",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_7",
+        "math_std_7"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_7.png",
+      "color_hex": "#50E3C2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_7_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_8",
+      "standard_number": 8,
+      "display_name_gu": "ધોરણ ૮",
+      "display_name_en": "Standard 8",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_8",
+        "math_std_8"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_8.png",
+      "color_hex": "#50E3C2",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_8_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_9",
+      "standard_number": 9,
+      "display_name_gu": "ધોરણ ૯",
+      "display_name_en": "Standard 9",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_9",
+        "math_std_9"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_9.png",
+      "color_hex": "#F5A623",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_9_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "display_name_gu": "ધોરણ ૧૦",
+      "display_name_en": "Standard 10",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "math_std_10",
+        "sci_std_10",
+        "ss_std_10"
+      ],
+      "total_subjects": 3,
+      "total_chapters": 30,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_10.png",
+      "color_hex": "#F5A623",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_10_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_11",
+      "standard_number": 11,
+      "display_name_gu": "ધોરણ ૧૧",
+      "display_name_en": "Standard 11",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "guj_std_11",
+        "math_std_11"
+      ],
+      "total_subjects": 2,
+      "total_chapters": 20,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_11.png",
+      "color_hex": "#F5A623",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_11_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    },
+    {
+      "standard_id": "std_12",
+      "standard_number": 12,
+      "display_name_gu": "ધોરણ ૧૨",
+      "display_name_en": "Standard 12",
+      "board": "GSEB",
+      "medium": "Gujarati",
+      "academic_year": "2025-2026",
+      "subject_ids": [
+        "chem_std_12",
+        "phys_std_12",
+        "math_std_12"
+      ],
+      "total_subjects": 3,
+      "total_chapters": 30,
+      "is_active": true,
+      "icon_url": "https://cdn.gyandeep.com/assets/icons/std_12.png",
+      "color_hex": "#F5A623",
+      "syllabus_pdf_url": "https://cdn.gyandeep.com/syllabus/std_12_syllabus.pdf",
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001",
+      "metadata": {}
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "student_001_1751234567890",
+      "user_id": "student_001",
+      "device_id": "device_fingerprint_xyz123",
+      "device_type": "android",
+      "device_model": "Samsung Galaxy M34",
+      "os_version": "Android 14",
+      "app_version": "2.4.1",
+      "login_method": "phone_otp",
+      "started_at": "2026-07-01T04:44:45.688503Z",
+      "ended_at": null,
+      "duration_seconds": null,
+      "last_activity_at": "2026-07-01T04:49:45.688503Z",
+      "is_active": true,
+      "fcm_token": "fcm_token_student_001_dummy",
+      "geo_location": {
+        "city": "Ahmedabad",
+        "state": "Gujarat",
+        "country": "India"
+      },
+      "screens_visited": [
+        "home_screen",
+        "subject_detail",
+        "chapter_viewer"
+      ],
+      "content_accessed": [
+        {
+          "type": "video",
+          "id": "vid_ch1_1",
+          "timestamp": "2026-07-01T04:44:45.688503Z"
+        }
+      ],
+      "created_at": "2026-07-01T04:44:45.688503Z"
+    }
+  ],
+  "subjects": [
+    {
+      "subject_id": "guj_std_1",
+      "subject_code": "GUJ01",
+      "standard_id": "std_1",
+      "standard_number": 1,
+      "name_gu": "કલરવ (ગુજરાતી)",
+      "name_en": "Kalrav (Gujarati)",
+      "subject_type": "language",
+      "medium": "Gujarati",
+      "total_chapters": 4,
+      "total_topics": 12,
+      "chapter_ids": [
+        "guj_std_1_ch1",
+        "guj_std_1_ch2",
+        "guj_std_1_ch3",
+        "guj_std_1_ch4"
+      ],
+      "display_order": 1,
+      "is_active": true,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "subject_id": "math_std_1",
+      "subject_code": "MAT01",
+      "standard_id": "std_1",
+      "standard_number": 1,
+      "name_gu": "ગણિત ગમ્મત",
+      "name_en": "Ganit Gammat",
+      "subject_type": "core",
+      "medium": "Gujarati",
+      "total_chapters": 4,
+      "total_topics": 12,
+      "chapter_ids": [
+        "math_std_1_ch1",
+        "math_std_1_ch2",
+        "math_std_1_ch3",
+        "math_std_1_ch4"
+      ],
+      "display_order": 2,
+      "is_active": true,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "subject_id": "sci_std_10",
+      "subject_code": "SCI10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "name_gu": "વિજ્ઞાન અને ટેકનોલોજી",
+      "name_en": "Science and Technology",
+      "subject_type": "core",
+      "medium": "Gujarati",
+      "total_chapters": 4,
+      "total_topics": 12,
+      "chapter_ids": [
+        "sci_std_10_ch1",
+        "sci_std_10_ch2",
+        "sci_std_10_ch3",
+        "sci_std_10_ch4"
+      ],
+      "display_order": 1,
+      "is_active": true,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "subject_id": "chem_std_12",
+      "subject_code": "CHE12",
+      "standard_id": "std_12",
+      "standard_number": 12,
+      "name_gu": "રસાયણવિજ્ઞાન",
+      "name_en": "Chemistry",
+      "subject_type": "core",
+      "medium": "Gujarati",
+      "total_chapters": 4,
+      "total_topics": 12,
+      "chapter_ids": [
+        "chem_std_12_ch1",
+        "chem_std_12_ch2",
+        "chem_std_12_ch3",
+        "chem_std_12_ch4"
+      ],
+      "display_order": 1,
+      "is_active": true,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "guj_std_1_ch1",
+      "chapter_number": 1,
+      "subject_id": "guj_std_1",
+      "standard_id": "std_1",
+      "standard_number": 1,
+      "title_gu": "શાળા તત્પરતા - ૧",
+      "title_en": "School Readiness - 1",
+      "topic_ids": [
+        "guj_std_1_ch1_tp1",
+        "guj_std_1_ch1_tp2"
+      ],
+      "video_ids": [
+        "vid_guj_std_1_ch1_1"
+      ],
+      "worksheet_ids": [
+        "ws_guj_std_1_ch1_1"
+      ],
+      "total_topics": 2,
+      "is_active": true,
+      "is_premium": false,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "chapter_id": "sci_std_10_ch1",
+      "chapter_number": 1,
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "title_gu": "રાસાયણિક પ્રક્રિયાઓ અને સમીકરણો",
+      "title_en": "Chemical Reactions and Equations",
+      "topic_ids": [
+        "sci_std_10_ch1_tp1",
+        "sci_std_10_ch1_tp2"
+      ],
+      "video_ids": [
+        "vid_sci_std_10_ch1_1"
+      ],
+      "worksheet_ids": [
+        "ws_sci_std_10_ch1_1"
+      ],
+      "total_topics": 2,
+      "is_active": true,
+      "is_premium": false,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "chapter_id": "chem_std_12_ch1",
+      "chapter_number": 1,
+      "subject_id": "chem_std_12",
+      "standard_id": "std_12",
+      "standard_number": 12,
+      "title_gu": "દ્રાવણો",
+      "title_en": "Solutions",
+      "topic_ids": [
+        "chem_std_12_ch1_tp1",
+        "chem_std_12_ch1_tp2"
+      ],
+      "video_ids": [
+        "vid_chem_std_12_ch1_1"
+      ],
+      "worksheet_ids": [
+        "ws_chem_std_12_ch1_1"
+      ],
+      "total_topics": 2,
+      "is_active": true,
+      "is_premium": true,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "topics": [
+    {
+      "topic_id": "guj_std_1_ch1_tp1",
+      "topic_number": 1,
+      "chapter_id": "guj_std_1_ch1",
+      "subject_id": "guj_std_1",
+      "standard_id": "std_1",
+      "standard_number": 1,
+      "title_gu": "ચાંદો સૂરજ રમતા હતા (કવિતા)",
+      "title_en": "Chando Suraj Ramta Hata (Poem)",
+      "content_type": "text",
+      "content_gu": "ચાંદો સૂરજ રમતા હતા, રમતા રમતા કોડી જડી. કોડીના મેં ચીભડા લીધા...",
+      "ai_summary_gu": "આ વિષયમાં ચાંદો સૂરજ રમતા હતા (કવિતા) વિશેની પાયાની સમજૂતી આપવામાં આવી છે.",
+      "ai_keywords": [
+        "ચાંદો સૂરજ રમતા હતા (કવિતા)",
+        "શિક્ષણ",
+        "ગુજરાત બોર્ડ"
+      ],
+      "rag_chunk_ids": [
+        "chunk_guj_std_1_ch1_tp1_1"
+      ],
+      "difficulty_level": "medium",
+      "is_active": true,
+      "is_premium": false,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "topic_id": "sci_std_10_ch1_tp1",
+      "topic_number": 1,
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "title_gu": "રાસાયણિક સમીકરણો લખવા",
+      "title_en": "Writing Chemical Equations",
+      "content_type": "text",
+      "content_gu": "રાસાયણિક પ્રક્રિયાને વધુ સંક્ષિપ્ત અને ઉપયોગી બનાવવા માટે રાસાયણિક સમીકરણો સંજ્ઞાઓ દ્વારા લખાય છે...",
+      "ai_summary_gu": "આ વિષયમાં રાસાયણિક સમીકરણો લખવા વિશેની પાયાની સમજૂતી આપવામાં આવી છે.",
+      "ai_keywords": [
+        "રાસાયણિક સમીકરણો લખવા",
+        "શિક્ષણ",
+        "ગુજરાત બોર્ડ"
+      ],
+      "rag_chunk_ids": [
+        "chunk_sci_std_10_ch1_tp1_1"
+      ],
+      "difficulty_level": "medium",
+      "is_active": true,
+      "is_premium": false,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    },
+    {
+      "topic_id": "chem_std_12_ch1_tp1",
+      "topic_number": 1,
+      "chapter_id": "chem_std_12_ch1",
+      "subject_id": "chem_std_12",
+      "standard_id": "std_12",
+      "standard_number": 12,
+      "title_gu": "દ્રાવણના પ્રકારો",
+      "title_en": "Types of Solutions",
+      "content_type": "text",
+      "content_gu": "બે કે તેથી વધુ પદાર્થોના સમાંગ મિશ્રણને દ્રાવણ કહે છે. દ્રાવણો વાયુરૂપ, પ્રવાહીરૂપ કે ઘનરૂપ હોઈ શકે છે...",
+      "ai_summary_gu": "આ વિષયમાં દ્રાવણના પ્રકારો વિશેની પાયાની સમજૂતી આપવામાં આવી છે.",
+      "ai_keywords": [
+        "દ્રાવણના પ્રકારો",
+        "શિક્ષણ",
+        "ગુજરાત બોર્ડ"
+      ],
+      "rag_chunk_ids": [
+        "chunk_chem_std_12_ch1_tp1_1"
+      ],
+      "difficulty_level": "medium",
+      "is_active": true,
+      "is_premium": true,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "learning_outcomes": [
+    {
+      "outcome_id": "lo_sci_10_ch1_tp1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "outcome_text_gu": "વિદ્યાર્થી સંતુલિત રાસાયણિક સમીકરણો લખી શકે છે અને તેનું મહત્વ સમજાવી શકે છે.",
+      "bloom_level": "apply",
+      "measurable_verb_gu": "લખી અને સંતુલિત કરી શકે",
+      "linked_question_ids": [
+        "q_sci_10_ch1_1"
+      ],
+      "is_active": true,
+      "display_order": 1,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "question_bank": [
+    {
+      "question_id": "q_sci_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "question_text_gu": "સંતુલિત રાસાયણિક સમીકરણ એટલે શું? દળ સંચયનો નિયમ સમજાવો.",
+      "question_type": "short_answer",
+      "answer_gu": "જે રાસાયણિક સમીકરણમાં પ્રક્રિયકો અને નીપજો બંને તરફ દરેક તત્વના પરમાણુઓની સંખ્યા સમાન હોય તેને સંતુલિત સમીકરણ કહેવાય. દળ સંચયના નિયમ મુજબ કોઈપણ રાસાયણિક પ્રક્રિયામાં દ્રવ્યનું સર્જન કે વિનાશ થતો નથી.",
+      "options": [],
+      "answer_hints": [
+        "બંને બાજુ સમાન પરમાણુ સંખ્યા",
+        "દળનો વિનાશ કે સર્જન ન થાય"
+      ],
+      "bloom_level": "understand",
+      "difficulty_level": "medium",
+      "marks": 2,
+      "source": "board_exam",
+      "exam_year": 2024,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 5,
+      "correct_rate": 0.78,
+      "learning_outcome_ids": [
+        "lo_sci_10_ch1_tp1_1"
+      ],
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "mcq_bank": [
+    {
+      "mcq_id": "mcq_sci_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "question_text_gu": "મેગ્નેશિયમ પટ્ટીને હવામાં સળગાવતા કયા રંગની જ્યોત જોવા મળે છે?",
+      "options": [
+        {
+          "id": "A",
+          "text_gu": "લાલ"
+        },
+        {
+          "id": "B",
+          "text_gu": "લીલી"
+        },
+        {
+          "id": "C",
+          "text_gu": "જગારા મારતી સફેદ"
+        },
+        {
+          "id": "D",
+          "text_gu": "પીળી"
+        }
+      ],
+      "correct_option_id": "C",
+      "explanation_gu": "મેગ્નેશિયમ હવામાં ઓક્સિજન સાથે પ્રક્રિયા કરીને મેગ્નેશિયમ ઓક્સાઇડ બનાવે છે અને જગારા મારતી સફેદ જ્યોતથી સળગે છે.",
+      "bloom_level": "remember",
+      "difficulty_level": "easy",
+      "marks": 1,
+      "source": "textbook",
+      "exam_year": 2023,
+      "correct_rate": 0.92,
+      "is_verified": true,
+      "is_active": true,
+      "is_premium": false,
+      "usage_count": 42,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "glossary": [
+    {
+      "glossary_id": "gl_sci_10_catalyst",
+      "subject_id": "sci_std_10",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "subject_code": "SCI10",
+      "word_gu": "ઉદ્દીપક",
+      "word_en": "Catalyst",
+      "definition_gu": "જે પદાર્થ રાસાયણિક પ્રક્રિયામાં ભાગ લીધા વિના પ્રક્રિયાનો વેગ વધારે છે તેને ઉદ્દીપક કહે છે.",
+      "example_sentence_gu": "રાસાયણિક પ્રક્રિયા ઝડપી બનાવવા ઉદ્દીપક તરીકે નિકલનો ઉપયોગ થાય છે.",
+      "is_active": true,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "flashcards": [
+    {
+      "flashcard_id": "fc_sci_10_ch1_1",
+      "topic_id": "sci_std_10_ch1_tp1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "front_text_gu": "દ્રવ્યમાન સંચયનો નિયમ શું દર્શાવે છે?",
+      "back_text_gu": "કોઈપણ રાસાયણિક પ્રક્રિયામાં દ્રવ્યનું સર્જન કે વિનાશ થઈ શકતો નથી, એટલે કે પ્રક્રિયા દરમિયાન કુલ દળ સમાન રહે છે.",
+      "card_type": "concept",
+      "difficulty_level": "easy",
+      "bloom_level": "remember",
+      "is_active": true,
+      "is_premium": false,
+      "is_ai_generated": true,
+      "review_count": 12,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "worksheets": [
+    {
+      "worksheet_id": "ws_sci_std_10_ch1_1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "standard_number": 10,
+      "title_gu": "રાસાયણિક પ્રક્રિયાઓ સંતુલન સ્વાધ્યાય પત્રક",
+      "worksheet_type": "practice",
+      "difficulty_level": "medium",
+      "pdf_url": "https://cdn.gyandeep.com/worksheets/sci_std_10_ch1_ws1.pdf",
+      "total_questions": 10,
+      "total_marks": 20,
+      "question_ids": [
+        "q_sci_10_ch1_1"
+      ],
+      "is_downloadable": true,
+      "is_active": true,
+      "is_premium": false,
+      "download_count": 145,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ],
+  "lesson_plans": [
+    {
+      "lesson_plan_id": "lp_sci_std_10_ch1",
+      "chapter_id": "sci_std_10_ch1",
+      "subject_id": "sci_std_10",
+      "standard_id": "std_10",
+      "title_gu": "રાસાયણિક પ્રક્રિયાઓ અને સમીકરણો અધ્યાપન આયોજન",
+      "total_periods": 6,
+      "period_duration_min": 45,
+      "periods": [
+        {
+          "period_number": 1,
+          "topic_title_gu": "ભૌતિક અને રાસાયણિક પ્રક્રિયાઓ વચ્ચેનો તફાવત",
+          "activities_gu": [
+            "શાળા સ્તરે મેગ્નેશિયમ પટ્ટી સળગાવવાના પ્રયોગનું નિદર્શન કરવું",
+            "પ્રશ્નોત્તરી કરવી"
+          ]
+        },
+        {
+          "period_number": 2,
+          "topic_title_gu": "રાસાયણિક સમીકરણ સંતુલિત કરવાની રીતો",
+          "activities_gu": [
+            "બ્લેકબોર્ડ પર પ્રક્રિયાઓ લખી સંતુલિત કરવાની હીટ એન્ડ ટ્રાયલ પદ્ધતિ શીખવવી"
+          ]
+        }
+      ],
+      "learning_outcomes": [
+        "વિદ્યાર્થી ભૌતિક અને રાસાયણિક ફેરફાર વચ્ચે ભેદ પારખી શકે.",
+        "સમીકરણો સંતુલિત કરવા માટે પદ્ધતિસરના પગલાં લઈ શકે."
+      ],
+      "is_active": true,
+      "is_ai_generated": false,
+      "created_at": "2026-07-01T04:49:45.688503Z",
+      "updated_at": "2026-07-01T04:49:45.688503Z",
+      "created_by": "super_admin_001"
+    }
+  ]
+}

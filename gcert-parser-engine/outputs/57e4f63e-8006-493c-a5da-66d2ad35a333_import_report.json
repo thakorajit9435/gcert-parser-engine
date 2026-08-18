@@ -1,0 +1,23 @@
+{
+  "job_id": "57e4f63e-8006-493c-a5da-66d2ad35a333",
+  "status": "success",
+  "started_at": "2026-07-24T04:01:07.269057",
+  "summary": {
+    "total_documents": 2619,
+    "successfully_imported": 2617,
+    "duplicates_skipped": 2,
+    "errors_encountered": 0
+  },
+  "failures": [],
+  "skipped_duplicates": [
+    {
+      "collection": "chapters",
+      "doc_id": "guj_std3_ch1"
+    },
+    {
+      "collection": "textbooks",
+      "doc_id": "tb_guj_std3"
+    }
+  ],
+  "finished_at": "2026-07-24T04:02:45.037047"
+}

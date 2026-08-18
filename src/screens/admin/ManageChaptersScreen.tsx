@@ -147,7 +147,19 @@ export function ManageChaptersScreen({ route, navigation }: { route: any; naviga
                 }
                 renderItem={({ item, index }) => (
                     <View style={styles.chapterCard}>
-                        <View style={styles.chapterLeft}>
+                        <TouchableOpacity
+                            style={styles.chapterLeft}
+                            activeOpacity={0.7}
+                            onPress={() =>
+                                navigation.navigate('ChapterCMSDashboard', {
+                                    chapterId: item.id,
+                                    chapterTitle: item.titleGu || item.title,
+                                    subjectId: item.subjectId,
+                                    standardId: item.standardId,
+                                    standardNumber: parseInt(item.standardId, 10) || 1,
+                                })
+                            }
+                        >
                             <View style={styles.chapterNum}>
                                 <Text style={styles.chapterNumText}>{index + 1}</Text>
                             </View>
@@ -172,7 +184,7 @@ export function ManageChaptersScreen({ route, navigation }: { route: any; naviga
                                     )}
                                 </View>
                             </View>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.chapterActions}>
                             <View style={styles.premiumToggle}>
                                 <Text style={styles.toggleLabel}>Premium</Text>
