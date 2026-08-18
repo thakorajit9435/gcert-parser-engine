@@ -11,11 +11,11 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Keyboard,
-    SafeAreaView,
     Platform,
     Modal,
     Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DocumentPicker from 'react-native-document-picker';
 import ReactNativeBlobUtil from 'react-native-blob-util';
@@ -1016,10 +1016,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
             {/* ─── CHAT TAB ─── */}
             {activeTab === 'chat' && (
+                Platform.OS === 'ios' ? (
                 <KeyboardAvoidingView
                     style={styles.chatContainer}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                    behavior="padding"
+                    keyboardVerticalOffset={100}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1211,6 +1212,199 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         </TouchableOpacity>
                     </View>
                 </KeyboardAvoidingView>
+                ) : (
+                <View style={styles.chatContainer}>
+                    {/* ── Connection Error Banner ── */}
+                    {sessionError && (
+                        <View style={styles.sessionErrorBanner}>
+                            <View style={styles.sessionErrorIconWrap}>
+                                <Ionicons name="cloud-offline-outline" size={28} color="#ef4444" />
+                            </View>
+                            <Text style={styles.sessionErrorTitle}>સર્વર સાથે જોડાઈ શકાયું નથી</Text>
+                            <Text style={styles.sessionErrorSub}>
+                                AI backend unreachable. Local server down or tunnel expired.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.sessionRetryBtn}
+                                onPress={retrySession}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="refresh" size={16} color="#fff" />
+                                <Text style={styles.sessionRetryBtnText}>ફરીથી પ્રયત્ન કરો</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.sessionErrorHint}>
+                                💡 Tip: Mac પર{' '}
+                                <Text style={{ fontWeight: '700' }}>./start_ai.sh</Text>
+                                {' '}ચલાવો
+                            </Text>
+                        </View>
+                    )}
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        keyExtractor={item => item.id}
+                        contentContainerStyle={styles.chatList}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        renderItem={({ item, index }) => {
+                            const isUser = item.role === 'user';
+                            const isLast = index === messages.length - 1;
+                            return (
+                                <View style={[
+                                    styles.msgRow,
+                                    isUser ? styles.msgUser : styles.msgAssistant,
+                                    isLast && { marginBottom: 8 }
+                                ]}>
+                                    {!isUser && (
+                                        <View style={styles.aiAvatar}>
+                                            <Text style={styles.aiAvatarText}>🤖</Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.msgBubbleWrapper}>
+                                        <View style={[
+                                            styles.msgBubble,
+                                            isUser ? styles.bubbleUser : styles.bubbleAssistant
+                                        ]}>
+                                            <Text style={[
+                                                styles.msgText,
+                                                isUser ? styles.txtUser : styles.txtAssistant
+                                            ]}>
+                                                {item.content}
+                                            </Text>
+
+                                            {!isUser && (
+                                                <TouchableOpacity
+                                                    style={styles.citationBadgeCard}
+                                                    onPress={() => openPDFAtPage(item.pageNumber || chapter.bookStartPage || chapter.startPage || 1)}
+                                                    activeOpacity={0.85}
+                                                >
+                                                    <View style={styles.citationBadgeHeader}>
+                                                        <Ionicons name="book-open" size={14} color="#1d4ed8" />
+                                                        <Text style={styles.citationChapterName} numberOfLines={1}>
+                                                            {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : (chapter.titleGu || chapter.title)}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.citationBadgeFooter}>
+                                                        <Text style={styles.citationPageNoText}>
+                                                            📄 પાનું (Page): {item.pageNumber || chapter.bookStartPage || chapter.startPage || 1}
+                                                        </Text>
+                                                        <View style={styles.citationPdfRedirectBtn}>
+                                                            <Text style={styles.citationPdfRedirectText}>પાઠ્યપુસ્તકમાં ખોલો ➔</Text>
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                        <Text style={[
+                                            styles.msgTime,
+                                            isUser ? styles.msgTimeUser : styles.msgTimeAssistant
+                                        ]}>
+                                            {formatTime(item.timestamp)}
+                                        </Text>
+                                    </View>
+                                    {isUser && (
+                                        <View style={styles.userAvatar}>
+                                            <Ionicons name="person" size={14} color="#FFFFFF" />
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        }}
+                        ListEmptyComponent={
+                            <View style={styles.emptyChat}>
+                                <View style={styles.emptyChatIconBg}>
+                                    <Text style={styles.emptyChatEmoji}>🤖</Text>
+                                </View>
+                                <Text style={styles.emptyChatTitle}>AI ડાઉટ સોલ્વર</Text>
+                                <Text style={styles.emptyChatSub}>
+                                    Chapter Menu ટૅબ પર જઈ કોઈ પ્રશ્ન ચૂંટો, અથવા
+                                    નીચે ટાઇપ કરીને, કૅમેરાથી કે બોલીને પ્રશ્ન પૂછો.
+                                </Text>
+                                <View style={styles.quickChipsRow}>
+                                    <TouchableOpacity
+                                        style={styles.quickChip}
+                                        onPress={() => setActiveTab('menu')}
+                                    >
+                                        <Ionicons name="grid-outline" size={14} color={studentColors.secondary} />
+                                        <Text style={styles.quickChipText}>Chapter Menu</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        }
+                    />
+
+                    {/* Typing indicator */}
+                    {chatLoading && (
+                        <View style={styles.typingIndicator}>
+                            <View style={styles.aiAvatar}>
+                                <Text style={styles.aiAvatarText}>🤖</Text>
+                            </View>
+                            <View style={styles.typingBubble}>
+                                <View style={styles.typingDots}>
+                                    <View style={[styles.dot, styles.dot1]} />
+                                    <View style={[styles.dot, styles.dot2]} />
+                                    <View style={[styles.dot, styles.dot3]} />
+                                </View>
+                                <Text style={styles.typingText}>AI જવાબ તૈયાર કરી રહ્યો છે...</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Image preview */}
+                    {selectedImage && (
+                        <View style={styles.imagePreviewRow}>
+                            <Image source={{ uri: selectedImage.uri }} style={styles.imagePreviewThumb} />
+                            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                                <Text style={styles.imagePreviewName} numberOfLines={1}>{selectedImage.name}</Text>
+                                <Text style={styles.imagePreviewSub}>ছবি attach করা</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.imagePreviewRemove}>
+                                <Ionicons name="close-circle" size={24} color={studentColors.error} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Input Bar */}
+                    <View style={styles.chatInputBar}>
+                        <TouchableOpacity onPress={handleVoicePress} style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}>
+                            <Ionicons
+                                name={recording ? 'mic-sharp' : 'mic-outline'}
+                                size={22}
+                                color={recording ? '#FFFFFF' : studentColors.secondary}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handlePickImage} style={styles.inputActionBtn}>
+                            <Ionicons name="camera-outline" size={22} color={studentColors.secondary} />
+                        </TouchableOpacity>
+                        <TextInput
+                            style={styles.chatTextInput}
+                            placeholder="ગુજરાતીમાં પ્રશ્ન ટાઇપ કરો..."
+                            placeholderTextColor="#9ca3af"
+                            value={inputText}
+                            onChangeText={setInputText}
+                            multiline
+                            maxLength={500}
+                            scrollEnabled={true}
+                            textAlignVertical="center"
+                            blurOnSubmit={false}
+                            returnKeyType="default"
+                        />
+                        <TouchableOpacity
+                            style={[
+                                styles.chatSendBtn,
+                                (!inputText.trim() && !selectedImage) && styles.sendBtnDisabled
+                            ]}
+                            onPress={() => handleSend()}
+                            disabled={!inputText.trim() && !selectedImage}
+                        >
+                            <Ionicons name="send" size={17} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                )
             )}
 
             {/* ─── HELP TAB ─── */}
