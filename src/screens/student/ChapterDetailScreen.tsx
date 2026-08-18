@@ -759,8 +759,8 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
             {/* Header bar */}
             <View style={styles.header}>
@@ -1041,6 +1041,10 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         keyExtractor={item => item.id}
                         contentContainerStyle={styles.chatList}
                         showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
                         renderItem={({ item, index }) => {
                             const isUser = item.role === 'user';
                             const isLast = index === messages.length - 1;
