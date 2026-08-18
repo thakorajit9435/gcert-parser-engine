@@ -1392,8 +1392,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 14,
-        paddingTop: Platform.OS === 'ios' ? 44 : 14,
-        paddingBottom: 12,
+        paddingVertical: 10,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
@@ -1438,8 +1437,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.md,
-        paddingTop: Platform.OS === 'ios' ? 44 : 14,
-        paddingBottom: 12,
+        paddingVertical: 10,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
@@ -1720,7 +1718,7 @@ const styles = StyleSheet.create({
 
     // ── Chat Tab ─────────────────────────────────────────────────
     chatContainer: {
-        // flex: 1,
+        flex: 1,
         backgroundColor: '#F0F4F8',
     },
     chatList: {

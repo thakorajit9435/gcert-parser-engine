@@ -241,11 +241,7 @@ export function StudentTabs(): React.JSX.Element {
                 name="ChapterDetail"
                 component={ChapterDetailScreen}
                 options={{
-                    headerShown: true,
-                    headerStyle: { backgroundColor: studentColors.surface },
-                    headerTintColor: studentColors.textPrimary,
-                    headerTitleStyle: { fontWeight: typography.weight.semibold },
-                    title: '📖 Chapter Detail',
+                    headerShown: false,
                 }}
             />
             <Stack.Screen
