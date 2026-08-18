@@ -33,7 +33,6 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
     // Query chapters by subjectId without compound orderBy to prevent missing index crashes
     const query = firestore()
       .collection(COLLECTIONS.CHAPTERS)
-<<<<<<< HEAD
       .where('subjectId', '==', subjectId);
 
     const unsubscribe = query.onSnapshot(
@@ -58,19 +57,6 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
 
           setChapters(data);
         }
-=======
-      .where('subjectId', '==', subjectId)
-      .where('isDeleted', '==', false);
-
-    const unsubscribe = query.onSnapshot(
-      snapshot => {
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Chapter[];
-        data.sort((a, b) => (a.order || 0) - (b.order || 0));
-        setChapters(data);
->>>>>>> AI
         setLoading(false);
         setError(null);
       },

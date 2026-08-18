@@ -45,15 +45,10 @@ export function useSubjects(
     );
 
     // 2. Query Firestore using 'in' operator (supports up to 10 candidates)
-    // We avoid composite orderBy in Firestore query to prevent missing composite index crashes on real devices
+    // Avoid composite orderBy in Firestore query to prevent missing composite index crashes on real devices
     const query = firestore()
       .collection(COLLECTIONS.SUBJECTS)
-<<<<<<< HEAD
       .where('standardId', 'in', possibleIds.slice(0, 10));
-=======
-      .where('standardId', '==', standardId)
-      .where('isDeleted', '==', false);
->>>>>>> AI
 
     const unsubscribe = query.onSnapshot(
       snapshot => {
@@ -65,16 +60,10 @@ export function useSubjects(
             ...doc.data(),
           })) as Subject[];
 
-<<<<<<< HEAD
           // Client-side filter for active subjects (isDeleted is false or undefined)
           data = data.filter(s => s.isDeleted !== true);
 
           // Client-side filter for session if specified
-=======
-          // Client-side sorting to resolve missing composite index constraint
-          data.sort((a, b) => (a.order || 0) - (b.order || 0));
-
->>>>>>> AI
           if (sessionId) {
             const cleanSession = String(sessionId).toLowerCase().trim();
             data = data.filter(s => {
