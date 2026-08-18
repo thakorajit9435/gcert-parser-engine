@@ -1,0 +1,417 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GCERTUniversalTextbookPayload",
+  "description": "Universal JSON Schema for a parsed GCERT textbook, directly importable into GyanDeep Firestore collections.",
+  "type": "object",
+  "required": [
+    "textbook",
+    "chapters",
+    "topics",
+    "sub_topics",
+    "learning_outcomes",
+    "chapter_summaries",
+    "question_bank",
+    "mcq_bank",
+    "activities",
+    "keywords",
+    "glossary"
+  ],
+  "properties": {
+    "textbook": {
+      "type": "object",
+      "description": "Metadata document representing the textbook root entry",
+      "required": [
+        "textbook_id",
+        "subject_id",
+        "standard_id",
+        "standard_number",
+        "title_gu",
+        "language",
+        "session",
+        "pdf_url"
+      ],
+      "properties": {
+        "textbook_id": { "type": "string" },
+        "subject_id": { "type": "string" },
+        "standard_id": { "type": "string" },
+        "standard_number": { "type": "integer" },
+        "title_gu": { "type": "string" },
+        "title_en": { "type": "string" },
+        "publisher": { "type": "string" },
+        "edition_year": { "type": "integer" },
+        "session": { "type": "string", "description": "e.g., 2026-27" },
+        "total_pages": { "type": "integer" },
+        "pdf_url": { "type": "string", "format": "uri" },
+        "language": { "type": "string", "enum": ["Gujarati", "English", "Hindi"] },
+        "is_active": { "type": "boolean" },
+        "is_premium": { "type": "boolean" }
+      }
+    },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "chapter_id",
+          "textbook_id",
+          "chapter_number",
+          "title_gu",
+          "start_page",
+          "end_page"
+        ],
+        "properties": {
+          "chapter_id": { "type": "string" },
+          "textbook_id": { "type": "string" },
+          "chapter_number": { "type": "integer" },
+          "title_gu": { "type": "string" },
+          "title_en": { "type": "string" },
+          "start_page": { "type": "integer" },
+          "end_page": { "type": "integer" },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic_id",
+          "topic_number",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "standard_number",
+          "title_gu",
+          "content_gu",
+          "display_order"
+        ],
+        "properties": {
+          "topic_id": { "type": "string" },
+          "topic_number": { "type": "integer" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "standard_number": { "type": "integer" },
+          "title_gu": { "type": "string" },
+          "title_en": { "type": "string" },
+          "content_type": { "type": "string", "enum": ["text", "html", "markdown"] },
+          "content_gu": { "type": "string" },
+          "display_order": { "type": "integer" },
+          "is_active": { "type": "boolean" },
+          "is_premium": { "type": "boolean" },
+          "keywords": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "sub_topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sub_topic_id",
+          "topic_id",
+          "title_gu",
+          "display_order"
+        ],
+        "properties": {
+          "sub_topic_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "title_gu": { "type": "string" },
+          "title_en": { "type": "string" },
+          "display_order": { "type": "integer" },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    },
+    "learning_outcomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "outcome_id",
+          "topic_id",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "outcome_text_gu",
+          "bloom_level",
+          "measurable_verb_gu",
+          "display_order"
+        ],
+        "properties": {
+          "outcome_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "outcome_text_gu": { "type": "string" },
+          "bloom_level": { "type": "string", "enum": ["remember", "understand", "apply", "analyze", "evaluate", "create"] },
+          "measurable_verb_gu": { "type": "string" },
+          "linked_question_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "is_active": { "type": "boolean" },
+          "display_order": { "type": "integer" }
+        }
+      }
+    },
+    "chapter_summaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "summary_id",
+          "chapter_id",
+          "standard_id",
+          "subject_id",
+          "summary_gu"
+        ],
+        "properties": {
+          "summary_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "summary_en": { "type": "string" },
+          "summary_gu": { "type": "string" },
+          "key_points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text_gu"],
+              "properties": {
+                "text_en": { "type": "string" },
+                "text_gu": { "type": "string" }
+              }
+            }
+          },
+          "important_formulas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["formula"],
+              "properties": {
+                "formula": { "type": "string" },
+                "description_en": { "type": "string" },
+                "description_gu": { "type": "string" }
+              }
+            }
+          },
+          "diagram_references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["imageUrl"],
+              "properties": {
+                "imageUrl": { "type": "string", "format": "uri" },
+                "caption_en": { "type": "string" },
+                "caption_gu": { "type": "string" }
+              }
+            }
+          },
+          "revision_notes_en": { "type": "string" },
+          "revision_notes_gu": { "type": "string" },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    },
+    "question_bank": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "question_id",
+          "topic_id",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "standard_number",
+          "question_text_gu",
+          "question_type",
+          "answer_gu",
+          "bloom_level",
+          "difficulty_level",
+          "marks"
+        ],
+        "properties": {
+          "question_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "standard_number": { "type": "integer" },
+          "question_text_gu": { "type": "string" },
+          "question_type": { "type": "string", "enum": ["short_answer", "long_answer", "fill_in_blanks", "true_false"] },
+          "answer_gu": { "type": "string" },
+          "bloom_level": { "type": "string", "enum": ["remember", "understand", "apply", "analyze", "evaluate", "create"] },
+          "difficulty_level": { "type": "string", "enum": ["easy", "medium", "hard"] },
+          "marks": { "type": "integer" },
+          "page_number": { "type": "integer" },
+          "table_references": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "image_references": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" }
+          },
+          "is_verified": { "type": "boolean" },
+          "is_active": { "type": "boolean" },
+          "is_premium": { "type": "boolean" },
+          "usage_count": { "type": "integer" }
+        }
+      }
+    },
+    "mcq_bank": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "mcq_id",
+          "topic_id",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "standard_number",
+          "question_text_gu",
+          "options",
+          "correct_option_id",
+          "bloom_level",
+          "difficulty_level",
+          "marks"
+        ],
+        "properties": {
+          "mcq_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "standard_number": { "type": "integer" },
+          "question_text_gu": { "type": "string" },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "required": ["id", "text_gu"],
+              "properties": {
+                "id": { "type": "string" },
+                "text_gu": { "type": "string" }
+              }
+            }
+          },
+          "correct_option_id": { "type": "string" },
+          "explanation_gu": { "type": "string" },
+          "bloom_level": { "type": "string", "enum": ["remember", "understand", "apply", "analyze", "evaluate", "create"] },
+          "difficulty_level": { "type": "string", "enum": ["easy", "medium", "hard"] },
+          "marks": { "type": "integer" },
+          "page_number": { "type": "integer" },
+          "is_verified": { "type": "boolean" },
+          "is_active": { "type": "boolean" },
+          "is_premium": { "type": "boolean" },
+          "usage_count": { "type": "integer" }
+        }
+      }
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "activity_id",
+          "topic_id",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "title_gu",
+          "instructions_gu"
+        ],
+        "properties": {
+          "activity_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "title_en": { "type": "string" },
+          "title_gu": { "type": "string" },
+          "instructions_en": { "type": "string" },
+          "instructions_gu": { "type": "string" },
+          "materials_needed": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "duration_minutes": { "type": "integer" },
+          "activity_type": { "type": "string" },
+          "page_number": { "type": "integer" },
+          "image_references": {
+            "type": "array",
+            "items": { "type": "string", "format": "uri" }
+          },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "keyword_id",
+          "topic_id",
+          "chapter_id",
+          "subject_id",
+          "standard_id",
+          "keyword_gu",
+          "meaning_gu"
+        ],
+        "properties": {
+          "keyword_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "chapter_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "keyword_en": { "type": "string" },
+          "keyword_gu": { "type": "string" },
+          "meaning_en": { "type": "string" },
+          "meaning_gu": { "type": "string" },
+          "page_number": { "type": "integer" },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "glossary_id",
+          "subject_id",
+          "topic_id",
+          "standard_id",
+          "standard_number",
+          "subject_code",
+          "word_gu",
+          "definition_gu"
+        ],
+        "properties": {
+          "glossary_id": { "type": "string" },
+          "subject_id": { "type": "string" },
+          "topic_id": { "type": "string" },
+          "standard_id": { "type": "string" },
+          "standard_number": { "type": "integer" },
+          "subject_code": { "type": "string" },
+          "word_gu": { "type": "string" },
+          "word_en": { "type": "string" },
+          "definition_gu": { "type": "string" },
+          "page_number": { "type": "integer" },
+          "is_active": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

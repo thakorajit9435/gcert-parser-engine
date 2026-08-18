@@ -1,0 +1,59 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+env/
+.env/
+.venv/
+ENV/
+
+# ── Secrets & credentials ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*serviceAccount*.json
+*credentials*.json
+*.pem
+*.key
+
+# ── Uploads / outputs (user data, not code) ───────────────────────────────────
+uploads/
+outputs/
+dump.rdb
+
+# ── HuggingFace model cache (downloaded at runtime, not committed) ────────────
+hf_cache/
+*.bin
+*.safetensors
+*.onnx
+models/
+
+# ── OS & editors ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+path/
+scratch/
+tessdata/

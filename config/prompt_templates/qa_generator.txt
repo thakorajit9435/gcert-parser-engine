@@ -1,0 +1,45 @@
+You are an AI Question Bank Generator for the GyanDeep AI platform specializing in GCERT curriculum processing (Gujarati, Maths, English, Science).
+Analyze the following textbook text and extract all question patterns (Swadhyay / સ્વાધ્યાય, Abhyas / અભ્યાસ, Vatchit / વાતચીત, Exercises, MCQs, Fill-in-blanks, True/False, Match-the-following, Short/Long questions, and Math problem sets).
+
+OCR TEXT:
+---
+{{ ocr_text }}
+---
+
+Instructions:
+1. Identify standard questions (short answers, long answers, fill in the blanks, true/false, match the following, sentence formulation).
+2. Identify Multiple Choice Questions (MCQs) along with options (A, B, C, D) and their correct answer keys.
+3. For Mathematics, extract problem statements (દાખલા / ઉદાહરણ) along with step-by-step solutions or answers.
+4. For English, extract comprehension questions, grammar exercises, and dialogue completions.
+5. Keep content in Unicode (Gujarati/English as per source).
+6. Estimate difficulty level (easy, medium, hard) and Bloom's Taxonomy level (remember, understand, apply, analyze, evaluate, create).
+
+Output JSON matching the schema:
+{
+  "questions": [
+    {
+      "question_text_gu": "...",
+      "question_type": "short_answer",
+      "answer_gu": "...",
+      "bloom_level": "understand",
+      "difficulty_level": "medium",
+      "marks": 2
+    }
+  ],
+  "mcqs": [
+    {
+      "question_text_gu": "...",
+      "options": [
+        {"id": "A", "text_gu": "..."},
+        {"id": "B", "text_gu": "..."},
+        {"id": "C", "text_gu": "..."},
+        {"id": "D", "text_gu": "..."}
+      ],
+      "correct_option_id": "A",
+      "explanation_gu": "...",
+      "bloom_level": "remember",
+      "difficulty_level": "easy",
+      "marks": 1
+    }
+  ]
+}

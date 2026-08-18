@@ -1,0 +1,16 @@
+# Railway deployment configuration
+# Docs: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Mount a persistent volume at /app/hf_cache to cache the BGE-M3 model (2.3GB)
+# Create via: Railway Dashboard → Service → Volumes → Add Volume → mount at /app/hf_cache
+# This prevents re-downloading the model on every restart
