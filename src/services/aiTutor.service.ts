@@ -50,7 +50,7 @@ const getBaseUrl = async (): Promise<string> => {
       return REMOTE_URL;
     }
 
-    const localAlive = await pingUrl(`${LOCAL_URL.replace('/api/v1', '')}/`);
+    const localAlive = await pingUrl(`${String(LOCAL_URL).replace('/api/v1', '')}/`);
     if (localAlive) {
       console.log('[AI] Using local backend:', LOCAL_URL);
       resolvedBaseUrl = LOCAL_URL;

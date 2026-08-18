@@ -51,8 +51,8 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
           // Client-side sort by chapter order / number ascending
           data.sort(
             (a, b) =>
-              (Number(a.order ?? a.chapterNumber) || 999) -
-              (Number(b.order ?? b.chapterNumber) || 999)
+              (Number(a.order ?? (a as any).chapterNumber) || 999) -
+              (Number(b.order ?? (b as any).chapterNumber) || 999)
           );
 
           setChapters(data);
