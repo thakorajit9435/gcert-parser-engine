@@ -88,6 +88,7 @@ export const DASHBOARD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── App ──────────────────────────────────────────────────────
 
+export const BACKEND_API_URL = 'https://gcert-parser-engine.onrender.com';
 export const APP_CONFIG_DOC_ID = 'main';
 /** Document that stores mobile-specific release config (version check, Play Store URL) */
 export const MOBILE_APP_CONFIG_DOC_ID = 'mobileApp';
