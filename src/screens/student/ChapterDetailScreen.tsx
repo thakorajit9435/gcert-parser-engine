@@ -194,6 +194,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
     const flatListRef = useRef<FlatList>(null);
     const webViewRef = useRef<any>(null);
+    const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
     // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
