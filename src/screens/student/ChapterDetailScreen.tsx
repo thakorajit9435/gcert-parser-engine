@@ -707,7 +707,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         } catch (err) {
             console.error('Send error:', err);
-            Alert.alert('Error', 'AI જવાબ મેળવવામાં નિષ્ફળતા. કૃપા કરીને ફરીથી પ્રયત્ન કરો.');
+            const errorMsg: Message = {
+                id: `error_${Date.now()}`,
+                role: 'assistant',
+                content: '⚠️ માફ કરશો, AI સર્વર સાથે જોડાવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ૧૦-૧૫ સેકન્ડ પછી ફરીથી પ્રશ્ન પૂછો.',
+                timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, errorMsg]);
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         } finally {
             setChatLoading(false);
         }
