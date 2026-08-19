@@ -94,8 +94,15 @@ export async function fetchMobileAppConfig(): Promise<MobileAppConfig | null> {
       updateMessage: data.updateMessage ?? DEFAULT_CONFIG.updateMessage,
       playStoreUrl: data.playStoreUrl ?? DEFAULT_CONFIG.playStoreUrl,
     };
-  } catch (error) {
-    console.error('[VersionCheck] Failed to fetch mobileApp config:', error);
+  } catch (error: any) {
+    if (
+      error?.code === 'firestore/permission-denied' ||
+      String(error?.message || '').includes('permission-denied')
+    ) {
+      console.log('[VersionCheck] Public mobileApp config not configured or restricted — proceeding with default version.');
+    } else {
+      console.warn('[VersionCheck] Could not fetch mobileApp config:', error?.message || error);
+    }
     return null;
   }
 }

@@ -1148,8 +1148,8 @@ service cloud.firestore {
     // ==================================================================
 
     match /app_config/{configId} {
-      // All authenticated users read config on app launch
-      allow read: if isAuthenticated();
+      // All users (including unauthenticated startup checks) read config
+      allow read: if true;
 
       allow create: if isSuperAdmin() &&
         hasRequiredFields(['config_id', 'environment', 'scope', 'feature_flags',
@@ -1167,6 +1167,12 @@ service cloud.firestore {
         request.resource.data.updated_by == request.auth.uid;
 
       allow delete: if isSuperAdmin();
+    }
+
+    match /appConfig/{configId} {
+      // All users read appConfig on app launch (e.g. mobileApp, main)
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
 
     match /app_versions/{versionId} {
