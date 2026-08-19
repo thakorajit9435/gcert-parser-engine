@@ -10,7 +10,6 @@ import {
     FlatList,
     TextInput,
     KeyboardAvoidingView,
-    Keyboard,
     Platform,
     Modal,
     Image,
@@ -161,6 +160,8 @@ export function ChapterDetailScreen(props: any): React.JSX.Element {
     );
 }
 
+const ChatWrapper: any = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
 function ChapterDetailScreenContent({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { chapterId } = route.params || {};
     const { chapter, loading, error } = useChapterDetail(chapterId);
@@ -203,7 +204,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         if (activeTab === 'chat') {
             const timer = setTimeout(() => {
                 inputRef.current?.focus();
-            }, 150);
+            }, 250);
             return () => clearTimeout(timer);
         }
         return undefined;
@@ -338,23 +339,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             });
         }
     }, [chapter?.id, userProfile?.uid]);
-
-    // Auto-scroll chat to bottom when keyboard appears
-    useEffect(() => {
-        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-
-        const showListener = Keyboard.addListener(showEvent, () => {
-            if (activeTab === 'chat') {
-                setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                }, 150);
-            }
-        });
-
-        return () => {
-            showListener.remove();
-        };
-    }, [activeTab]);
 
     const getOrCreateSessionId = async (): Promise<string | null> => {
         if (sessionId) return sessionId;
@@ -866,7 +850,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             </SafeAreaView>
 
             {/* ─── MENU TAB ─── */}
-            {activeTab === 'menu' && (
+            <View style={[{ flex: 1 }, activeTab !== 'menu' && { display: 'none' }]}>
                 <ScrollView contentContainerStyle={styles.menuScroll} showsVerticalScrollIndicator={false}>
 
                     {/* Quick Action Buttons */}
@@ -1037,15 +1021,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         </TouchableOpacity>
                     )}
                 </ScrollView>
-            )}
+            </View>
 
             {/* ─── CHAT TAB ─── */}
-            {activeTab === 'chat' && (
-                <KeyboardAvoidingView
-                    style={styles.chatContainer}
+            <View style={[styles.chatContainer, activeTab !== 'chat' && { display: 'none' }]}>
+                <ChatWrapper
+                    style={{ flex: 1 }}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-                    enabled={Platform.OS === 'ios'}
+                    keyboardVerticalOffset={headerHeight}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1238,11 +1221,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             <Ionicons name="send" size={17} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
-                </KeyboardAvoidingView>
-            )}
+                </ChatWrapper>
+            </View>
 
             {/* ─── HELP TAB ─── */}
-            {activeTab === 'help' && (
+            <View style={[{ flex: 1 }, activeTab !== 'help' && { display: 'none' }]}>
                 <ScrollView contentContainerStyle={styles.helpScroll} showsVerticalScrollIndicator={false}>
                     <View style={styles.helpHero}>
                         <Text style={styles.helpHeroEmoji}>💡</Text>
@@ -1297,7 +1280,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         </Text>
                     </View>
                 </ScrollView>
-            )}
+            </View>
 
             {/* Chapter Notes Modal */}
             <Modal
