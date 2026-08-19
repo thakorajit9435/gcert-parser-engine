@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -216,6 +216,11 @@ export function StudentTabs(): React.JSX.Element {
     return (
         <Stack.Navigator screenOptions={({ navigation }: any) => ({
             headerShown: false,
+            ...TransitionPresets.SlideFromRightIOS,
+            gestureEnabled: true,
+            cardOverlayEnabled: true,
+            cardShadowEnabled: true,
+            cardStyle: { backgroundColor: '#F8FAFC' },
             headerRight: () => (
                 <TouchableOpacity
                     onPress={() => navigation.navigate('MainTabs')}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { Text, TouchableOpacity } from 'react-native';
 import { AdminDrawerParamList, AdminQuizStackParamList } from '../types';
 import { adminColors, typography } from '../theme';
@@ -41,6 +41,10 @@ const adminScreenOptions = ({ navigation }: any) => ({
     headerTintColor: adminColors.textPrimary,
     headerTitleStyle: { fontWeight: typography.weight.semibold as '600' },
     cardStyle: { backgroundColor: adminColors.background },
+    ...TransitionPresets.SlideFromRightIOS,
+    gestureEnabled: true,
+    cardOverlayEnabled: true,
+    cardShadowEnabled: true,
     headerRight: () => (
         <TouchableOpacity
             onPress={() => navigation.navigate('DashboardStack')}
