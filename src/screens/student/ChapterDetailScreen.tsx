@@ -160,8 +160,6 @@ export function ChapterDetailScreen(props: any): React.JSX.Element {
     );
 }
 
-const ChatWrapper: any = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
-
 function ChapterDetailScreenContent({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { chapterId } = route.params || {};
     const { chapter, loading, error } = useChapterDetail(chapterId);
@@ -213,7 +211,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(true);
-    const [headerHeight, setHeaderHeight] = useState(0);
 
     useEffect(() => {
         if (!chapterId) return;
@@ -766,11 +763,9 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     return (
         <View style={styles.container}>
             {/* Header & Tabs wrapped with Top-only Safe Area */}
-            {/* <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}> */}
             <SafeAreaView
                 edges={['top']}
                 style={{ backgroundColor: '#FFFFFF' }}
-                onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
             >
                 {/* Header bar */}
                 <View style={styles.header}>
@@ -850,7 +845,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             </SafeAreaView>
 
             {/* ─── MENU TAB ─── */}
-            <View style={[{ flex: 1 }, activeTab !== 'menu' && { display: 'none' }]}>
+            {activeTab === 'menu' && (
                 <ScrollView contentContainerStyle={styles.menuScroll} showsVerticalScrollIndicator={false}>
 
                     {/* Quick Action Buttons */}
@@ -1021,14 +1016,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         </TouchableOpacity>
                     )}
                 </ScrollView>
-            </View>
+            )}
 
-            {/* ─── CHAT TAB ─── */}
-            <View style={[styles.chatContainer, activeTab !== 'chat' && { display: 'none' }]}>
-                <ChatWrapper
-                    style={{ flex: 1 }}
+            {/* ─── CHAT TAB (Exact same layout structure as AITutorScreen) ─── */}
+            {activeTab === 'chat' && (
+                <KeyboardAvoidingView
+                    style={{ flex: 1, backgroundColor: '#F0F4F8' }}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={headerHeight}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1059,13 +1054,10 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         ref={flatListRef}
                         data={messages}
                         keyExtractor={item => item.id}
-                        style={{ flex: 1 }}
                         contentContainerStyle={[styles.chatList, { paddingBottom: 16 }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="on-drag"
-                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
                         renderItem={({ item, index }) => {
                             const isUser = item.role === 'user';
                             const isLast = index === messages.length - 1;
@@ -1130,27 +1122,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 </View>
                             );
                         }}
-                        ListEmptyComponent={
-                            <View style={styles.emptyChat}>
-                                <View style={styles.emptyChatIconBg}>
-                                    <Text style={styles.emptyChatEmoji}>🤖</Text>
-                                </View>
-                                <Text style={styles.emptyChatTitle}>AI ડાઉટ સોલ્વર</Text>
-                                <Text style={styles.emptyChatSub}>
-                                    Chapter Menu ટૅબ પર જઈ કોઈ પ્રશ્ન ચૂંટો, અથવા
-                                    નીચે ટાઇપ કરીને, કૅમેરાથી કે બોલીને પ્રશ્ન પૂછો.
-                                </Text>
-                                <View style={styles.quickChipsRow}>
-                                    <TouchableOpacity
-                                        style={styles.quickChip}
-                                        onPress={() => setActiveTab('menu')}
-                                    >
-                                        <Ionicons name="grid-outline" size={14} color={studentColors.secondary} />
-                                        <Text style={styles.quickChipText}>Chapter Menu</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        }
                     />
 
                     {/* Typing indicator */}
@@ -1189,7 +1160,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         <TouchableOpacity onPress={handleVoicePress} style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}>
                             <Ionicons
                                 name={recording ? 'mic-sharp' : 'mic-outline'}
-                                size={22}
+                                size={21}
                                 color={recording ? '#FFFFFF' : studentColors.secondary}
                             />
                         </TouchableOpacity>
@@ -1204,11 +1175,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             value={inputText}
                             onChangeText={setInputText}
                             multiline
-                            maxLength={500}
-                            scrollEnabled={true}
-                            textAlignVertical="center"
-                            blurOnSubmit={false}
-                            returnKeyType="default"
+                            maxLength={600}
                         />
                         <TouchableOpacity
                             style={[
@@ -1221,11 +1188,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             <Ionicons name="send" size={17} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
-                </ChatWrapper>
-            </View>
+                </KeyboardAvoidingView>
+            )}
 
             {/* ─── HELP TAB ─── */}
-            <View style={[{ flex: 1 }, activeTab !== 'help' && { display: 'none' }]}>
+            {activeTab === 'help' && (
                 <ScrollView contentContainerStyle={styles.helpScroll} showsVerticalScrollIndicator={false}>
                     <View style={styles.helpHero}>
                         <Text style={styles.helpHeroEmoji}>💡</Text>
@@ -1280,7 +1247,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         </Text>
                     </View>
                 </ScrollView>
-            </View>
+            )}
 
             {/* Chapter Notes Modal */}
             <Modal
