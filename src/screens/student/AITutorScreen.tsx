@@ -20,7 +20,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import DocumentPicker from 'react-native-document-picker';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { WebView } from 'react-native-webview';
-import firestore from '@react-native-firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../hooks/useAuth';
 import { useStandardContext } from '../../context/StandardContext';
 import { useSubjects } from '../../hooks/useSubjects';
@@ -263,55 +263,35 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     }
   }, [initialSubject, subjects]);
 
-  // Load existing session messages
+  // Load existing session messages & bookmark status
   useEffect(() => {
-    if (!sessionId || !userProfile?.uid) return;
+    if (!sessionId) return;
 
-    const unsub = firestore()
-      .collection('users')
-      .doc(userProfile.uid)
-      .collection('chatSessions')
-      .doc(sessionId)
-      .collection('messages')
-      .orderBy('timestamp', 'asc')
-      .onSnapshot(
-        snapshot => {
-          if (!snapshot || snapshot.empty) return;
-          const msgs: Message[] = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              role: data.role,
-              content: data.content,
-              timestamp: data.timestamp,
-              citations: data.citations || [],
-              pageNumber: data.pageNumber,
-            };
-          });
-          setMessages(msgs);
-        },
-        err => console.error('Error fetching chat messages:', err)
-      );
+    const loadSessionData = async () => {
+      try {
+        const [savedMsgs, savedBookmark] = await Promise.all([
+          AsyncStorage.getItem(`chat_messages_${sessionId}`),
+          AsyncStorage.getItem(`chat_bookmarked_${sessionId}`),
+        ]);
 
-    return () => unsub();
-  }, [sessionId, userProfile?.uid]);
-
-  // Check bookmark status
-  useEffect(() => {
-    if (!sessionId || !userProfile?.uid) return;
-    firestore()
-      .collection('users')
-      .doc(userProfile.uid)
-      .collection('chatSessions')
-      .doc(sessionId)
-      .get()
-      .then(doc => {
-        if (doc.exists && doc.data()?.isBookmarked) {
-          setIsBookmarked(true);
+        if (savedMsgs) {
+          const parsed = JSON.parse(savedMsgs);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
         }
-      })
-      .catch(e => console.error('Bookmark check failed', e));
-  }, [sessionId, userProfile?.uid]);
+        if (savedBookmark === 'true') {
+          setIsBookmarked(true);
+        } else {
+          setIsBookmarked(false);
+        }
+      } catch (err) {
+        console.log('Session cache load notice:', err);
+      }
+    };
+
+    loadSessionData();
+  }, [sessionId]);
 
   // Dynamic suggestions for standard & active subject
   const currentSuggestions = useMemo(() => {
@@ -365,43 +345,20 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
       // 2. Multimodal OCR or Standard Text Query
+      let aiContent = '';
+      let aiCitations: CitationItem[] | undefined = undefined;
+
       if (selectedImage) {
         const fs = ReactNativeBlobUtil.fs;
         const base64Data = await fs.readFile(selectedImage.uri, 'base64');
         const imgType = selectedImage.type || 'image/jpeg';
         setSelectedImage(null);
 
-        const aiResponseText = await aiTutorService.sendMultimodalDoubt(
+        aiContent = await aiTutorService.sendMultimodalDoubt(
           base64Data,
           userText || 'કૃપા કરીને આ છબીમાં રહેલા પ્રશ્નનો સચોટ ગુજરાતીમાં ઉત્તર આપો.',
           imgType
         );
-
-        if (activeSessionId && userProfile?.uid) {
-          await firestore()
-            .collection('users')
-            .doc(userProfile.uid)
-            .collection('chatSessions')
-            .doc(activeSessionId)
-            .collection('messages')
-            .add({
-              role: 'user',
-              content: optimisticMsg.content,
-              timestamp: firestore.FieldValue.serverTimestamp(),
-            });
-
-          await firestore()
-            .collection('users')
-            .doc(userProfile.uid)
-            .collection('chatSessions')
-            .doc(activeSessionId)
-            .collection('messages')
-            .add({
-              role: 'assistant',
-              content: aiResponseText,
-              timestamp: firestore.FieldValue.serverTimestamp(),
-            });
-        }
       } else {
         // Text message through GCERT Parser Engine
         if (activeSessionId) {
@@ -414,20 +371,27 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
               language: 'gu',
             }
           );
-
-          if (!userProfile?.uid) {
-            setMessages(prev => [
-              ...prev,
-              {
-                id: `ai_${Date.now()}`,
-                role: 'assistant',
-                content: response.answer,
-                citations: response.citations,
-                timestamp: new Date(),
-              },
-            ]);
-          }
+          aiContent = response.answer;
+          aiCitations = response.citations;
         }
+      }
+
+      if (aiContent) {
+        const aiMsg: Message = {
+          id: `ai_${Date.now()}`,
+          role: 'assistant',
+          content: aiContent,
+          citations: aiCitations,
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => {
+          const updated = [...prev, aiMsg];
+          if (activeSessionId) {
+            AsyncStorage.setItem(`chat_messages_${activeSessionId}`, JSON.stringify(updated)).catch(() => {});
+          }
+          return updated;
+        });
       }
 
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
@@ -443,19 +407,13 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
   };
 
   const handleBookmark = async () => {
-    if (!sessionId || !userProfile?.uid) return;
     try {
       const nextState = !isBookmarked;
       setIsBookmarked(nextState);
-      await firestore()
-        .collection('users')
-        .doc(userProfile.uid)
-        .collection('chatSessions')
-        .doc(sessionId)
-        .update({
-          isBookmarked: nextState,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        });
+      if (sessionId) {
+        await AsyncStorage.setItem(`chat_bookmarked_${sessionId}`, String(nextState));
+        aiTutorService.bookmarkChatSession(sessionId, nextState).catch(() => {});
+      }
       Alert.alert('બુકમાર્ક', nextState ? 'ચેટ સત્ર સાચવવામાં આવ્યું છે ⭐' : 'બુકમાર્ક દૂર કર્યું');
     } catch (e) {
       console.error('Bookmark update failed', e);
@@ -467,13 +425,10 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     setMessages([]);
     setSelectedImage(null);
     setInputText('');
+    setIsBookmarked(false);
   };
 
   const handleDelete = async () => {
-    if (!sessionId || !userProfile?.uid) {
-      handleNewChat();
-      return;
-    }
     Alert.alert('ચેટ સાફ કરો', 'શું તમે આ ચેટ સત્રને સંપૂર્ણપણે ડિલીટ કરવા માંગો છો?', [
       { text: 'રદ કરો', style: 'cancel' },
       {
@@ -481,12 +436,11 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         style: 'destructive',
         onPress: async () => {
           try {
-            await firestore()
-              .collection('users')
-              .doc(userProfile.uid)
-              .collection('chatSessions')
-              .doc(sessionId)
-              .delete();
+            if (sessionId) {
+              await AsyncStorage.removeItem(`chat_bookmarked_${sessionId}`);
+              await AsyncStorage.removeItem(`chat_messages_${sessionId}`);
+              aiTutorService.deleteChatSession(sessionId).catch(() => {});
+            }
             handleNewChat();
           } catch (e) {
             console.error('Failed to delete chat session', e);
