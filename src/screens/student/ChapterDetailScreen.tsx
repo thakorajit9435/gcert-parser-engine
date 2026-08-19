@@ -27,7 +27,7 @@ import { useUserProgress } from '../../hooks/useUserProgress';
 import { updateChapterLastOpened, markChapterCompleted } from '../../services/firebase/progress.service';
 import { useBookmarks } from '../../hooks/useBookmarks';
 import { logAnalyticsEvent } from '../../services/analytics';
-import { Skeleton, AnimatedPressable } from '../../components/common';
+import { AnimatedPressable } from '../../components/common';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import firestore from '@react-native-firebase/firestore';
@@ -211,7 +211,6 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
     const [recording, setRecording] = useState(false);
     const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
-    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
     const flatListRef = useRef<FlatList>(null);
     const inputRef = useRef<TextInput>(null);
@@ -250,7 +249,6 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
     // Fetch dynamic questions from Firestore MCQs
     useEffect(() => {
         const fetchSuggestedQuestions = async () => {
-            setSuggestionsLoading(true);
             try {
                 const snap = await firestore()
                     .collection(COLLECTIONS.MCQS)
@@ -268,8 +266,6 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                 }
             } catch (err) {
                 console.warn('[ChapterDetailScreen] MCQs fetch error:', err);
-            } finally {
-                setSuggestionsLoading(false);
             }
         };
         fetchSuggestedQuestions();
@@ -785,63 +781,6 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         </View>
                     </View>
 
-                    {/* Chapter Questions Section ("AI ને પ્રશ્ન પૂછો") */}
-                    <View style={styles.questionsSection}>
-                        <View style={styles.questionsSectionHeader}>
-                            <View style={styles.qSectionIconWrap}>
-                                <Ionicons name="sparkles" size={16} color="#2563eb" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.questionsSectionTitle}>AI ને પ્રશ્ન પૂછો</Text>
-                                <Text style={styles.questionsSectionSub}>
-                                    {suggestionsLoading
-                                        ? 'પ્રશ્નો લોડ થઈ રહ્યા છે...'
-                                        : `📚 આ પ્રકરણના મહત્વના પ્રશ્નો — ક્લિક કરતાં જ AI ઉત્તર આપશે`
-                                    }
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Loading skeletons */}
-                        {suggestionsLoading ? (
-                            [1, 2, 3, 4].map((_, i) => (
-                                <View key={i} style={[styles.questionCard, { borderLeftColor: '#e2e8f0', opacity: 0.6 }]}>
-                                    <Skeleton width={42} height={42} borderRadius={10} />
-                                    <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
-                                        <Skeleton width="85%" height={14} borderRadius={4} />
-                                        <Skeleton width="55%" height={12} borderRadius={4} />
-                                    </View>
-                                </View>
-                            ))
-                        ) : (
-                            suggestedItems.map((item) => (
-                                <AnimatedPressable
-                                    key={item.key}
-                                    style={[styles.questionCard, { borderLeftColor: item.color }]}
-                                    onPress={() => handleQuestionPress(item)}
-                                    scaleTo={0.97}
-                                >
-                                    <View style={[styles.qIconBox, { backgroundColor: item.bgColor }]}>
-                                        <Text style={styles.qEmoji}>{item.icon}</Text>
-                                    </View>
-
-                                    <View style={styles.questionCardBody}>
-                                        <View style={[styles.qCategoryBadge, { backgroundColor: item.bgColor }]}>
-                                            <Text style={[styles.qCategoryText, { color: item.color }]}>{item.category}</Text>
-                                        </View>
-                                        <Text style={styles.questionCardText}>
-                                            {item.displayText}
-                                        </Text>
-                                    </View>
-
-                                    <View style={styles.qArrowWrap}>
-                                        <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                                    </View>
-                                </AnimatedPressable>
-                            ))
-                        )}
-                    </View>
-
                     {/* Mark Completed Button */}
                     {!isCompleted && (
                         <AnimatedPressable
@@ -866,9 +805,9 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
             {/* ─── TAB 2: AI CHAT ─── */}
             {activeTab === 'chat' && (
                 <KeyboardAvoidingView
-                    style={{ flex: 1, backgroundColor: '#F1F5F9' }}
+                    style={{ flex: 1 }}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
                 >
                     {/* Connection Error Banner */}
                     {sessionError && (
@@ -888,6 +827,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         contentContainerStyle={[styles.chatList, { flexGrow: 1 }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
                         renderItem={({ item, index }) => {
                             const isUser = item.role === 'user';
                             const isLast = index === messages.length - 1;
