@@ -1024,8 +1024,10 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             {activeTab === 'chat' && (
                 <KeyboardAvoidingView
                     style={{ flex: 1, backgroundColor: '#F0F4F8' }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={0}
+
+                // keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1093,7 +1095,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                                     activeOpacity={0.85}
                                                 >
                                                     <View style={styles.citationBadgeHeader}>
-                                                        <Ionicons name="book-open" size={14} color="#1d4ed8" />
+                                                        <Ionicons name="book" size={14} color="#1d4ed8" />
                                                         <Text style={styles.citationChapterName} numberOfLines={1}>
                                                             {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : (chapter.titleGu || chapter.title)}
                                                         </Text>
