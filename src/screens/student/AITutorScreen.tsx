@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -15,7 +14,6 @@ import {
   Animated,
   ScrollView,
   ActivityIndicator,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -29,7 +27,6 @@ import { useSubjects } from '../../hooks/useSubjects';
 import { studentColors, shadows } from '../../theme';
 import { aiTutorService } from '../../services/aiTutor.service';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
-import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
 const { width } = Dimensions.get('window');
 
@@ -426,7 +423,7 @@ const webViewHTML = `
 
 export function AITutorScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
   const { userProfile } = useAuth();
-  const { selectedStandard, setSelectedStandard } = useStandardContext();
+  const { selectedStandard } = useStandardContext();
   const initialSessionId = route.params?.sessionId;
   const initialSubject = route.params?.subject;
 
@@ -437,7 +434,6 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     initialSubject ? { id: initialSubject, name: initialSubject } : null
   );
 
-  const [standardModalVisible, setStandardModalVisible] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -671,11 +667,6 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     }
   };
 
-  const standardsList = Array.from(
-    { length: MAX_STANDARD - MIN_STANDARD + 1 },
-    (_, i) => MIN_STANDARD + i
-  );
-
   // Render a single chat bubble
   const renderMessageItem = ({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
@@ -802,12 +793,8 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </AnimatedPressable>
 
-          {/* Standard & Subject Switcher Pill */}
-          <AnimatedPressable
-            style={styles.headerSelectorPill}
-            onPress={() => setStandardModalVisible(true)}
-            scaleTo={0.95}
-          >
+          {/* AI identity & status info */}
+          <View style={styles.headerCenter}>
             <View style={styles.headerAvatarWrap}>
               <Text style={styles.headerAvatarEmoji}>🤖</Text>
               <View style={styles.onlineDot} />
@@ -820,10 +807,10 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
                 </View>
               </View>
               <Text style={styles.headerSub} numberOfLines={1}>
-                {activeSubject ? `${getSubjectEmoji(activeSubject.name)} ${activeSubject.nameGu || activeSubject.name}` : '🌟 બધા વિષયો'} ▼
+                {activeSubject ? `${getSubjectEmoji(activeSubject.name)} ${activeSubject.nameGu || activeSubject.name}` : '🌟 GCERT અભ્યાસ સાથી'}
               </Text>
             </View>
-          </AnimatedPressable>
+          </View>
 
           {/* Header Action Buttons */}
           <View style={styles.headerRight}>
@@ -1059,86 +1046,6 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
           </AnimatedPressable>
         </View>
 
-        {/* ── STANDARD SELECTOR MODAL ── */}
-        <Modal
-          visible={standardModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setStandardModalVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setStandardModalVisible(false)}>
-            <View style={styles.modalContentCard}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalHeaderTitle}>ધોરણ અને વિષય પસંદ કરો</Text>
-                <TouchableOpacity onPress={() => setStandardModalVisible(false)}>
-                  <Ionicons name="close-circle" size={24} color="#94a3b8" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalSectionLabel}>૧. ધોરણ (Standard):</Text>
-              <View style={styles.modalStdGrid}>
-                {standardsList.map(num => {
-                  const isSelected = String(num) === selectedStandard;
-                  return (
-                    <AnimatedPressable
-                      key={num}
-                      style={[styles.modalStdChip, isSelected && styles.modalStdChipActive]}
-                      onPress={() => setSelectedStandard(String(num))}
-                      scaleTo={0.92}
-                    >
-                      <Text style={[styles.modalStdText, isSelected && styles.modalStdTextActive]}>
-                        ધોરણ {num}
-                      </Text>
-                      {isSelected && <Ionicons name="checkmark" size={14} color="#fff" style={{ marginLeft: 2 }} />}
-                    </AnimatedPressable>
-                  );
-                })}
-              </View>
-
-              <Text style={[styles.modalSectionLabel, { marginTop: 14 }]}>૨. વિષય (Subject):</Text>
-              <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
-                <AnimatedPressable
-                  style={[styles.modalSubjectRow, !activeSubject && styles.modalSubjectRowActive]}
-                  onPress={() => {
-                    setActiveSubject(null);
-                    setStandardModalVisible(false);
-                  }}
-                  scaleTo={0.96}
-                >
-                  <Text style={styles.modalSubjectEmoji}>🌟</Text>
-                  <Text style={[styles.modalSubjectName, !activeSubject && styles.modalSubjectNameActive]}>
-                    બધા વિષયો (All Subjects)
-                  </Text>
-                  {!activeSubject && <Ionicons name="checkmark-circle" size={18} color="#2563eb" />}
-                </AnimatedPressable>
-
-                {subjects.map(s => {
-                  const isSelected = activeSubject?.id === s.id || activeSubject?.name === s.name;
-                  return (
-                    <AnimatedPressable
-                      key={s.id}
-                      style={[styles.modalSubjectRow, isSelected && styles.modalSubjectRowActive]}
-                      onPress={() => {
-                        setActiveSubject({ id: s.id, name: s.name, nameGu: s.nameGu });
-                        setStandardModalVisible(false);
-                      }}
-                      scaleTo={0.96}
-                    >
-                      <Text style={styles.modalSubjectEmoji}>
-                        {s.icon || getSubjectEmoji(s.name)}
-                      </Text>
-                      <Text style={[styles.modalSubjectName, isSelected && styles.modalSubjectNameActive]}>
-                        {s.nameGu ? `${s.nameGu} (${s.name})` : s.name}
-                      </Text>
-                      {isSelected && <Ionicons name="checkmark-circle" size={18} color="#2563eb" />}
-                    </AnimatedPressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Modal>
-
         {/* ── VOICE MODAL ── */}
         <Modal
           visible={voiceModalVisible}
@@ -1219,14 +1126,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerSelectorPill: {
+  headerCenter: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 24,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
     gap: 8,
   },
   headerAvatarWrap: {
@@ -1762,97 +1667,6 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: '#cbd5e1',
-  },
-
-  // ── Modal Styles ───────────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalContentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 18,
-    width: width * 0.9,
-    maxWidth: 400,
-    ...shadows.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 8,
-  },
-  modalHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  modalSectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 8,
-  },
-  modalStdGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  modalStdChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  modalStdChipActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#1d4ed8',
-  },
-  modalStdText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalStdTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  modalSubjectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
-  },
-  modalSubjectRowActive: {
-    backgroundColor: '#eff6ff',
-  },
-  modalSubjectEmoji: {
-    fontSize: 16,
-  },
-  modalSubjectName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  modalSubjectNameActive: {
-    color: '#1d4ed8',
-    fontWeight: '700',
   },
 
   // ── Voice Modal ────────────────────────────────────────────────
