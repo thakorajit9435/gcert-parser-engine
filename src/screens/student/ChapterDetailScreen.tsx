@@ -546,23 +546,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         });
     };
 
-    const openSwadhyayAction = () => {
-        const swadhyayUrl = chapter.swadhyayPdfUrl || chapter.pdfUrl;
-        if (swadhyayUrl) {
-            navigation.navigate('PdfViewer', {
-                url: swadhyayUrl,
-                title: `${chapter.titleGu || chapter.title} - Swadhyay`,
-                pdfId: `${chapter.id}_swadhyay`,
-                pdfType: 'swadhyay',
-                startPage: chapter.startPage,
-                endPage: chapter.endPage,
-                bookStartPage: chapter.bookStartPage
-            });
-        } else {
-            navigateToQuiz(false);
-        }
-    };
-
     // Camera Image Pick
     const handlePickImage = async () => {
         try {
@@ -926,60 +909,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 </TouchableOpacity>
                             ))
                         )}
-                    </View>
-
-                    {/* Self-Assessment */}
-                    <View style={styles.practiceSection}>
-                        <Text style={styles.practiceTitle}>📋 સ્વ-મૂલ્યાંકન (Quiz & Practice)</Text>
-                        <View style={styles.practiceGrid}>
-                            <TouchableOpacity
-                                style={[styles.practiceCard, { borderLeftColor: '#3b82f6' }]}
-                                onPress={() => navigateToQuiz(false)}
-                            >
-                                <Text style={styles.practiceIcon}>❓</Text>
-                                <View style={styles.practiceInfo}>
-                                    <Text style={styles.practiceCardTitle}>MCQ Quiz (ક્વિઝ)</Text>
-                                    <Text style={styles.practiceCardSub}>બહુ-વિકલ્પ પ્રશ્નોની પ્રેક્ટિસ</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.practiceCard, { borderLeftColor: '#a855f7' }]}
-                                onPress={() => navigateToQuiz(true)}
-                            >
-                                <Text style={styles.practiceIcon}>🔀</Text>
-                                <View style={styles.practiceInfo}>
-                                    <Text style={styles.practiceCardTitle}>Mixed Quiz (મિક્સ ક્વિઝ)</Text>
-                                    <Text style={styles.practiceCardSub}>મિશ્રિત પ્રશ્નોત્તરી</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.practiceCard, { borderLeftColor: '#ec4899' }]}
-                                onPress={openSwadhyayAction}
-                            >
-                                <Text style={styles.practiceIcon}>📝</Text>
-                                <View style={styles.practiceInfo}>
-                                    <Text style={styles.practiceCardTitle}>Swadhyay (સ્વાધ્યાય)</Text>
-                                    <Text style={styles.practiceCardSub}>પ્રકરણનો સત્તાવાર સ્વાધ્યાય</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.practiceCard, { borderLeftColor: '#f59e0b' }]}
-                                onPress={() => navigation.navigate('StudentFlashcards', { chapterId: chapter.id, chapterTitle })}
-                            >
-                                <Text style={styles.practiceIcon}>⚡</Text>
-                                <View style={styles.practiceInfo}>
-                                    <Text style={styles.practiceCardTitle}>Flashcards (ફ્લૅશકાર્ડ)</Text>
-                                    <Text style={styles.practiceCardSub}>ઝડપી રિવિઝન</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-                            </TouchableOpacity>
-                        </View>
                     </View>
 
                     {/* Mark Completed */}
@@ -1635,50 +1564,6 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-
-    // ── Practice Section ──────────────────────────────────────────
-    practiceSection: {
-        marginTop: 8,
-        marginHorizontal: 16,
-        marginBottom: 12,
-    },
-    practiceTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 10,
-    },
-    practiceGrid: {
-        gap: 8,
-    },
-    practiceCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderLeftWidth: 4,
-        borderRadius: 14,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        ...shadows.sm,
-    },
-    practiceIcon: {
-        fontSize: 20,
-        marginRight: 12,
-    },
-    practiceInfo: {
-        flex: 1,
-    },
-    practiceCardTitle: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#374151',
-    },
-    practiceCardSub: {
-        fontSize: 11,
-        color: '#6b7280',
-        marginTop: 2,
     },
 
     // ── Mark Completed ─────────────────────────────────────────────
