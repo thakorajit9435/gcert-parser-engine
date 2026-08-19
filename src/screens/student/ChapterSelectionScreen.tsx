@@ -64,22 +64,28 @@ export function ChapterSelectionScreen({ route, navigation }: { route: any; navi
                     data={chapters}
                     keyExtractor={item => item.id}
                     contentContainerStyle={styles.listContent}
-                    renderItem={({ item, index }) => (
-                        <TouchableOpacity
-                            style={styles.chapterCard}
-                            activeOpacity={0.7}
-                            onPress={() => handleChapterSelect(item.id)}
-                        >
-                            <View style={styles.chapterNumber}>
-                                <Text style={styles.chapterNumberText}>{index + 1}</Text>
-                            </View>
-                            <View style={styles.chapterInfo}>
-                                <Text style={styles.chapterTitle}>{item.title}</Text>
-                                <Text style={styles.chapterTitleGu}>{item.titleGu}</Text>
-                            </View>
-                            <Text style={styles.chevron}>›</Text>
-                        </TouchableOpacity>
-                    )}
+                    renderItem={({ item, index }) => {
+                        const mainTitle = item.titleGu || item.title;
+                        const subTitle = item.titleGu && item.title !== item.titleGu ? item.title : '';
+                        return (
+                            <TouchableOpacity
+                                style={styles.chapterCard}
+                                activeOpacity={0.7}
+                                onPress={() => handleChapterSelect(item.id)}
+                            >
+                                <View style={styles.chapterNumber}>
+                                    <Text style={styles.chapterNumberText}>{index + 1}</Text>
+                                </View>
+                                <View style={styles.chapterInfo}>
+                                    <Text style={styles.chapterTitle}>{mainTitle}</Text>
+                                    {subTitle ? (
+                                        <Text style={styles.chapterTitleGu}>{subTitle}</Text>
+                                    ) : null}
+                                </View>
+                                <Text style={styles.chevron}>›</Text>
+                            </TouchableOpacity>
+                        );
+                    }}
                 />
             )}
 

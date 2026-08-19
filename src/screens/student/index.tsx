@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
     View,
@@ -22,7 +22,8 @@ import { useUserProgress } from '../../hooks/useUserProgress';
 import { useBookmarks } from '../../hooks/useBookmarks';
 import { useStandardContext } from '../../context/StandardContext';
 import { LeaderboardEntry, UserBookmark } from '../../types';
-import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
+import { MIN_STANDARD, MAX_STANDARD, COLLECTIONS } from '../../constants';
+import firestore from '@react-native-firebase/firestore';
 import { EmptyState, SubjectCardSkeleton, ChapterCardSkeleton, AnimatedPressable } from '../../components/common';
 import { logAnalyticsEvent } from '../../services/analytics';
 
@@ -493,6 +494,50 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
     const { isBookmarked, toggle: toggleBookmark } = useBookmarks(userProfile?.uid);
     const isPremium = userProfile?.premium ?? false;
     const [bookmarkLoadingMap, setBookmarkLoadingMap] = useState<{ [chapterId: string]: boolean }>({});
+    const [chapterCounts, setChapterCounts] = useState<{ [subjectId: string]: number }>({});
+
+    // Live real chapter counts per subject for current standard
+    useEffect(() => {
+        if (!effectiveStandardId) return;
+
+        const rawStr = String(effectiveStandardId).trim();
+        const numericStr = rawStr.replace(/[^0-9]/g, '');
+        const possibleIds = Array.from(
+            new Set(
+                [
+                    rawStr,
+                    numericStr,
+                    numericStr ? Number(numericStr) : null,
+                    numericStr ? `std_${numericStr}` : null,
+                ].filter((val): val is string | number => val !== null && val !== '')
+            )
+        );
+
+        const unsub = firestore()
+            .collection(COLLECTIONS.CHAPTERS)
+            .where('standardId', 'in', possibleIds.slice(0, 10))
+            .onSnapshot(
+                snapshot => {
+                    if (!snapshot || snapshot.empty) {
+                        setChapterCounts({});
+                        return;
+                    }
+                    const counts: { [subjectId: string]: number } = {};
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        if (data.isDeleted === true) return;
+                        const subId = data.subjectId;
+                        if (subId) {
+                            counts[subId] = (counts[subId] || 0) + 1;
+                        }
+                    });
+                    setChapterCounts(counts);
+                },
+                err => console.log('Chapter count snapshot notice:', err.message)
+            );
+
+        return () => unsub();
+    }, [effectiveStandardId]);
 
     const handleToggleBookmark = async (chapterItem: any) => {
         if (!userProfile?.uid || bookmarkLoadingMap[chapterItem.id]) return;
@@ -503,7 +548,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                 standardName: `Std ${effectiveStandardId}`,
                 subjectId: subjectId,
                 subjectName: subjectName,
-                chapterTitle: chapterItem.title,
+                chapterTitle: chapterItem.titleGu || chapterItem.title,
             });
         } catch (err) {
             console.error('Failed to toggle bookmark:', err);
@@ -539,46 +584,51 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                         maxToRenderPerBatch={8}
                         windowSize={5}
                         removeClippedSubviews={true}
-                        renderItem={({ item }) => (
-                            <AnimatedPressable
-                                style={styles.subjectListCard}
-                                onPress={() => {
-                                    logAnalyticsEvent('subject_open', {
-                                        subject_id: item.id,
-                                        subject_name: item.name,
-                                        standard_id: effectiveStandardId,
-                                    });
-                                    if (route.params?.sessionType === 'mcq') {
-                                        navigation.push('SubjectMCQScreen', {
-                                            subjectId: item.id,
-                                            subjectName: item.name,
-                                            standardId: effectiveStandardId,
-                                            session: session || '1',
-                                            sessionTitle: route.params?.sessionTitle
+                        renderItem={({ item }) => {
+                            const chCount = chapterCounts[item.id] ?? (item as any).totalChapters ?? (item as any).chaptersCount ?? 0;
+                            return (
+                                <AnimatedPressable
+                                    style={styles.subjectListCard}
+                                    onPress={() => {
+                                        logAnalyticsEvent('subject_open', {
+                                            subject_id: item.id,
+                                            subject_name: item.name,
+                                            standard_id: effectiveStandardId,
                                         });
-                                    } else {
-                                        navigation.push('SubjectAndChapterList', { subjectId: item.id, subjectName: item.name });
-                                    }
-                                }}
-                                scaleTo={0.97}
-                            >
-                                <View style={styles.subjectListIcon}>
-                                    <Text style={styles.subjectListEmoji}>
-                                        {item.icon || SUBJECT_ICONS[item.name] || SUBJECT_ICONS.default}
-                                    </Text>
-                                </View>
-                                <View style={styles.subjectListInfo}>
-                                    <Text style={styles.subjectListName}>{item.name}</Text>
-                                    <View style={styles.subjectMetaRow}>
-                                        <Text style={styles.subjectListNameGu}>{item.nameGu}</Text>
-                                        <View style={styles.subjectBadge}>
-                                            <Text style={styles.subjectBadgeText}>{item.name.length + 5} Chapters</Text>
+                                        if (route.params?.sessionType === 'mcq') {
+                                            navigation.push('SubjectMCQScreen', {
+                                                subjectId: item.id,
+                                                subjectName: item.name,
+                                                standardId: effectiveStandardId,
+                                                session: session || '1',
+                                                sessionTitle: route.params?.sessionTitle
+                                            });
+                                        } else {
+                                            navigation.push('SubjectAndChapterList', { subjectId: item.id, subjectName: item.name });
+                                        }
+                                    }}
+                                    scaleTo={0.97}
+                                >
+                                    <View style={styles.subjectListIcon}>
+                                        <Text style={styles.subjectListEmoji}>
+                                            {item.icon || SUBJECT_ICONS[item.name] || SUBJECT_ICONS.default}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.subjectListInfo}>
+                                        <Text style={styles.subjectListName}>{item.nameGu || item.name}</Text>
+                                        <View style={styles.subjectMetaRow}>
+                                            {item.nameGu && item.name !== item.nameGu ? (
+                                                <Text style={styles.subjectListNameGu}>{item.name}</Text>
+                                            ) : null}
+                                            <View style={styles.subjectBadge}>
+                                                <Text style={styles.subjectBadgeText}>{chCount} {chCount === 1 ? 'પ્રકરણ' : 'પ્રકરણો'}</Text>
+                                            </View>
                                         </View>
                                     </View>
-                                </View>
-                                <Text style={styles.chevron}>›</Text>
-                            </AnimatedPressable>
-                        )}
+                                    <Text style={styles.chevron}>›</Text>
+                                </AnimatedPressable>
+                            );
+                        }}
                     />
                 )}
             </View>
@@ -589,7 +639,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
         <View style={styles.container}>
             <View style={styles.chapterHeader}>
                 <Text style={styles.chapterHeaderTitle}>{subjectName}</Text>
-                <Text style={styles.chapterHeaderSub}>{chapterList.length} chapters</Text>
+                <Text style={styles.chapterHeaderSub}>{chapterList.length} પ્રકરણો</Text>
             </View>
 
             {chaptersLoading ? (
@@ -616,6 +666,9 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                     renderItem={({ item, index }: { item: any; index: number }) => {
                         const locked = item.isPremium && !isPremium;
                         const bookmarked = isBookmarked(item.id);
+                        const mainTitle = item.titleGu || item.title;
+                        const subTitle = item.titleGu && item.title !== item.titleGu ? item.title : '';
+
                         return (
                             <View
                                 style={[styles.chapterCard, locked && styles.chapterCardLocked, item.isCompleted && styles.chapterCardCompleted]}
@@ -637,7 +690,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                     <View style={styles.chapterInfo}>
                                         <View style={styles.chapterTitleRow}>
                                             <Text style={[styles.chapterTitle, locked && styles.chapterTitleLocked]} numberOfLines={1}>
-                                                {item.title}
+                                                {mainTitle}
                                             </Text>
                                             {item.lastOpenedAt && !item.isCompleted && (
                                                 <View style={styles.recentBadge}>
@@ -645,7 +698,9 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                                 </View>
                                             )}
                                         </View>
-                                        <Text style={styles.chapterTitleGu}>{item.titleGu}</Text>
+                                        {subTitle ? (
+                                            <Text style={styles.chapterTitleGu}>{subTitle}</Text>
+                                        ) : null}
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' }}>
                                             {item.startPage !== undefined && item.startPage !== null ? (
                                                 <View style={styles.pageBadge}>
