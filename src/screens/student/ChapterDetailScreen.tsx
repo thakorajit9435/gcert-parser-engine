@@ -1045,7 +1045,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     style={styles.chatContainer}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-                    enabled
+                    enabled={Platform.OS === 'ios'}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
