@@ -28,7 +28,7 @@ import { updateChapterLastOpened, markChapterCompleted } from '../../services/fi
 import { useBookmarks } from '../../hooks/useBookmarks';
 import { PremiumModal } from '../../components/student/PremiumModal';
 import { logAnalyticsEvent } from '../../services/analytics';
-import { Skeleton } from '../../components/common';
+import { Skeleton, AnimatedPressable } from '../../components/common';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import firestore from '@react-native-firebase/firestore';
@@ -817,30 +817,30 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
                     {/* Quick Action Buttons */}
                     <View style={styles.quickActionRow}>
-                        <TouchableOpacity style={styles.quickActionBtn} onPress={openPDF}>
+                        <AnimatedPressable style={styles.quickActionBtn} onPress={openPDF} scaleTo={0.92}>
                             <View style={[styles.quickActionIcon, { backgroundColor: '#eff6ff' }]}>
                                 <Ionicons name="book-outline" size={20} color="#3b82f6" />
                             </View>
                             <Text style={styles.quickActionText}>Textbook</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionBtn} onPress={() => setNotesModalVisible(true)}>
+                        </AnimatedPressable>
+                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => setNotesModalVisible(true)} scaleTo={0.92}>
                             <View style={[styles.quickActionIcon, { backgroundColor: '#fdf4ff' }]}>
                                 <Ionicons name="document-text-outline" size={20} color="#a855f7" />
                             </View>
                             <Text style={styles.quickActionText}>My Notes</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionBtn} onPress={() => navigateToQuiz(false)}>
+                        </AnimatedPressable>
+                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => navigateToQuiz(false)} scaleTo={0.92}>
                             <View style={[styles.quickActionIcon, { backgroundColor: '#f0fdf4' }]}>
                                 <Ionicons name="trophy-outline" size={20} color="#22c55e" />
                             </View>
                             <Text style={styles.quickActionText}>MCQ Quiz</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionBtn} onPress={() => navigation.navigate('StudentFlashcards', { chapterId: chapter.id, chapterTitle })}>
+                        </AnimatedPressable>
+                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => navigation.navigate('StudentFlashcards', { chapterId: chapter.id, chapterTitle })} scaleTo={0.92}>
                             <View style={[styles.quickActionIcon, { backgroundColor: '#fff7ed' }]}>
                                 <Ionicons name="flash-outline" size={20} color="#f59e0b" />
                             </View>
                             <Text style={styles.quickActionText}>Flashcards</Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     </View>
 
                     {/* Chapter Questions Section */}
@@ -877,11 +877,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             ))
                         ) : (
                             suggestedItems.map((item, idx) => (
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     key={item.key}
                                     style={[styles.questionCard, { borderLeftColor: item.color }]}
                                     onPress={() => handleQuestionPress(item)}
-                                    activeOpacity={0.7}
+                                    scaleTo={0.97}
                                 >
                                     {/* Number badge */}
                                     <View style={[styles.qNumBadge, { backgroundColor: item.bgColor }]}>
@@ -906,17 +906,18 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                     <View style={styles.qArrowWrap}>
                                         <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
                                     </View>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
                             ))
                         )}
                     </View>
 
                     {/* Mark Completed */}
                     {!isCompleted && (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             style={styles.markCompletedBtn}
                             onPress={handleMarkCompleted}
                             disabled={updating}
+                            scaleTo={0.96}
                         >
                             {updating ? (
                                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -926,7 +927,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                     <Text style={styles.markCompletedText}>Mark Chapter as Completed</Text>
                                 </>
                             )}
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     )}
                 </ScrollView>
             )}

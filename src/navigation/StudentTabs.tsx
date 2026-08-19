@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { studentColors, typography } from '../theme';
 import { useAuthContext } from '../context/AuthContext';
+import { AnimatedPressable } from '../components/common/AnimatedPressable';
 import { subscribeToUserNotifications, subscribeToReadStatus } from '../services/firebase/notifications.service';
 import { StudentNotificationsScreen } from '../screens/student/StudentNotificationsScreen';
 import { NotificationDetailScreen } from '../screens/student/NotificationDetailScreen';
@@ -80,16 +81,52 @@ const Stack = createStackNavigator<StudentRootParamList>();
 const Tab = createBottomTabNavigator<StudentTabParamList>();
 
 function TabIcon({ name, focused, color, size }: { name: string, focused: boolean, color: string, size: number }) {
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: withSpring(focused ? 1.2 : 1) }],
-        };
-    });
+    const scale = useSharedValue(focused ? 1.15 : 1);
+    const translateY = useSharedValue(focused ? -2 : 0);
+
+    useEffect(() => {
+        scale.value = withSpring(focused ? 1.18 : 1, { damping: 11, stiffness: 220 });
+        translateY.value = withSpring(focused ? -2 : 0, { damping: 12, stiffness: 200 });
+    }, [focused, scale, translateY]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [
+            { scale: scale.value },
+            { translateY: translateY.value },
+        ],
+    }));
 
     return (
         <Animated.View style={animatedStyle}>
             <Ionicons name={name} size={size} color={color} />
         </Animated.View>
+    );
+}
+
+function AnimatedTabBarButton(props: any): React.JSX.Element {
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    return (
+        <Pressable
+            {...props}
+            onPressIn={(e: any) => {
+                scale.value = withSpring(0.90, { damping: 12, stiffness: 350 });
+                props.onPressIn?.(e);
+            }}
+            onPressOut={(e: any) => {
+                scale.value = withSpring(1, { damping: 10, stiffness: 250 });
+                props.onPressOut?.(e);
+            }}
+            style={[props.style, { flex: 1 }]}
+        >
+            <Animated.View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center' }, animatedStyle]}>
+                {props.children}
+            </Animated.View>
+        </Pressable>
     );
 }
 
@@ -131,10 +168,11 @@ function NotificationBell({ navigation }: { navigation: any }): React.JSX.Elemen
     }, [user?.uid, userData?.standard]);
 
     return (
-        <TouchableOpacity
+        <AnimatedPressable
             onPress={() => navigation.navigate('NotificationsInbox')}
             style={tabStyles.bellButton}
             accessibilityLabel="Notifications"
+            scaleTo={0.88}
         >
             <Ionicons name="notifications-outline" size={24} color={studentColors.textPrimary} />
             {unreadCount > 0 && (
@@ -144,7 +182,7 @@ function NotificationBell({ navigation }: { navigation: any }): React.JSX.Elemen
                     </Text>
                 </View>
             )}
-        </TouchableOpacity>
+        </AnimatedPressable>
     );
 }
 
@@ -168,6 +206,7 @@ function StudentTabNavigator(): React.JSX.Element {
                     fontSize: typography.size.xs,
                     fontWeight: typography.weight.medium,
                 },
+                tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
             }}
         >
             <Tab.Screen

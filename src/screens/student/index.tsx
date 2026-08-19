@@ -23,7 +23,7 @@ import { useBookmarks } from '../../hooks/useBookmarks';
 import { useStandardContext } from '../../context/StandardContext';
 import { LeaderboardEntry, UserBookmark } from '../../types';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
-import { EmptyState, SubjectCardSkeleton, ChapterCardSkeleton } from '../../components/common';
+import { EmptyState, SubjectCardSkeleton, ChapterCardSkeleton, AnimatedPressable } from '../../components/common';
 import { logAnalyticsEvent } from '../../services/analytics';
 
 const SUBJECT_ICONS: Record<string, string> = {
@@ -121,10 +121,10 @@ const DailyChallengeBanner = React.memo(function DailyChallengeBanner({ navigati
     }
 
     return (
-        <TouchableOpacity
+        <AnimatedPressable
             style={styles.dailyQuizCard}
-            activeOpacity={0.8}
             onPress={() => navigation.navigate('Quiz', { quizId: quiz.id })}
+            scaleTo={0.97}
         >
             <View style={styles.dailyQuizLeft}>
                 <Text style={styles.dailyQuizEmoji}>⚡</Text>
@@ -134,7 +134,7 @@ const DailyChallengeBanner = React.memo(function DailyChallengeBanner({ navigati
                 <Text style={styles.dailyQuizSub} numberOfLines={1}>{quiz.title}</Text>
             </View>
             <Text style={styles.dailyQuizArrow}>→</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
     );
 });
 
@@ -222,10 +222,9 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
                 {bookmarks.slice(0, 5).map(bm => {
                     const { setSelectedStandard } = useStandardContext();
                     return (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             key={bm.id}
                             style={styles.bookmarkCardHorizontal}
-                            activeOpacity={0.7}
                             onPress={() => {
                                 if (bm.standardId) {
                                     setSelectedStandard(bm.standardId);
@@ -239,6 +238,7 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
                                 });
                                 navigation.navigate('ChapterDetail', { chapterId: bm.chapterId });
                             }}
+                            scaleTo={0.96}
                         >
                             <View style={styles.bookmarkIconRow}>
                                 <View style={styles.bookmarkIconHorizontal}>
@@ -257,7 +257,7 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
                                     <Text style={styles.bookmarkOpenBadgeText}>Open</Text>
                                 </View>
                             </View>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     );
                 })}
             </ScrollView>
@@ -278,15 +278,15 @@ const QuickAccessCards = React.memo(function QuickAccessCards({ navigation, stan
     return (
         <View style={styles.quickAccessRow}>
             {items.map(item => (
-                <TouchableOpacity
+                <AnimatedPressable
                     key={item.label}
                     style={styles.quickAccessCard}
-                    activeOpacity={0.7}
                     onPress={() => navigation.navigate(item.route, item.params)}
+                    scaleTo={0.93}
                 >
                     <Text style={styles.quickAccessEmoji}>{item.emoji}</Text>
                     <Text style={styles.quickAccessLabel}>{item.label}</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
             ))}
         </View>
     );
@@ -470,7 +470,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                         windowSize={5}
                         removeClippedSubviews={true}
                         renderItem={({ item }) => (
-                            <TouchableOpacity
+                            <AnimatedPressable
                                 style={styles.subjectListCard}
                                 onPress={() => {
                                     logAnalyticsEvent('subject_open', {
@@ -490,7 +490,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                         navigation.push('SubjectAndChapterList', { subjectId: item.id, subjectName: item.name });
                                     }
                                 }}
-                                activeOpacity={0.7}
+                                scaleTo={0.97}
                             >
                                 <View style={styles.subjectListIcon}>
                                     <Text style={styles.subjectListEmoji}>
@@ -507,7 +507,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                     </View>
                                 </View>
                                 <Text style={styles.chevron}>›</Text>
-                            </TouchableOpacity>
+                            </AnimatedPressable>
                         )}
                     />
                 )}
@@ -550,9 +550,8 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                             <View
                                 style={[styles.chapterCard, locked && styles.chapterCardLocked, item.isCompleted && styles.chapterCardCompleted]}
                             >
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                                    activeOpacity={0.7}
                                     onPress={() => {
                                         if (locked) {
                                             navigation.navigate('PremiumAccess');
@@ -560,6 +559,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             navigation.navigate('ChapterDetail', { chapterId: item.id });
                                         }
                                     }}
+                                    scaleTo={0.97}
                                 >
                                     <View style={[styles.chapterNumber, item.isCompleted && styles.chapterNumberCompleted]}>
                                         <Text style={[styles.chapterNumberText, item.isCompleted && styles.chapterNumberTextCompleted]}>{index + 1}</Text>
@@ -589,7 +589,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             ) : null}
                                         </View>
                                     </View>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
 
                                 {/* Right Side Actions (Bookmark + Status) */}
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginLeft: spacing.xs }}>

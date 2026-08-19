@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-    TouchableOpacity,
     Text,
     StyleSheet,
     ActivityIndicator,
@@ -8,6 +7,7 @@ import {
     TextStyle,
 } from 'react-native';
 import { adminColors, typography, spacing, borderRadius } from '../../theme';
+import { AnimatedPressable } from './AnimatedPressable';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -25,7 +25,7 @@ interface ButtonProps {
 }
 
 /**
- * Reusable styled button with variants and loading state.
+ * Reusable styled button with variants, spring scale animation, and loading state.
  */
 export function Button({
     title,
@@ -41,7 +41,7 @@ export function Button({
     const isDisabled = disabled || loading;
 
     return (
-        <TouchableOpacity
+        <AnimatedPressable
             style={[
                 styles.base,
                 variantStyles[variant],
@@ -51,7 +51,7 @@ export function Button({
             ]}
             onPress={onPress}
             disabled={isDisabled}
-            activeOpacity={0.7}
+            scaleTo={0.96}
         >
             {loading ? (
                 <ActivityIndicator
@@ -73,7 +73,7 @@ export function Button({
                     </Text>
                 </>
             )}
-        </TouchableOpacity>
+        </AnimatedPressable>
     );
 }
 

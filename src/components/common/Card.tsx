@@ -1,18 +1,20 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { adminColors, spacing, borderRadius, shadows } from '../../theme';
+import { AnimatedPressable } from './AnimatedPressable';
 
 interface CardProps {
     children: React.ReactNode;
     style?: ViewStyle;
     elevated?: boolean;
+    onPress?: () => void;
 }
 
 /**
- * Reusable card container with dark theme styling.
+ * Reusable card container with dark theme styling and spring press animation when clickable.
  */
-export function Card({ children, style, elevated = false }: CardProps): React.JSX.Element {
-    return (
+export function Card({ children, style, elevated = false, onPress }: CardProps): React.JSX.Element {
+    const cardContent = (
         <View
             style={[
                 styles.card,
@@ -24,6 +26,16 @@ export function Card({ children, style, elevated = false }: CardProps): React.JS
             {children}
         </View>
     );
+
+    if (onPress) {
+        return (
+            <AnimatedPressable onPress={onPress} scaleTo={0.97}>
+                {cardContent}
+            </AnimatedPressable>
+        );
+    }
+
+    return cardContent;
 }
 
 const styles = StyleSheet.create({

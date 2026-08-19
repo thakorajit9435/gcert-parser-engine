@@ -20,3 +20,4 @@ export {
   DashboardStatSkeleton,
   PDFLoadingSkeleton,
 } from './SkeletonLoaders';
+export { AnimatedPressable } from './AnimatedPressable';
