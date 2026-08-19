@@ -590,7 +590,10 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
         }));
 
     return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
             {/* Header with Safe Area */}
             <SafeAreaView edges={['top']} style={{ backgroundColor: '#1d4ed8' }}>
                 <View style={styles.header}>
@@ -804,11 +807,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
 
             {/* ─── TAB 2: AI CHAT ─── */}
             {activeTab === 'chat' && (
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-                >
+                <View style={{ flex: 1 }}>
                     {/* Connection Error Banner */}
                     {sessionError && (
                         <View style={styles.sessionErrorBanner}>
@@ -1006,7 +1005,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             <Ionicons name="send" size={17} color="#FFFFFF" />
                         </AnimatedPressable>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             )}
 
             {/* Chapter Notes Bottom Sheet Modal */}
@@ -1030,11 +1029,12 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         </View>
                         <TextInput
                             style={styles.notesInput}
-                            multiline
                             placeholder="આ પ્રકરણ વાંચતી વખતે અગત્યના મુદ્દા અહીં નોંધો..."
                             placeholderTextColor="#94a3b8"
+                            multiline
                             value={chapterNotes}
                             onChangeText={saveChapterNotes}
+                            textAlignVertical="top"
                         />
                         <AnimatedPressable style={styles.saveNotesBtn} onPress={() => setNotesModalVisible(false)} scaleTo={0.96}>
                             <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
@@ -1091,7 +1091,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                 javaScriptEnabled={true}
                 style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
             />
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -1099,7 +1099,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F1F5F9',
+        backgroundColor: '#F8FAFC',
     },
     loadingContainer: {
         flex: 1,

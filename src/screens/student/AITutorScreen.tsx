@@ -583,7 +583,10 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#1d4ed8' }}>
         {/* ── HEADER ── */}
         <View style={styles.header}>
@@ -682,11 +685,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      <View style={{ flex: 1 }}>
         {/* ── MESSAGES LIST ── */}
         <FlatList
           ref={flatListRef}
@@ -921,8 +920,8 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
           javaScriptEnabled={true}
           style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
         />
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
