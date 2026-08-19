@@ -13,7 +13,6 @@ import {
     Platform,
     Modal,
     Image,
-    InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -197,23 +196,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     const inputRef = useRef<TextInput>(null);
     const webViewRef = useRef<any>(null);
     const sessionPromiseRef = useRef<Promise<string> | null>(null);
-
-    // Auto-focus input and open keyboard when switching to AI Chat tab after interactions complete
-    useEffect(() => {
-        if (activeTab === 'chat') {
-            let timeoutId: any;
-            const task = InteractionManager.runAfterInteractions(() => {
-                timeoutId = setTimeout(() => {
-                    inputRef.current?.focus();
-                }, 100);
-            });
-            return () => {
-                task.cancel();
-                if (timeoutId) clearTimeout(timeoutId);
-            };
-        }
-        return undefined;
-    }, [activeTab]);
 
     // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
@@ -1024,10 +1006,8 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             {activeTab === 'chat' && (
                 <KeyboardAvoidingView
                     style={{ flex: 1, backgroundColor: '#F0F4F8' }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={0}
-
-                // keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1058,7 +1038,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         ref={flatListRef}
                         data={messages}
                         keyExtractor={item => item.id}
-                        contentContainerStyle={[styles.chatList, { paddingBottom: 16 }]}
+                        contentContainerStyle={[styles.chatList, { flexGrow: 1 }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="on-drag"
@@ -1126,6 +1106,32 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 </View>
                             );
                         }}
+                        ListEmptyComponent={
+                            <View style={styles.emptyChat}>
+                                <View style={styles.emptyChatIconBg}>
+                                    <Text style={styles.emptyChatEmoji}>🤖</Text>
+                                </View>
+                                <Text style={styles.emptyChatTitle}>AI ડાઉટ સોલ્વર — {chapterTitle}</Text>
+                                <Text style={styles.emptyChatSub}>
+                                    આ પ્રકરણમાંથી કોઈપણ પ્રશ્ન પૂછો.{'\n'}
+                                    નીચે ટાઇપ કરો, માઇકથી બોલો અથવા ફોટો પાડો!
+                                </Text>
+                                <Text style={styles.emptyQuickTitle}>ઝડપી પ્રશ્નો 👇</Text>
+                                <View style={styles.emptyChipsGrid}>
+                                    {suggestedItems.map((q: any, idx: number) => (
+                                        <TouchableOpacity
+                                            key={q.key || idx}
+                                            style={styles.emptyChip}
+                                            onPress={() => handleQuestionPress(q)}
+                                            activeOpacity={0.75}
+                                        >
+                                            <Text style={styles.emptyChipIcon}>{q.icon}</Text>
+                                            <Text style={styles.emptyChipText} numberOfLines={1}>{q.displayText}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        }
                     />
 
                     {/* Typing indicator */}
@@ -1701,7 +1707,7 @@ const styles = StyleSheet.create({
     chatList: {
         paddingHorizontal: 12,
         paddingTop: 12,
-        paddingBottom: 8,
+        paddingBottom: 0,
     },
     msgRow: {
         flexDirection: 'row',
@@ -1870,6 +1876,42 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginLeft: 5,
     },
+    emptyQuickTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#374151',
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+        marginTop: 6,
+    },
+    emptyChipsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        justifyContent: 'flex-start',
+    },
+    emptyChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#dbeafe',
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        gap: 6,
+        maxWidth: '100%',
+        ...shadows.sm,
+    },
+    emptyChipIcon: {
+        fontSize: 14,
+    },
+    emptyChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: studentColors.secondary,
+        maxWidth: 240,
+    },
 
     // ── Image Preview ─────────────────────────────────────────────
     imagePreviewRow: {
@@ -1905,11 +1947,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 8,
+        paddingTop: 4,
+        paddingBottom: 4,
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#e2e8f0',
         gap: 6,
+        // flexDirection: 'row',
+        // alignItems: 'center',
+        // paddingHorizontal: 10,
+        // paddingVertical: 8,
+        // backgroundColor: '#FFFFFF',
+        // borderTopWidth: 1,
+        // borderTopColor: '#e2e8f0',
+        // gap: 6,
     },
     inputActionBtn: {
         width: 38,
@@ -1927,12 +1978,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#f0f4f8',
         borderRadius: 22,
         paddingHorizontal: 14,
-        paddingVertical: 9,
+        paddingVertical: 6,
         fontSize: 14,
         color: '#1f2937',
+        minHeight: 40,
         maxHeight: 100,
         borderWidth: 1,
         borderColor: '#e2e8f0',
+        textAlignVertical: 'center',
     },
     chatSendBtn: {
         width: 40,
