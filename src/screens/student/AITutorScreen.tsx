@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Dimensions,
   Animated,
   ScrollView,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -23,8 +25,11 @@ import { WebView } from 'react-native-webview';
 import firestore from '@react-native-firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
 import { useStandardContext } from '../../context/StandardContext';
+import { useSubjects } from '../../hooks/useSubjects';
 import { studentColors, shadows } from '../../theme';
 import { aiTutorService } from '../../services/aiTutor.service';
+import { AnimatedPressable } from '../../components/common/AnimatedPressable';
+import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
 const { width } = Dimensions.get('window');
 
@@ -41,12 +46,351 @@ interface Message {
   }[];
 }
 
-// Quick suggestion chips shown in empty state
-const QUICK_SUGGESTIONS = [
-  { icon: '📖', text: 'પ્રકરણ સારાંશ આપો' },
-  { icon: '❓', text: 'MCQ પ્રશ્ન બનાવો' },
-  { icon: '💡', text: 'સમજૂતી આપો' },
-  { icon: '🧪', text: 'ઉદાહરણ સાથે સમજાવો' },
+interface SuggestionCardItem {
+  id: string;
+  icon: string;
+  category: string;
+  color: string;
+  bg: string;
+  title: string;
+  prompt: string;
+}
+
+const SUBJECT_EMOJIS: Record<string, string> = {
+  mathematics: '📐',
+  maths: '📐',
+  math: '📐',
+  ગણિત: '📐',
+  science: '🔬',
+  વિજ્ઞાન: '🔬',
+  english: '📖',
+  અંગ્રેજી: '📖',
+  hindi: '📝',
+  હિન્દી: '📝',
+  gujarati: '🔤',
+  ગુજરાતી: '🔤',
+  'social science': '🌍',
+  'સામાજિક વિજ્ઞાન': '🌍',
+  socialscience: '🌍',
+  computer: '💻',
+  કમ્પ્યુટર: '💻',
+  sanskrit: '📜',
+  સંસ્કૃત: '📜',
+  default: '📚',
+};
+
+const getSubjectEmoji = (name?: string) => {
+  if (!name) return '📚';
+  const clean = name.toLowerCase().trim();
+  for (const key of Object.keys(SUBJECT_EMOJIS)) {
+    if (clean.includes(key)) return SUBJECT_EMOJIS[key];
+  }
+  return SUBJECT_EMOJIS.default;
+};
+
+// Generates intelligent subject and standard-based quiz & practice suggestions
+const getSubjectQuizSuggestions = (
+  standard: string,
+  subjectName?: string,
+  subjectNameGu?: string
+): SuggestionCardItem[] => {
+  const stdLabel = `ધોરણ ${standard}`;
+  const sub = subjectNameGu || subjectName || 'બધા વિષયો';
+
+  if (!subjectName || subjectName === 'all' || subjectName === 'General') {
+    return [
+      {
+        id: 'quiz_all_1',
+        icon: '🎯',
+        category: 'MCQ ક્વિઝ',
+        color: '#2563eb',
+        bg: '#eff6ff',
+        title: `${stdLabel} નો ૫ પ્રશ્નોનો મોક ટેસ્ટ`,
+        prompt: `મને ${stdLabel} ના તમામ વિષયોમાંથી ૫ મહત્વના MCQ પ્રશ્નો તેમના ૪ વિકલ્પો, સાચો જવાબ અને ગુજરાતીમાં સમજૂતી સાથે પૂછો.`,
+      },
+      {
+        id: 'quiz_all_2',
+        icon: '⚡',
+        category: 'ઝડપી રિવિઝન',
+        color: '#d97706',
+        bg: '#fffbeb',
+        title: `${stdLabel} ના IMP પ્રશ્નોની યાદી`,
+        prompt: `${stdLabel} ની પરીક્ષા માટે વારંવાર પૂછાતા સૌથી મહત્વના ૧૦ પ્રશ્નો અને તેના મુખ્ય મુદ્દાઓ જણાવો.`,
+      },
+      {
+        id: 'quiz_all_3',
+        icon: '💡',
+        category: 'શંકા સમાધાન',
+        color: '#7c3aed',
+        bg: '#f5f3ff',
+        title: 'અઘરા ટોપિક્સ સરળ રીતે સમજાવો',
+        prompt: `${stdLabel} ના સૌથી અઘરા લાગતા ૩ કન્સેપ્ટ મને એકદમ સરળ ગુજરાતી ભાષા અને વાસ્તવિક ઉદાહરણો સાથે સમજાવો.`,
+      },
+      {
+        id: 'quiz_all_4',
+        icon: '📝',
+        category: 'પ્રેક્ટિસ',
+        color: '#059669',
+        bg: '#ecfdf5',
+        title: 'સાચા-ખોટા વિધાનોની ક્વિઝ',
+        prompt: `${stdLabel} માંથી ૫ વિધાનો આપો અને મને પૂછો કે તે સાચા છે કે ખોટા, પછી સાચો ઉત્તર આપો.`,
+      },
+    ];
+  }
+
+  const cleanSub = subjectName.toLowerCase();
+
+  if (cleanSub.includes('math') || cleanSub.includes('ગણિત')) {
+    return [
+      {
+        id: 'math_1',
+        icon: '📐',
+        category: 'MCQ ક્વિઝ',
+        color: '#2563eb',
+        bg: '#eff6ff',
+        title: `${sub} - ૫ MCQ દાખલા ક્વિઝ`,
+        prompt: `મને ${stdLabel} ${sub} માંથી ૫ MCQ પ્રશ્નો તેમના વિકલ્પો, રીત (Step-by-step solution) અને સાચા જવાબ સાથે પૂછો.`,
+      },
+      {
+        id: 'math_2',
+        icon: '🔢',
+        category: 'સૂત્રો અને નિયમો',
+        color: '#0284c7',
+        bg: '#f0f9ff',
+        title: 'ગણિતના મહત્વના સૂત્રોની યાદી',
+        prompt: `${stdLabel} ${sub} ના તમામ પ્રકરણોના મહત્વના સૂત્રો (Formulas) અને તે ક્યાં વપરાય તેની યાદી આપો.`,
+      },
+      {
+        id: 'math_3',
+        icon: '💡',
+        category: 'દાખલાનો ઉકેલ',
+        color: '#7c3aed',
+        bg: '#f5f3ff',
+        title: 'અઘરો દાખલો સરળ રીતે ઉકેલો',
+        prompt: `${stdLabel} ${sub} નો એક મુશ્કેલ દાખલો લો અને તેને સ્ટેપ-બાય-સ્ટેપ એકદમ સરળ ભાષામાં સમજાવીને ગણો.`,
+      },
+      {
+        id: 'math_4',
+        icon: '⚡',
+        category: 'શોર્ટ ટ્રીક',
+        color: '#d97706',
+        bg: '#fffbeb',
+        title: 'ઝડપી ગણતરીની શોર્ટ ટ્રીક',
+        prompt: `${stdLabel} ગણિતના દાખલા ઝડપથી ગણવા માટેની વૈદિક ગણિત / શોર્ટકટ ટ્રીક શીખવો.`,
+      },
+    ];
+  }
+
+  if (cleanSub.includes('scien') || cleanSub.includes('વિજ્ઞાન')) {
+    return [
+      {
+        id: 'sci_1',
+        icon: '🔬',
+        category: 'MCQ ક્વિઝ',
+        color: '#059669',
+        bg: '#ecfdf5',
+        title: `${sub} - વૈજ્ઞાનિક MCQ ટેસ્ટ`,
+        prompt: `મને ${stdLabel} ${sub} માંથી ૫ મહત્વના MCQ પ્રશ્નો ૪ વિકલ્પો અને વૈજ્ઞાનિક કારણ સહિત સાચા જવાબ સાથે પૂછો.`,
+      },
+      {
+        id: 'sci_2',
+        icon: '🧪',
+        category: 'પ્રયોગ & આકૃતિ',
+        color: '#0891b2',
+        bg: '#ecfeff',
+        title: 'મહત્વના પ્રયોગો અને કારણો',
+        prompt: `${stdLabel} ${sub} માં આવતા મુખ્ય પ્રયોગો, અવલોકન અને વૈજ્ઞાનિક કારણો સરળતાથી સમજાવો.`,
+      },
+      {
+        id: 'sci_3',
+        icon: '🌱',
+        category: 'કન્સેપ્ટ ક્લિયર',
+        color: '#65a30d',
+        bg: '#f7fee7',
+        title: 'મુખ્ય વ્યાખ્યાઓ અને તફાવત',
+        prompt: `${stdLabel} ${sub} માં વારંવાર પૂછાતા તફાવતો (જેમ કે: એસિડ vs બેઇઝ, વનસ્પતિ vs પ્રાણી કોષ) સરળ ભાષામાં આપો.`,
+      },
+      {
+        id: 'sci_4',
+        icon: '⚡',
+        category: 'રિવિઝન',
+        color: '#d97706',
+        bg: '#fffbeb',
+        title: 'પરીક્ષા લક્ષી IMP પ્રશ્નો',
+        prompt: `${stdLabel} ${sub} ની પરીક્ષામાં પુછાવાની સૌથી વધુ શક્યતા હોય તેવા ૫ મોટા પ્રશ્નો અને તેના મુદ્દાસર ઉત્તર આપો.`,
+      },
+    ];
+  }
+
+  if (cleanSub.includes('social') || cleanSub.includes('સામાજિક')) {
+    return [
+      {
+        id: 'ss_1',
+        icon: '🌍',
+        category: 'MCQ ક્વિઝ',
+        color: '#ea580c',
+        bg: '#fff7ed',
+        title: `${sub} - ઇતિહાસ અને ભૂગોળ ક્વિઝ`,
+        prompt: `મને ${stdLabel} ${sub} (ઇતિહાસ, ભૂગોળ, નાગરિકશાસ્ત્ર) માંથી ૫ MCQ પ્રશ્નો સાચા જવાબો સાથે પૂછો.`,
+      },
+      {
+        id: 'ss_2',
+        icon: '📜',
+        category: 'ઇતિહાસ વાર્તા',
+        color: '#d97706',
+        bg: '#fffbeb',
+        title: 'ઐતિહાસિક ઘટનાઓ વાર્તા સ્વરૂપે',
+        prompt: `${stdLabel} સામાજિક વિજ્ઞાનના ઇતિહાસનો એક મહત્વનો પાઠ મને રોચક વાર્તા સ્વરૂપે સમજાવો.`,
+      },
+      {
+        id: 'ss_3',
+        icon: '🗺️',
+        category: 'ભૂગોળ અને નકશો',
+        color: '#0284c7',
+        bg: '#f0f9ff',
+        title: 'ભૂગોળ અને પર્યાવરણના પ્રશ્નો',
+        prompt: `${stdLabel} સામાજિક વિજ્ઞાનના ભૂગોળના મહત્વના મુદ્દાઓ (આબોહવા, જમીન, સંસાધનો) સમજાવો.`,
+      },
+      {
+        id: 'ss_4',
+        icon: '🏛️',
+        category: 'બંધારણ',
+        color: '#7c3aed',
+        bg: '#f5f3ff',
+        title: 'ભારતીય બંધારણ અને હક્કો',
+        prompt: `${stdLabel} નાગરિકશાસ્ત્ર મુજબ આપણા મૂળભૂત હક્કો અને ફરજો સરળ ગુજરાતીમાં સમજાવો.`,
+      },
+    ];
+  }
+
+  if (cleanSub.includes('english') || cleanSub.includes('અંગ્રેજી')) {
+    return [
+      {
+        id: 'eng_1',
+        icon: '📖',
+        category: 'Grammar Quiz',
+        color: '#4f46e5',
+        bg: '#eef2ff',
+        title: 'English Grammar 5 MCQs',
+        prompt: `Ask me 5 English Grammar MCQ questions for ${stdLabel} (Tenses, Prepositions, Articles, Active/Passive) with explanation and answers.`,
+      },
+      {
+        id: 'eng_2',
+        icon: '✍️',
+        category: 'Vocabulary',
+        color: '#059669',
+        bg: '#ecfdf5',
+        title: 'Daily Vocabulary & Word Meaning',
+        prompt: `Give me 10 important English words with their Gujarati meanings, pronunciation, and example sentences for ${stdLabel}.`,
+      },
+      {
+        id: 'eng_3',
+        icon: '🗣️',
+        category: 'Translation',
+        color: '#c026d3',
+        bg: '#fdf4ff',
+        title: 'Gujarati to English Translation Practice',
+        prompt: `Give me 5 Gujarati sentences for ${stdLabel} to translate into English, along with the correct translated answers.`,
+      },
+      {
+        id: 'eng_4',
+        icon: '📝',
+        category: 'Comprehension',
+        color: '#ea580c',
+        bg: '#fff7ed',
+        title: 'Short Paragraph & Questions',
+        prompt: `Provide a short English story/paragraph suitable for ${stdLabel} and ask 3 comprehension questions with answers.`,
+      },
+    ];
+  }
+
+  if (cleanSub.includes('gujarat') || cleanSub.includes('ગુજરાતી') || cleanSub.includes('hindi') || cleanSub.includes('હિન્દી')) {
+    return [
+      {
+        id: 'lang_1',
+        icon: '🔤',
+        category: 'વ્યાકરણ ક્વિઝ',
+        color: '#db2777',
+        bg: '#fdf2f8',
+        title: `${sub} - વ્યાકરણના ૫ MCQ`,
+        prompt: `મને ${stdLabel} ${sub} માંથી સમાસ, સંધિ, જોડણી, રૂઢિપ્રયોગ અને કહેવતોના ૫ MCQ સાચા ઉત્તર સાથે પૂછો.`,
+      },
+      {
+        id: 'lang_2',
+        icon: '📚',
+        category: 'કાવ્ય સારાંશ',
+        color: '#7c3aed',
+        bg: '#f5f3ff',
+        title: 'કાવ્ય પંક્તિઓનો ભાવાર્થ',
+        prompt: `${stdLabel} ${sub} ની કોઈ મહત્વની કાવ્ય પંક્તિનો અર્થ અને કવિનો સંદેશ સરળ શબ્દોમાં સમજાવો.`,
+      },
+      {
+        id: 'lang_3',
+        icon: '✍️',
+        category: 'લેખન કૌશલ્ય',
+        color: '#0284c7',
+        bg: '#f0f9ff',
+        title: 'નિબંધ / પત્ર લેખનના મુખ્ય મુદ્દા',
+        prompt: `${stdLabel} ${sub} માટે પરીક્ષામાં પુછાતા નિબંધ અથવા વિચાર વિસ્તાર લખવાની શ્રેષ્ઠ રીત આપો.`,
+      },
+      {
+        id: 'lang_4',
+        icon: '💡',
+        category: 'શબ્દ ભંડોળ',
+        color: '#059669',
+        bg: '#ecfdf5',
+        title: 'સમાનાર્થી અને વિરોધી શબ્દો',
+        prompt: `${stdLabel} ${sub} ના પાઠ્યપુસ્તકના મહત્વના ૧૫ સમાનાર્થી અને વિરોધી શબ્દો આપો.`,
+      },
+    ];
+  }
+
+  // Generic subject fallback
+  return [
+    {
+      id: 'gen_1',
+      icon: '🎯',
+      category: 'MCQ ક્વિઝ',
+      color: '#2563eb',
+      bg: '#eff6ff',
+      title: `${sub} - ૫ મહત્વના MCQ`,
+      prompt: `મને ${stdLabel} ${sub} માંથી ૫ MCQ પ્રશ્નો તેમના વિકલ્પો અને સાચા જવાબો સાથે પૂછો.`,
+    },
+    {
+      id: 'gen_2',
+      icon: '💡',
+      category: 'સમજૂતી',
+      color: '#7c3aed',
+      bg: '#f5f3ff',
+      title: `${sub} ના મુખ્ય પ્રકરણોની સમજૂતી`,
+      prompt: `${stdLabel} ${sub} ના સૌથી મહત્વના ટોપિક્સ અને કન્સેપ્ટ સરળ રીતે સમજાવો.`,
+    },
+    {
+      id: 'gen_3',
+      icon: '⚡',
+      category: 'રિવિઝન',
+      color: '#d97706',
+      bg: '#fffbeb',
+      title: 'પરીક્ષા માટે રિવિઝન પોઇન્ટ્સ',
+      prompt: `${stdLabel} ${sub} ના મહત્વના રિવિઝન મુદ્દાઓ અને શોર્ટ નોટ્સ આપો.`,
+    },
+    {
+      id: 'gen_4',
+      icon: '❓',
+      category: 'પ્રશ્નોત્તરી',
+      color: '#059669',
+      bg: '#ecfdf5',
+      title: 'વારંવાર પૂછાતા પ્રશ્નો',
+      prompt: `${stdLabel} ${sub} ના વારંવાર પૂછાતા ૫ ટૂંકા પ્રશ્નો અને તેના ઉત્તર આપો.`,
+    },
+  ];
+};
+
+const FOLLOW_UP_CHIPS = [
+  { icon: '❓', text: 'અન્ય ૫ MCQ પૂછો' },
+  { icon: '💡', text: 'વધુ વિગતવાર સમજાવો' },
+  { icon: '📝', text: 'સરળ ભાષામાં ફરી લખો' },
+  { icon: '🧪', text: 'વાસ્તવિક ઉદાહરણ આપો' },
 ];
 
 const webViewHTML = `
@@ -82,10 +426,18 @@ const webViewHTML = `
 
 export function AITutorScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
   const { userProfile } = useAuth();
-  const { selectedStandard } = useStandardContext();
+  const { selectedStandard, setSelectedStandard } = useStandardContext();
   const initialSessionId = route.params?.sessionId;
-  const initialSubject = route.params?.subject || 'General';
+  const initialSubject = route.params?.subject;
 
+  // Subjects query from Firestore for current selected standard
+  const { subjects, loading: subjectsLoading } = useSubjects(selectedStandard);
+
+  const [activeSubject, setActiveSubject] = useState<{ id: string; name: string; nameGu?: string } | null>(
+    initialSubject ? { id: initialSubject, name: initialSubject } : null
+  );
+
+  const [standardModalVisible, setStandardModalVisible] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -99,16 +451,29 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
   const flatListRef = useRef<FlatList>(null);
   const webViewRef = useRef<any>(null);
 
+  // Sync active subject when route param or standard changes
+  useEffect(() => {
+    if (initialSubject) {
+      const match = subjects.find(s => s.name.toLowerCase() === initialSubject.toLowerCase() || s.nameGu === initialSubject);
+      if (match) {
+        setActiveSubject({ id: match.id, name: match.name, nameGu: match.nameGu });
+      } else {
+        setActiveSubject({ id: initialSubject, name: initialSubject });
+      }
+    }
+  }, [initialSubject, subjects]);
+
   // Init / load session
   useEffect(() => {
     if (!sessionId) {
       const initSession = async () => {
         try {
           if (!userProfile?.uid) return;
+          const currentSubjectName = activeSubject?.name || 'General';
           const newId = await aiTutorService.createChatSession(
             userProfile.uid,
-            'નવું સત્ર',
-            { standard: selectedStandard, subject: initialSubject }
+            `ચેટ - ધોરણ ${selectedStandard}`,
+            { standard: selectedStandard, subject: currentSubjectName }
           );
           setSessionId(newId);
         } catch (err) {
@@ -119,7 +484,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
       return;
     }
 
-    // Load messages
+    // Load messages from Firestore
     const fetchMessages = async () => {
       try {
         const snap = await firestore()
@@ -142,7 +507,16 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         if (doc?.exists) setIsBookmarked(doc.data()?.isBookmarked || false);
       });
     return () => unsub();
-  }, [sessionId]);
+  }, [sessionId, userProfile?.uid]);
+
+  // Current suggestions based on active standard and selected subject
+  const currentSuggestions = useMemo(() => {
+    return getSubjectQuizSuggestions(
+      selectedStandard,
+      activeSubject?.name,
+      activeSubject?.nameGu
+    );
+  }, [selectedStandard, activeSubject]);
 
   // Pick image
   const handlePickImage = async () => {
@@ -151,6 +525,27 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
       if (res?.uri) setSelectedImage({ uri: res.uri, type: res.type || 'image/jpeg', name: res.name || 'query.jpg' });
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) console.error('Image pick error:', err);
+    }
+  };
+
+  // Start a fresh new chat session
+  const handleNewChat = async () => {
+    if (!userProfile?.uid) return;
+    try {
+      setLoading(true);
+      const currentSubjectName = activeSubject?.name || 'General';
+      const newId = await aiTutorService.createChatSession(
+        userProfile.uid,
+        `ચેટ - ધોરણ ${selectedStandard}`,
+        { standard: selectedStandard, subject: currentSubjectName }
+      );
+      setMessages([]);
+      setSessionId(newId);
+      setIsBookmarked(false);
+    } catch {
+      Alert.alert('ભૂલ', 'નવું સત્ર શરૂ કરવામાં ભૂલ આવી.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -167,7 +562,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     const userMsg: Message = {
       id: `user_${Date.now()}`,
       role: 'user',
-      content: img ? `[📷 ছবি: ${img.name}]\n${text}` : text,
+      content: img ? `[📷 ફોટો: ${img.name}]\n${text}` : text,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMsg]);
@@ -183,7 +578,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
       } else {
         const res = await aiTutorService.sendChatMessage(sessionId, text, {
           standard: selectedStandard,
-          subject: initialSubject,
+          subject: activeSubject?.name || 'General',
           language: 'gu',
         });
         answer = res.answer;
@@ -218,9 +613,9 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     if (ok) setIsBookmarked(v => !v);
   };
 
-  // Delete
+  // Delete / Clear
   const handleDelete = () => {
-    Alert.alert('ચેટ ડીલીટ કરો', 'શું તમે ખરેખર આ ચેટ ડીલીટ કરવા માંગો છો?', [
+    Alert.alert('ચેટ ડીલીટ કરો', 'શું તમે ખરેખર આ ચેટ હિસ્ટ્રી ડીલીટ કરવા માંગો છો?', [
       { text: 'ના', style: 'cancel' },
       {
         text: 'હા, ડીલીટ',
@@ -276,13 +671,18 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     }
   };
 
+  const standardsList = Array.from(
+    { length: MAX_STANDARD - MIN_STANDARD + 1 },
+    (_, i) => MIN_STANDARD + i
+  );
+
   // Render a single chat bubble
   const renderMessageItem = ({ item, index }: { item: Message; index: number }) => {
     const isUser = item.role === 'user';
     const isLast = index === messages.length - 1;
 
     return (
-      <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAI, isLast && { marginBottom: 12 }]}>
+      <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAI, isLast && { marginBottom: 16 }]}>
         {/* AI avatar */}
         {!isUser && (
           <View style={styles.aiAvatar}>
@@ -299,18 +699,19 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
 
             {/* Citations */}
             {!isUser && item.retrievedChunks && item.retrievedChunks.length > 0 && (
-              <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 8 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}>
-                  📚 સંદર્ભ પાઠ્યપુસ્તકો:
-                </Text>
+              <View style={styles.citationContainer}>
+                <View style={styles.citationHeaderRow}>
+                  <Ionicons name="library" size={13} color="#2563eb" />
+                  <Text style={styles.citationHeaderText}>સંદર્ભ પાઠ્યપુસ્તક આધારિત:</Text>
+                </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.citationScroll}>
                   {item.retrievedChunks.map((cit, cIdx) => (
-                    <TouchableOpacity
+                    <AnimatedPressable
                       key={cIdx}
                       style={styles.citationCard}
+                      scaleTo={0.96}
                       onPress={async () => {
                         try {
-                          // Search for the chapter PDF URL in Firestore
                           const chaptersSnap = await firestore()
                             .collection('chapters')
                             .where('title', '==', cit.chapter)
@@ -358,18 +759,18 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
                       }}
                     >
                       <View style={styles.citationCardHeader}>
-                        <Ionicons name="book" size={12} color="#1565C0" />
+                        <Ionicons name="book" size={13} color="#2563eb" />
                         <Text style={styles.citationCardTitle} numberOfLines={1}>
                           {cit.chapter || 'GCERT Textbook'}
                         </Text>
                       </View>
-                      <Text style={styles.citationCardPage}>પાનું નંબર: {cit.pageNumber}</Text>
+                      <Text style={styles.citationCardPage}>📖 પાનું: {cit.pageNumber}</Text>
                       {cit.textQuote ? (
                         <Text style={styles.citationCardQuote} numberOfLines={2}>
                           "{cit.textQuote}"
                         </Text>
                       ) : null}
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                   ))}
                 </ScrollView>
               </View>
@@ -394,37 +795,101 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: '#1565C0' }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#1d4ed8' }}>
         {/* ── HEADER ── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn}>
+          <AnimatedPressable onPress={() => navigation.goBack()} style={styles.headerIconBtn} scaleTo={0.88}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
+          </AnimatedPressable>
 
-          {/* AI identity pill */}
-          <View style={styles.headerCenter}>
+          {/* Standard & Subject Switcher Pill */}
+          <AnimatedPressable
+            style={styles.headerSelectorPill}
+            onPress={() => setStandardModalVisible(true)}
+            scaleTo={0.95}
+          >
             <View style={styles.headerAvatarWrap}>
               <Text style={styles.headerAvatarEmoji}>🤖</Text>
               <View style={styles.onlineDot} />
             </View>
-            <View>
-              <Text style={styles.headerName}>AI ટ્યુટર</Text>
-              <Text style={styles.headerSub}>Std {selectedStandard} · {initialSubject}</Text>
+            <View style={styles.headerTitleWrap}>
+              <View style={styles.headerMainTitleRow}>
+                <Text style={styles.headerName}>AI ટ્યુટર</Text>
+                <View style={styles.headerStdBadge}>
+                  <Text style={styles.headerStdBadgeText}>Dhoran {selectedStandard}</Text>
+                </View>
+              </View>
+              <Text style={styles.headerSub} numberOfLines={1}>
+                {activeSubject ? `${getSubjectEmoji(activeSubject.name)} ${activeSubject.nameGu || activeSubject.name}` : '🌟 બધા વિષયો'} ▼
+              </Text>
             </View>
-          </View>
+          </AnimatedPressable>
 
+          {/* Header Action Buttons */}
           <View style={styles.headerRight}>
-            <TouchableOpacity onPress={handleBookmark} style={styles.headerIconBtn}>
+            <AnimatedPressable onPress={handleNewChat} style={styles.headerIconBtn} scaleTo={0.88}>
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+            </AnimatedPressable>
+            <AnimatedPressable onPress={handleBookmark} style={styles.headerIconBtn} scaleTo={0.88}>
               <Ionicons
                 name={isBookmarked ? 'star' : 'star-outline'}
-                size={20}
-                color={isBookmarked ? '#fbbf24' : 'rgba(255,255,255,0.8)'}
+                size={19}
+                color={isBookmarked ? '#facc15' : '#fff'}
               />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={styles.headerIconBtn}>
-              <Ionicons name="trash-outline" size={20} color="rgba(255,255,255,0.7)" />
-            </TouchableOpacity>
+            </AnimatedPressable>
+            <AnimatedPressable onPress={handleDelete} style={styles.headerIconBtn} scaleTo={0.88}>
+              <Ionicons name="trash-outline" size={19} color="rgba(255,255,255,0.85)" />
+            </AnimatedPressable>
           </View>
+        </View>
+
+        {/* ── HORIZONTAL SUBJECT FILTER BAR ── */}
+        <View style={styles.subjectFilterBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.subjectFilterScroll}
+          >
+            <AnimatedPressable
+              style={[
+                styles.subjectChip,
+                !activeSubject && styles.subjectChipActive,
+              ]}
+              onPress={() => setActiveSubject(null)}
+              scaleTo={0.93}
+            >
+              <Text style={styles.subjectChipEmoji}>🌟</Text>
+              <Text style={[styles.subjectChipText, !activeSubject && styles.subjectChipTextActive]}>
+                બધા વિષયો
+              </Text>
+            </AnimatedPressable>
+
+            {subjectsLoading ? (
+              <ActivityIndicator size="small" color="#93c5fd" style={{ marginLeft: 8 }} />
+            ) : (
+              subjects.map(sub => {
+                const isActive = activeSubject?.id === sub.id || activeSubject?.name === sub.name;
+                return (
+                  <AnimatedPressable
+                    key={sub.id}
+                    style={[
+                      styles.subjectChip,
+                      isActive && styles.subjectChipActive,
+                    ]}
+                    onPress={() => setActiveSubject({ id: sub.id, name: sub.name, nameGu: sub.nameGu })}
+                    scaleTo={0.93}
+                  >
+                    <Text style={styles.subjectChipEmoji}>
+                      {sub.icon || getSubjectEmoji(sub.name)}
+                    </Text>
+                    <Text style={[styles.subjectChipText, isActive && styles.subjectChipTextActive]}>
+                      {sub.nameGu || sub.name}
+                    </Text>
+                  </AnimatedPressable>
+                );
+              })
+            )}
+          </ScrollView>
         </View>
       </SafeAreaView>
 
@@ -433,168 +898,297 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        {/* ── MESSAGES LIST ── */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessageItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              {/* Hero Banner */}
+              <View style={styles.emptyHero}>
+                <View style={styles.emptyAvatarRing}>
+                  <View style={styles.emptyAvatarInner}>
+                    <Text style={styles.emptyAvatarEmoji}>🤖</Text>
+                  </View>
+                </View>
+                <Text style={styles.emptyTitle}>GyanDeep AI અભ્યાસ સાથી</Text>
+                <Text style={styles.emptySub}>
+                  ધોરણ {selectedStandard} {activeSubject ? `• ${activeSubject.nameGu || activeSubject.name}` : ''} ના કોઈપણ પ્રશ્નો, દાખલા કે MCQ ટેસ્ટ પૂછો.
+                </Text>
 
-      {/* ── MESSAGES ── */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessageItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            {/* Hero */}
-            <View style={styles.emptyHero}>
-              <View style={styles.emptyAvatarRing}>
-                <View style={styles.emptyAvatarInner}>
-                  <Text style={styles.emptyAvatarEmoji}>🤖</Text>
+                {/* Subject Active Pill Badge */}
+                <View style={styles.activeSubjectBadge}>
+                  <Text style={styles.activeSubjectBadgeText}>
+                    📌 વર્તમાન વિષય: {activeSubject ? `${getSubjectEmoji(activeSubject.name)} ${activeSubject.nameGu || activeSubject.name}` : 'બધા વિષયો (All Subjects)'}
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.emptyTitle}>AI ટ્યુટર — GyanDeep</Text>
-              <Text style={styles.emptySub}>
-                ધોરણ {selectedStandard} ના {initialSubject} પ્રશ્નો પૂછો.{'\n'}
-                ગુજરાતીમાં ટ્યૂટ, MCQ, ઉદાહરણ — બધું જ!
-              </Text>
-            </View>
 
-            {/* Suggestion chips */}
-            <Text style={styles.suggestLabel}>ઝડપી પ્રશ્નો 👇</Text>
-            <View style={styles.chipsGrid}>
-              {QUICK_SUGGESTIONS.map((s, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.chip}
-                  onPress={() => handleSend(s.text)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={styles.chipIcon}>{s.icon}</Text>
-                  <Text style={styles.chipText}>{s.text}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Features row */}
-            <View style={styles.featuresRow}>
-              {[
-                { icon: '🎤', label: 'Voice' },
-                { icon: '📷', label: 'Camera' },
-                { icon: '📚', label: 'RAG Search' },
-              ].map((f, i) => (
-                <View key={i} style={styles.featureItem}>
-                  <View style={styles.featureIconBox}>
-                    <Text style={styles.featureEmoji}>{f.icon}</Text>
-                  </View>
-                  <Text style={styles.featureLabel}>{f.label}</Text>
+              {/* Dynamic Subject & Standard Quiz Suggestions */}
+              <View style={styles.suggestionsSection}>
+                <View style={styles.suggestionsSectionHeader}>
+                  <Text style={styles.suggestSectionTitle}>🎯 ક્વિઝ અને પ્રશ્નોના સજેશન</Text>
+                  <Text style={styles.suggestSectionSub}>ક્લિક કરતાં જ AI તુરંત ઉત્તર આપશે</Text>
                 </View>
-              ))}
+
+                <View style={styles.suggestionsGrid}>
+                  {currentSuggestions.map(s => (
+                    <AnimatedPressable
+                      key={s.id}
+                      style={[styles.suggestionCard, { borderLeftColor: s.color }]}
+                      onPress={() => handleSend(s.prompt)}
+                      scaleTo={0.96}
+                    >
+                      <View style={[styles.suggestionIconBox, { backgroundColor: s.bg }]}>
+                        <Text style={styles.suggestionEmoji}>{s.icon}</Text>
+                      </View>
+                      <View style={styles.suggestionContent}>
+                        <View style={[styles.suggestionCategoryBadge, { backgroundColor: s.bg }]}>
+                          <Text style={[styles.suggestionCategoryText, { color: s.color }]}>{s.category}</Text>
+                        </View>
+                        <Text style={styles.suggestionTitle}>{s.title}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#cbd5e1" style={styles.suggestionArrow} />
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* AI Features Row */}
+              <View style={styles.featuresRow}>
+                {[
+                  { icon: '🎤', label: 'ગુજરાતી Voice', desc: 'બોલીને પ્રશ્ન પૂછો' },
+                  { icon: '📷', label: 'Photo OCR', desc: 'પુસ્તકનો ફોટો પાડો' },
+                  { icon: '📚', label: 'GCERT RAG', desc: 'પાઠ્યપુસ્તક સંદર્ભ' },
+                ].map((f, i) => (
+                  <View key={i} style={styles.featureItem}>
+                    <View style={styles.featureIconBox}>
+                      <Text style={styles.featureEmoji}>{f.icon}</Text>
+                    </View>
+                    <Text style={styles.featureLabel}>{f.label}</Text>
+                    <Text style={styles.featureDesc}>{f.desc}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        }
-      />
-
-      {/* ── TYPING INDICATOR ── */}
-      {loading && <TypingIndicator />}
-
-      {/* ── IMAGE PREVIEW ── */}
-      {selectedImage && (
-        <View style={styles.imgPreviewBar}>
-          <Image source={{ uri: selectedImage.uri }} style={styles.imgThumb} />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={styles.imgName} numberOfLines={1}>{selectedImage.name}</Text>
-            <Text style={styles.imgSub}>Photo attached</Text>
-          </View>
-          <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.imgRemove}>
-            <Ionicons name="close-circle" size={22} color={studentColors.error} />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* ── INPUT BAR ── */}
-      <View style={styles.inputBar}>
-        <TouchableOpacity
-          onPress={handleVoicePress}
-          style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}
-        >
-          <Ionicons
-            name={recording ? 'mic-sharp' : 'mic-outline'}
-            size={21}
-            color={recording ? '#fff' : studentColors.secondary}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handlePickImage} style={styles.inputActionBtn}>
-          <Ionicons name="camera-outline" size={21} color={studentColors.secondary} />
-        </TouchableOpacity>
-
-        <TextInput
-          style={styles.textInput}
-          placeholder="ગુજરાતીમાં પ્રશ્ન ટાઇપ કરો..."
-          placeholderTextColor="#9ca3af"
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={600}
+          }
         />
 
-        <TouchableOpacity
-          onPress={() => handleSend()}
-          disabled={!inputText.trim() && !selectedImage}
-          style={[styles.sendBtn, (!inputText.trim() && !selectedImage) && styles.sendBtnDisabled]}
-        >
-          <Ionicons name="send" size={18} color="#fff" />
-        </TouchableOpacity>
-      </View>
+        {/* ── TYPING INDICATOR ── */}
+        {loading && <TypingIndicator />}
 
-      {/* ── VOICE MODAL ── */}
-      <Modal
-        visible={voiceModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => { setRecording(false); setVoiceModalVisible(false); }}
-      >
-        <View style={styles.voiceOverlay}>
-          <View style={styles.voiceSheet}>
-            {/* Decorative gradient ring */}
-            <View style={styles.voiceRingOuter}>
-              <View style={styles.voiceRingMid}>
-                <View style={styles.voiceRingInner}>
-                  <Ionicons name="mic" size={38} color="#fff" />
+        {/* ── FOLLOW-UP QUICK CHIPS (Visible during active conversation) ── */}
+        {messages.length > 0 && !loading && (
+          <View style={styles.followUpBar}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followUpScroll}>
+              {FOLLOW_UP_CHIPS.map((chip, idx) => (
+                <AnimatedPressable
+                  key={idx}
+                  style={styles.followUpChip}
+                  onPress={() => handleSend(chip.text)}
+                  scaleTo={0.93}
+                >
+                  <Text style={styles.followUpIcon}>{chip.icon}</Text>
+                  <Text style={styles.followUpText}>{chip.text}</Text>
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── IMAGE PREVIEW BAR ── */}
+        {selectedImage && (
+          <View style={styles.imgPreviewBar}>
+            <Image source={{ uri: selectedImage.uri }} style={styles.imgThumb} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.imgName} numberOfLines={1}>{selectedImage.name}</Text>
+              <Text style={styles.imgSub}>ફોટો જોડાયેલ છે — પ્રશ્ન પૂછો</Text>
+            </View>
+            <AnimatedPressable onPress={() => setSelectedImage(null)} style={styles.imgRemove} scaleTo={0.85}>
+              <Ionicons name="close-circle" size={22} color={studentColors.error} />
+            </AnimatedPressable>
+          </View>
+        )}
+
+        {/* ── BOTTOM INPUT BAR ── */}
+        <View style={styles.inputBar}>
+          <AnimatedPressable
+            onPress={handleVoicePress}
+            style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}
+            scaleTo={0.90}
+          >
+            <Ionicons
+              name={recording ? 'mic-sharp' : 'mic-outline'}
+              size={22}
+              color={recording ? '#fff' : '#2563eb'}
+            />
+          </AnimatedPressable>
+
+          <AnimatedPressable onPress={handlePickImage} style={styles.inputActionBtn} scaleTo={0.90}>
+            <Ionicons name="camera-outline" size={22} color="#2563eb" />
+          </AnimatedPressable>
+
+          <TextInput
+            style={styles.textInput}
+            placeholder={
+              activeSubject
+                ? `${activeSubject.nameGu || activeSubject.name} નો પ્રશ્ન ટાઇપ કરો...`
+                : 'ગુજરાતીમાં કોઈપણ પ્રશ્ન ટાઇપ કરો...'
+            }
+            placeholderTextColor="#94a3b8"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={600}
+          />
+
+          <AnimatedPressable
+            onPress={() => handleSend()}
+            disabled={!inputText.trim() && !selectedImage}
+            style={[
+              styles.sendBtn,
+              (!inputText.trim() && !selectedImage) && styles.sendBtnDisabled,
+            ]}
+            scaleTo={0.90}
+          >
+            <Ionicons name="send" size={17} color="#fff" />
+          </AnimatedPressable>
+        </View>
+
+        {/* ── STANDARD SELECTOR MODAL ── */}
+        <Modal
+          visible={standardModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setStandardModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setStandardModalVisible(false)}>
+            <View style={styles.modalContentCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalHeaderTitle}>ધોરણ અને વિષય પસંદ કરો</Text>
+                <TouchableOpacity onPress={() => setStandardModalVisible(false)}>
+                  <Ionicons name="close-circle" size={24} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSectionLabel}>૧. ધોરણ (Standard):</Text>
+              <View style={styles.modalStdGrid}>
+                {standardsList.map(num => {
+                  const isSelected = String(num) === selectedStandard;
+                  return (
+                    <AnimatedPressable
+                      key={num}
+                      style={[styles.modalStdChip, isSelected && styles.modalStdChipActive]}
+                      onPress={() => setSelectedStandard(String(num))}
+                      scaleTo={0.92}
+                    >
+                      <Text style={[styles.modalStdText, isSelected && styles.modalStdTextActive]}>
+                        ધોરણ {num}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark" size={14} color="#fff" style={{ marginLeft: 2 }} />}
+                    </AnimatedPressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.modalSectionLabel, { marginTop: 14 }]}>૨. વિષય (Subject):</Text>
+              <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+                <AnimatedPressable
+                  style={[styles.modalSubjectRow, !activeSubject && styles.modalSubjectRowActive]}
+                  onPress={() => {
+                    setActiveSubject(null);
+                    setStandardModalVisible(false);
+                  }}
+                  scaleTo={0.96}
+                >
+                  <Text style={styles.modalSubjectEmoji}>🌟</Text>
+                  <Text style={[styles.modalSubjectName, !activeSubject && styles.modalSubjectNameActive]}>
+                    બધા વિષયો (All Subjects)
+                  </Text>
+                  {!activeSubject && <Ionicons name="checkmark-circle" size={18} color="#2563eb" />}
+                </AnimatedPressable>
+
+                {subjects.map(s => {
+                  const isSelected = activeSubject?.id === s.id || activeSubject?.name === s.name;
+                  return (
+                    <AnimatedPressable
+                      key={s.id}
+                      style={[styles.modalSubjectRow, isSelected && styles.modalSubjectRowActive]}
+                      onPress={() => {
+                        setActiveSubject({ id: s.id, name: s.name, nameGu: s.nameGu });
+                        setStandardModalVisible(false);
+                      }}
+                      scaleTo={0.96}
+                    >
+                      <Text style={styles.modalSubjectEmoji}>
+                        {s.icon || getSubjectEmoji(s.name)}
+                      </Text>
+                      <Text style={[styles.modalSubjectName, isSelected && styles.modalSubjectNameActive]}>
+                        {s.nameGu ? `${s.nameGu} (${s.name})` : s.name}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={18} color="#2563eb" />}
+                    </AnimatedPressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* ── VOICE MODAL ── */}
+        <Modal
+          visible={voiceModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => { setRecording(false); setVoiceModalVisible(false); }}
+        >
+          <View style={styles.voiceOverlay}>
+            <View style={styles.voiceSheet}>
+              {/* Decorative gradient ring */}
+              <View style={styles.voiceRingOuter}>
+                <View style={styles.voiceRingMid}>
+                  <View style={styles.voiceRingInner}>
+                    <Ionicons name="mic" size={38} color="#fff" />
+                  </View>
                 </View>
               </View>
+
+              <Text style={styles.voiceTitle}>🎤 ગુજરાતીમાં બોલો</Text>
+              <Text style={styles.voiceTranscript} numberOfLines={3}>
+                {voiceStatus}
+              </Text>
+              <Text style={styles.voiceHint}>
+                ઉદાહરણ: "{activeSubject?.nameGu || 'વિજ્ઞાન'} નો ૫ MCQ ટેસ્ટ પૂછો"
+              </Text>
+
+              <AnimatedPressable
+                style={styles.voiceStopBtn}
+                onPress={() => {
+                  webViewRef.current?.postMessage('stop');
+                  setRecording(false);
+                  setVoiceModalVisible(false);
+                }}
+                scaleTo={0.94}
+              >
+                <Ionicons name="stop-circle" size={18} color="#2563eb" style={{ marginRight: 6 }} />
+                <Text style={styles.voiceStopText}>બોલવાનું પૂરું થયું</Text>
+              </AnimatedPressable>
             </View>
-
-            <Text style={styles.voiceTitle}>🎤 ગુજરાતીમાં બોલો</Text>
-            <Text style={styles.voiceTranscript} numberOfLines={3}>
-              {voiceStatus}
-            </Text>
-            <Text style={styles.voiceHint}>
-              ઉદાહરણ: "પ્રકાશ સંશ્લેષણ શું છે?"
-            </Text>
-
-            <TouchableOpacity
-              style={styles.voiceStopBtn}
-              onPress={() => {
-                webViewRef.current?.postMessage('stop');
-                setRecording(false);
-                setVoiceModalVisible(false);
-              }}
-            >
-              <Ionicons name="stop-circle" size={18} color={studentColors.secondary} style={{ marginRight: 6 }} />
-              <Text style={styles.voiceStopText}>રિકોર્ડ બંધ કરો</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Hidden WebView for Speech */}
-      <WebView
-        ref={webViewRef}
-        source={{ html: webViewHTML }}
-        onMessage={handleWebViewMessage}
-        javaScriptEnabled
-        style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
-      />
+        {/* Hidden WebView for Speech Recognition */}
+        <WebView
+          ref={webViewRef}
+          source={{ html: webViewHTML }}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled
+          style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
+        />
       </KeyboardAvoidingView>
     </View>
   );
@@ -604,70 +1198,132 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EEF2F7',
+    backgroundColor: '#F1F5F9',
   },
 
+  // ── Header ─────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 14,
-    paddingHorizontal: 14,
-    backgroundColor: '#1565C0',
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#1d4ed8',
     gap: 8,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerCenter: {
+  headerSelectorPill: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 24,
+    gap: 8,
   },
   headerAvatarWrap: {
     position: 'relative',
   },
   headerAvatarEmoji: {
-    fontSize: 30,
+    fontSize: 24,
   },
   onlineDot: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
+    bottom: -1,
+    right: -1,
+    width: 9,
+    height: 9,
     borderRadius: 5,
-    backgroundColor: '#4ade80',
-    borderWidth: 2,
-    borderColor: '#1565C0',
+    backgroundColor: '#22c55e',
+    borderWidth: 1.5,
+    borderColor: '#1d4ed8',
+  },
+  headerTitleWrap: {
+    flex: 1,
+  },
+  headerMainTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   headerName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
     letterSpacing: -0.2,
   },
+  headerStdBadge: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  headerStdBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
   headerSub: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
     marginTop: 1,
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 5,
+  },
+
+  // ── Subject Filter Bar ──────────────────────────────────────────
+  subjectFilterBar: {
+    backgroundColor: '#1e40af',
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+  },
+  subjectFilterScroll: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center',
+  },
+  subjectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 5,
+  },
+  subjectChipActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  subjectChipEmoji: {
+    fontSize: 13,
+  },
+  subjectChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+  subjectChipTextActive: {
+    color: '#1e40af',
+    fontWeight: '700',
   },
 
   // ── Message List ───────────────────────────────────────────────
   listContent: {
     paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 8,
+    paddingTop: 12,
+    paddingBottom: 6,
     flexGrow: 1,
   },
   msgRow: {
@@ -685,10 +1341,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e0e7ff',
+    backgroundColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginRight: 8,
     flexShrink: 0,
   },
   aiAvatarEmoji: {
@@ -698,14 +1354,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#1565C0',
+    backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 6,
     flexShrink: 0,
   },
   bubbleWrapper: {
-    maxWidth: width * 0.75,
+    maxWidth: width * 0.78,
   },
   bubbleWrapperUser: {
     alignItems: 'flex-end',
@@ -714,260 +1370,370 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bubble: {
-    borderRadius: 18,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   bubbleUser: {
-    backgroundColor: '#1565C0',
-    borderBottomRightRadius: 4,
+    backgroundColor: '#2563eb',
+    borderBottomRightRadius: 3,
     ...shadows.sm,
   },
   bubbleAI: {
     backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 3,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     ...shadows.sm,
   },
-  bubbleText: {
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  bubbleTextUser: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  bubbleTextAI: {
-    color: '#1f2937',
-  },
   timeText: {
     fontSize: 10,
-    color: '#9ca3af',
+    color: '#94a3b8',
     marginTop: 3,
   },
   timeTextUser: {
     textAlign: 'right',
+    marginRight: 2,
   },
   timeTextAI: {
     marginLeft: 4,
   },
 
   // ── Citations ──────────────────────────────────────────────────
-  citationBox: {
+  citationContainer: {
     marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 8,
   },
-  citationDivider: {
-    height: 1,
-    backgroundColor: '#e2e8f0',
-    marginBottom: 8,
-  },
-  citationLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6366f1',
-    marginBottom: 5,
-  },
-  citationRow: {
+  citationHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginBottom: 3,
+    gap: 4,
+    marginBottom: 6,
   },
-  citationText: {
+  citationHeaderText: {
     fontSize: 11,
-    color: '#4b5563',
+    fontWeight: '700',
+    color: '#475569',
+  },
+  citationScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  citationCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    width: 175,
+  },
+  citationCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  citationCardTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1e293b',
     flex: 1,
   },
+  citationCardPage: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  citationCardQuote: {
+    fontSize: 10,
+    color: '#475569',
+    fontStyle: 'italic',
+  },
 
-  // ── Typing ────────────────────────────────────────────────────
+  // ── Empty State & Quiz Suggestions ─────────────────────────────
+  emptyWrap: {
+    paddingVertical: 10,
+  },
+  emptyHero: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...shadows.sm,
+  },
+  emptyAvatarRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  emptyAvatarInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#dbeafe',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyAvatarEmoji: {
+    fontSize: 26,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  activeSubjectBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  activeSubjectBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1e40af',
+  },
+
+  // ── Suggestions Section ─────────────────────────────────────────
+  suggestionsSection: {
+    marginBottom: 16,
+  },
+  suggestionsSectionHeader: {
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  suggestSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  suggestSectionSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  suggestionsGrid: {
+    gap: 8,
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...shadows.sm,
+    gap: 10,
+  },
+  suggestionIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionEmoji: {
+    fontSize: 18,
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionCategoryBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    marginBottom: 3,
+  },
+  suggestionCategoryText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  suggestionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  suggestionArrow: {
+    marginLeft: 4,
+  },
+
+  // ── Features Row ───────────────────────────────────────────────
+  featuresRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  featureItem: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...shadows.sm,
+  },
+  featureIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  featureEmoji: {
+    fontSize: 16,
+  },
+  featureLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1e293b',
+    textAlign: 'center',
+  },
+  featureDesc: {
+    fontSize: 9,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 1,
+  },
+
+  // ── Follow-Up Quick Chips Bar ──────────────────────────────────
+  followUpBar: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingVertical: 6,
+  },
+  followUpScroll: {
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  followUpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    gap: 4,
+  },
+  followUpIcon: {
+    fontSize: 12,
+  },
+  followUpText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1d4ed8',
+  },
+
+  // ── Typing Indicator ───────────────────────────────────────────
   typingRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderBottomLeftRadius: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 16,
+    borderBottomLeftRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     gap: 8,
-    ...shadows.sm,
   },
   typingDots: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    gap: 3,
   },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#94a3b8',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2563eb',
   },
-  dot1: {},
-  dot2: {},
-  dot3: {},
   typingLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-
-  // ── Empty State ───────────────────────────────────────────────
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 32,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  emptyHero: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  emptyAvatarRing: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(21,101,192,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  emptyAvatarInner: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: 'rgba(21,101,192,0.14)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyAvatarEmoji: {
-    fontSize: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 8,
-    letterSpacing: -0.3,
-  },
-  emptySub: {
-    fontSize: 13,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  suggestLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-  },
-  chipsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 24,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 6,
-    ...shadows.sm,
-  },
-  chipIcon: {
-    fontSize: 15,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1565C0',
-  },
-  featuresRow: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  featureItem: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  featureIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    ...shadows.sm,
-  },
-  featureEmoji: {
-    fontSize: 22,
-  },
-  featureLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#6b7280',
+    color: '#64748b',
+    fontWeight: '500',
   },
 
-  // ── Image Preview ─────────────────────────────────────────────
+  // ── Image Preview ──────────────────────────────────────────────
   imgPreviewBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderTopWidth: 1,
+    borderTopColor: '#bfdbfe',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#f0f9ff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0f2fe',
   },
   imgThumb: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 6,
   },
   imgName: {
-    fontSize: 13,
-    color: '#0f172a',
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1e40af',
   },
   imgSub: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748b',
-    marginTop: 1,
   },
   imgRemove: {
     padding: 4,
   },
 
-  // ── Input Bar ─────────────────────────────────────────────────
+  // ── Bottom Input Bar ───────────────────────────────────────────
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     gap: 6,
   },
   inputActionBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -976,147 +1742,199 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
-    borderRadius: 22,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 14,
-    color: '#1f2937',
-    maxHeight: 100,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    fontSize: 13,
+    color: '#0f172a',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    lineHeight: 20,
+    maxHeight: 90,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1565C0',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.sm,
   },
   sendBtnDisabled: {
     backgroundColor: '#cbd5e1',
   },
 
-  // ── Voice Modal ───────────────────────────────────────────────
-  voiceOverlay: {
+  // ── Modal Styles ───────────────────────────────────────────────
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
+  },
+  modalContentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    width: width * 0.9,
+    maxWidth: 400,
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 8,
+  },
+  modalHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  modalSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  modalStdGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modalStdChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modalStdChipActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#1d4ed8',
+  },
+  modalStdText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  modalStdTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalSubjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
+  },
+  modalSubjectRowActive: {
+    backgroundColor: '#eff6ff',
+  },
+  modalSubjectEmoji: {
+    fontSize: 16,
+  },
+  modalSubjectName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  modalSubjectNameActive: {
+    color: '#1d4ed8',
+    fontWeight: '700',
+  },
+
+  // ── Voice Modal ────────────────────────────────────────────────
+  voiceOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   voiceSheet: {
-    width: width * 0.84,
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 30,
+    borderRadius: 24,
+    padding: 24,
     alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
     ...shadows.lg,
   },
   voiceRingOuter: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(21,101,192,0.07)',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   voiceRingMid: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: 'rgba(21,101,192,0.13)',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#93c5fd',
     justifyContent: 'center',
     alignItems: 'center',
   },
   voiceRingInner: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: '#1565C0',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.md,
   },
   voiceTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#111827',
-    marginBottom: 12,
-    letterSpacing: -0.2,
+    color: '#0f172a',
+    marginBottom: 8,
   },
   voiceTranscript: {
-    fontSize: 14,
-    color: '#374151',
+    fontSize: 13,
+    color: '#334155',
     textAlign: 'center',
-    lineHeight: 21,
+    lineHeight: 19,
+    minHeight: 40,
     marginBottom: 8,
-    minHeight: 44,
   },
   voiceHint: {
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 11,
+    color: '#94a3b8',
     textAlign: 'center',
-    marginBottom: 22,
-    fontStyle: 'italic',
+    marginBottom: 16,
   },
   voiceStopBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#eff6ff',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: '#bfdbfe',
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingVertical: 11,
   },
   voiceStopText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1565C0',
-  },
-  citationScroll: {
-    gap: 8,
-    paddingTop: 6,
-    paddingBottom: 4,
-  },
-  citationCard: {
-    width: 220,
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginRight: 8,
-  },
-  citationCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  citationCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1e293b',
-    flex: 1,
-  },
-  citationCardPage: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  citationCardQuote: {
-    fontSize: 11,
-    color: '#475569',
-    fontStyle: 'italic',
+    color: '#1d4ed8',
   },
 });
 
-// ── CUSTOM RICH RENDERERS (Phase 4 Additions) ───────────────────────────────────
+// ── CUSTOM RICH RENDERERS ─────────────────────────────────────────────────────
 
 const TypingIndicator = () => {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -1230,7 +2048,7 @@ const renderStyledText = (text: string, isUser: boolean) => {
         style={{
           fontSize: 14,
           lineHeight: 20,
-          color: isUser ? '#FFFFFF' : '#1e293b',
+          color: isUser ? '#FFFFFF' : '#0f172a',
           marginBottom: lineIdx === lines.length - 1 ? 0 : 4,
         }}
       >
