@@ -138,113 +138,39 @@ const DailyChallengeBanner = React.memo(function DailyChallengeBanner({ navigati
     );
 });
 
-// ─── Standard Switcher Dropdown ────────────────────────────────
+// ─── Standard Switcher Card ────────────────────────────────────
 
-const StandardSwitcher = React.memo(function StandardSwitcher(): React.JSX.Element {
-    const { selectedStandard, setSelectedStandard, standardLabel } = useStandardContext();
-    const [dropdownVisible, setDropdownVisible] = useState(false);
+interface StandardSwitcherProps {
+    onPress: () => void;
+    selectedStandard: string;
+    standardLabel: string;
+}
 
-    const standards = Array.from(
-        { length: MAX_STANDARD - MIN_STANDARD + 1 },
-        (_, i) => MIN_STANDARD + i,
-    );
-
+const StandardSwitcher = React.memo(function StandardSwitcher({
+    onPress,
+    selectedStandard,
+    standardLabel,
+}: StandardSwitcherProps): React.JSX.Element {
     return (
-        <>
-            <AnimatedPressable
-                style={styles.standardSwitcher}
-                onPress={() => setDropdownVisible(true)}
-                scaleTo={0.96}
-            >
-                <View style={styles.standardSwitcherLeft}>
-                    <View style={styles.standardSwitcherIconWrap}>
-                        <Text style={styles.standardSwitcherIcon}>🎓</Text>
-                    </View>
-                    <View>
-                        <Text style={styles.standardSwitcherLabel}>વર્તમાન ધોરણ (Current Standard)</Text>
-                        <Text style={styles.standardSwitcherText}>ધોરણ {selectedStandard} ({standardLabel})</Text>
-                    </View>
+        <AnimatedPressable
+            style={styles.standardSwitcher}
+            onPress={onPress}
+            scaleTo={0.96}
+        >
+            <View style={styles.standardSwitcherLeft}>
+                <View style={styles.standardSwitcherIconWrap}>
+                    <Text style={styles.standardSwitcherIcon}>🎓</Text>
                 </View>
-                <View style={styles.standardSwitcherValue}>
-                    <Text style={styles.standardSwitcherChangeText}>બદલો</Text>
-                    <Ionicons name="chevron-down" size={14} color="#1d4ed8" style={{ marginLeft: 3 }} />
+                <View>
+                    <Text style={styles.standardSwitcherLabel}>વર્તમાન ધોરણ (Current Standard)</Text>
+                    <Text style={styles.standardSwitcherText}>ધોરણ {selectedStandard} ({standardLabel})</Text>
                 </View>
-            </AnimatedPressable>
-
-            <Modal
-                visible={dropdownVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setDropdownVisible(false)}
-            >
-                <View style={styles.dropdownOverlay}>
-                    {/* Backdrop */}
-                    <Pressable
-                        style={StyleSheet.absoluteFill}
-                        onPress={() => setDropdownVisible(false)}
-                    />
-
-                    {/* Modal Card */}
-                    <View style={styles.dropdownCard}>
-                        <View style={styles.modalHandle} />
-
-                        <View style={styles.dropdownHeader}>
-                            <View style={styles.dropdownTitleWrap}>
-                                <View style={styles.dropdownHeaderIconBox}>
-                                    <Text style={{ fontSize: 18 }}>🎓</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.dropdownTitle}>ધોરણ પસંદ કરો</Text>
-                                    <Text style={styles.dropdownSub}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
-                                </View>
-                            </View>
-                            <AnimatedPressable
-                                onPress={() => setDropdownVisible(false)}
-                                style={styles.dropdownCloseBtn}
-                                scaleTo={0.88}
-                            >
-                                <Ionicons name="close" size={20} color="#64748b" />
-                            </AnimatedPressable>
-                        </View>
-
-                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-                            <View style={styles.dropdownGrid}>
-                                {standards.map(num => {
-                                    const isActive = String(num) === selectedStandard;
-                                    return (
-                                        <AnimatedPressable
-                                            key={num}
-                                            style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
-                                            onPress={() => {
-                                                setSelectedStandard(String(num));
-                                                setDropdownVisible(false);
-                                            }}
-                                            scaleTo={0.95}
-                                        >
-                                            <View style={[styles.stdNumCircle, isActive && styles.stdNumCircleActive]}>
-                                                <Text style={[styles.stdNumText, isActive && styles.stdNumTextActive]}>
-                                                    {num}
-                                                </Text>
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
-                                                    ધોરણ {num} (Standard {num})
-                                                </Text>
-                                            </View>
-                                            {isActive ? (
-                                                <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
-                                            ) : (
-                                                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                                            )}
-                                        </AnimatedPressable>
-                                    );
-                                })}
-                            </View>
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-        </>
+            </View>
+            <View style={styles.standardSwitcherValue}>
+                <Text style={styles.standardSwitcherChangeText}>બદલો</Text>
+                <Ionicons name="chevron-down" size={14} color="#1d4ed8" style={{ marginLeft: 3 }} />
+            </View>
+        </AnimatedPressable>
     );
 });
 
@@ -354,12 +280,20 @@ const QuickAccessCards = React.memo(function QuickAccessCards({ navigation, stan
 export function StudentHomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
     const { t } = useTranslation();
     const { userProfile } = useAuth();
-    const { selectedStandard } = useStandardContext();
+    const { selectedStandard, setSelectedStandard, standardLabel } = useStandardContext();
     const standardId = selectedStandard;
     const { entries: leaderboardEntries } = useLeaderboard(3);
     const { progressMap } = useUserProgress();
     const { bookmarks } = useBookmarks(userProfile?.uid);
     const [refreshing, setRefreshing] = useState(false);
+    const [standardModalVisible, setStandardModalVisible] = useState(false);
+
+    const standards = useMemo(() => {
+        return Array.from(
+            { length: MAX_STANDARD - MIN_STANDARD + 1 },
+            (_, i) => MIN_STANDARD + i,
+        );
+    }, []);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -373,7 +307,7 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
     }, [progressMap]);
 
     return (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
@@ -402,7 +336,11 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                 </View>
 
                 {/* Standard Switcher */}
-                <StandardSwitcher />
+                <StandardSwitcher
+                    onPress={() => setStandardModalVisible(true)}
+                    selectedStandard={selectedStandard}
+                    standardLabel={standardLabel}
+                />
 
                 {/* Continue Learning */}
                 <TouchableOpacity
@@ -461,6 +399,81 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
             >
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
             </TouchableOpacity>
+
+            {/* Standard Switcher Modal */}
+            <Modal
+                visible={standardModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setStandardModalVisible(false)}
+            >
+                <View style={styles.dropdownOverlay}>
+                    {/* Backdrop */}
+                    <Pressable
+                        style={StyleSheet.absoluteFill}
+                        onPress={() => setStandardModalVisible(false)}
+                    />
+
+                    {/* Modal Card */}
+                    <View style={styles.dropdownCard}>
+                        <View style={styles.modalHandle} />
+
+                        <View style={styles.dropdownHeader}>
+                            <View style={styles.dropdownTitleWrap}>
+                                <View style={styles.dropdownHeaderIconBox}>
+                                    <Text style={{ fontSize: 18 }}>🎓</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.dropdownTitle}>ધોરણ પસંદ કરો</Text>
+                                    <Text style={styles.dropdownSub}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
+                                </View>
+                            </View>
+                            <AnimatedPressable
+                                onPress={() => setStandardModalVisible(false)}
+                                style={styles.dropdownCloseBtn}
+                                scaleTo={0.88}
+                            >
+                                <Ionicons name="close" size={20} color="#64748b" />
+                            </AnimatedPressable>
+                        </View>
+
+                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                            <View style={styles.dropdownGrid}>
+                                {standards.map(num => {
+                                    const isActive = String(num) === selectedStandard;
+                                    return (
+                                        <AnimatedPressable
+                                            key={num}
+                                            style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
+                                            onPress={() => {
+                                                setSelectedStandard(String(num));
+                                                setStandardModalVisible(false);
+                                            }}
+                                            scaleTo={0.95}
+                                        >
+                                            <View style={[styles.stdNumCircle, isActive && styles.stdNumCircleActive]}>
+                                                <Text style={[styles.stdNumText, isActive && styles.stdNumTextActive]}>
+                                                    {num}
+                                                </Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
+                                                    ધોરણ {num} (Standard {num})
+                                                </Text>
+                                            </View>
+                                            {isActive ? (
+                                                <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
+                                            ) : (
+                                                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                                            )}
+                                        </AnimatedPressable>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
