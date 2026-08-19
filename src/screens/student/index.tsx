@@ -151,41 +151,98 @@ const StandardSwitcher = React.memo(function StandardSwitcher(): React.JSX.Eleme
 
     return (
         <>
-            <TouchableOpacity
+            <AnimatedPressable
                 style={styles.standardSwitcher}
                 onPress={() => setDropdownVisible(true)}
-                activeOpacity={0.7}
+                scaleTo={0.96}
             >
-                <Text style={styles.standardSwitcherLabel}>Current Standard:</Text>
-                <View style={styles.standardSwitcherValue}>
-                    <Text style={styles.standardSwitcherText}>{standardLabel} ▼</Text>
-                </View>
-            </TouchableOpacity>
-
-            <Modal visible={dropdownVisible} transparent animationType="fade">
-                <Pressable style={styles.dropdownOverlay} onPress={() => setDropdownVisible(false)}>
-                    <View style={styles.dropdownCard}>
-                        <Text style={styles.dropdownTitle}>Select Standard</Text>
-                        {standards.map(num => {
-                            const isActive = String(num) === selectedStandard;
-                            return (
-                                <TouchableOpacity
-                                    key={num}
-                                    style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
-                                    onPress={() => {
-                                        setSelectedStandard(String(num));
-                                        setDropdownVisible(false);
-                                    }}
-                                >
-                                    <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
-                                        Dhoran {num}
-                                    </Text>
-                                    {isActive && <Text style={styles.dropdownCheck}>✓</Text>}
-                                </TouchableOpacity>
-                            );
-                        })}
+                <View style={styles.standardSwitcherLeft}>
+                    <View style={styles.standardSwitcherIconWrap}>
+                        <Text style={styles.standardSwitcherIcon}>🎓</Text>
                     </View>
-                </Pressable>
+                    <View>
+                        <Text style={styles.standardSwitcherLabel}>વર્તમાન ધોરણ (Current Standard)</Text>
+                        <Text style={styles.standardSwitcherText}>ધોરણ {selectedStandard} ({standardLabel})</Text>
+                    </View>
+                </View>
+                <View style={styles.standardSwitcherValue}>
+                    <Text style={styles.standardSwitcherChangeText}>બદલો</Text>
+                    <Ionicons name="chevron-down" size={14} color="#1d4ed8" style={{ marginLeft: 3 }} />
+                </View>
+            </AnimatedPressable>
+
+            <Modal
+                visible={dropdownVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setDropdownVisible(false)}
+            >
+                <View style={styles.dropdownOverlay}>
+                    {/* Backdrop */}
+                    <Pressable
+                        style={StyleSheet.absoluteFill}
+                        onPress={() => setDropdownVisible(false)}
+                    />
+
+                    {/* Modal Card */}
+                    <View style={styles.dropdownCard}>
+                        <View style={styles.modalHandle} />
+
+                        <View style={styles.dropdownHeader}>
+                            <View style={styles.dropdownTitleWrap}>
+                                <View style={styles.dropdownHeaderIconBox}>
+                                    <Text style={{ fontSize: 18 }}>🎓</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.dropdownTitle}>ધોરણ પસંદ કરો</Text>
+                                    <Text style={styles.dropdownSub}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
+                                </View>
+                            </View>
+                            <AnimatedPressable
+                                onPress={() => setDropdownVisible(false)}
+                                style={styles.dropdownCloseBtn}
+                                scaleTo={0.88}
+                            >
+                                <Ionicons name="close" size={20} color="#64748b" />
+                            </AnimatedPressable>
+                        </View>
+
+                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                            <View style={styles.dropdownGrid}>
+                                {standards.map(num => {
+                                    const isActive = String(num) === selectedStandard;
+                                    return (
+                                        <AnimatedPressable
+                                            key={num}
+                                            style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
+                                            onPress={() => {
+                                                setSelectedStandard(String(num));
+                                                setDropdownVisible(false);
+                                            }}
+                                            scaleTo={0.95}
+                                        >
+                                            <View style={[styles.stdNumCircle, isActive && styles.stdNumCircleActive]}>
+                                                <Text style={[styles.stdNumText, isActive && styles.stdNumTextActive]}>
+                                                    {num}
+                                                </Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
+                                                    ધોરણ {num} (Standard {num})
+                                                </Text>
+                                            </View>
+                                            {isActive ? (
+                                                <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
+                                            ) : (
+                                                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+                                            )}
+                                        </AnimatedPressable>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </View>
             </Modal>
         </>
     );
@@ -1509,79 +1566,166 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: studentColors.surface,
+        backgroundColor: '#FFFFFF',
         marginHorizontal: spacing.xl,
         marginBottom: spacing.md,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
+        borderRadius: 16,
+        padding: 14,
         borderWidth: 1,
-        borderColor: studentColors.primary,
+        borderColor: '#e2e8f0',
         ...shadows.sm,
     },
-    standardSwitcherLabel: {
-        fontSize: typography.size.md,
-        color: studentColors.textSecondary,
-        fontWeight: typography.weight.medium,
+    standardSwitcherLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
     },
-    standardSwitcherValue: {
-        backgroundColor: studentColors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.md,
-    },
-    standardSwitcherText: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.bold,
-        color: studentColors.textOnPrimary,
-    },
-    // ─── Dropdown ──────────────────────────────────────────────
-    dropdownOverlay: {
-        flex: 1,
-        backgroundColor: studentColors.overlay,
+    standardSwitcherIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: '#eff6ff',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: spacing.xl,
+    },
+    standardSwitcherIcon: {
+        fontSize: 18,
+    },
+    standardSwitcherLabel: {
+        fontSize: 11,
+        color: '#64748b',
+        fontWeight: '600',
+    },
+    standardSwitcherText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#0f172a',
+        marginTop: 1,
+    },
+    standardSwitcherValue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+    },
+    standardSwitcherChangeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1d4ed8',
+    },
+    // ─── Dropdown Modal ─────────────────────────────────────────
+    dropdownOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
     dropdownCard: {
-        backgroundColor: studentColors.surface,
-        borderRadius: borderRadius.xl,
-        padding: spacing.xl,
-        width: '90%',
-        maxWidth: 340,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        width: '100%',
+        maxWidth: 360,
         ...shadows.lg,
     },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#e2e8f0',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 12,
+    },
+    dropdownHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 14,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    dropdownTitleWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    dropdownHeaderIconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#eff6ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     dropdownTitle: {
-        fontSize: typography.size.xl,
-        fontWeight: typography.weight.bold,
-        color: studentColors.textPrimary,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#0f172a',
+    },
+    dropdownSub: {
+        fontSize: 11,
+        color: '#64748b',
+        marginTop: 1,
+    },
+    dropdownCloseBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dropdownGrid: {
+        gap: 8,
     },
     dropdownItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
-        borderRadius: borderRadius.md,
-        marginBottom: spacing.xs,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 14,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        gap: 10,
     },
     dropdownItemActive: {
-        backgroundColor: studentColors.primaryLight,
+        backgroundColor: '#eff6ff',
+        borderColor: '#93c5fd',
+    },
+    stdNumCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#e2e8f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    stdNumCircleActive: {
+        backgroundColor: '#2563eb',
+    },
+    stdNumText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#475569',
+    },
+    stdNumTextActive: {
+        color: '#FFFFFF',
     },
     dropdownItemText: {
-        fontSize: typography.size.lg,
-        color: studentColors.textPrimary,
-        fontWeight: typography.weight.medium,
+        fontSize: 14,
+        color: '#334155',
+        fontWeight: '600',
     },
     dropdownItemTextActive: {
-        fontWeight: typography.weight.bold,
-        color: studentColors.secondary,
-    },
-    dropdownCheck: {
-        fontSize: typography.size.lg,
-        color: studentColors.secondary,
-        fontWeight: typography.weight.bold,
+        fontWeight: '800',
+        color: '#1d4ed8',
     },
     // ─── Bookmark Section ──────────────────────────────────────
     bookmarkSection: {
