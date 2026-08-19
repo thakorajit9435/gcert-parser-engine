@@ -3,8 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
-    Alert,
     ScrollView,
     ActivityIndicator,
     FlatList,
@@ -13,6 +11,8 @@ import {
     Platform,
     Modal,
     Image,
+    Alert,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -21,19 +21,20 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChapterDetail } from '../../hooks/useChapterDetail';
-import { studentColors, spacing, shadows } from '../../theme';
+import { studentColors, shadows } from '../../theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProgress } from '../../hooks/useUserProgress';
 import { updateChapterLastOpened, markChapterCompleted } from '../../services/firebase/progress.service';
 import { useBookmarks } from '../../hooks/useBookmarks';
-import { PremiumModal } from '../../components/student/PremiumModal';
 import { logAnalyticsEvent } from '../../services/analytics';
 import { Skeleton, AnimatedPressable } from '../../components/common';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import firestore from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants';
+import { Chapter } from '../../types';
 
+const { width } = Dimensions.get('window');
 
 interface Message {
     id: string;
@@ -43,8 +44,6 @@ interface Message {
     citations?: CitationItem[];
     pageNumber?: number;
 }
-
-
 
 const webViewHTML = `
 <!DOCTYPE html>
@@ -92,411 +91,273 @@ const webViewHTML = `
 </html>
 `;
 
-// Predefined Q&A questions that will be displayed in Chapter Menu
 const CHAPTER_QUESTIONS_TEMPLATE = [
     {
         key: 'summary',
         icon: '📖',
-        color: '#3b82f6',
+        color: '#2563eb',
         bgColor: '#eff6ff',
+        category: 'સારાંશ',
         getQuestion: (chapterTitle: string) =>
             `"${chapterTitle}" પ્રકરણનો સંક્ષિપ્ત સારાંશ ગુજરાતીમાં આપો.`,
-        getAnswer: (chapterTitle: string) =>
-            `"${chapterTitle}" પ્રકરણ વિશે સારાંશ...\n\nAI ઉત્તર મેળવવા માટે ક્લિક કરો ↑`,
         displayQ: (chapterTitle: string) =>
-            `"${chapterTitle}" પ્રકરણ શું વિશે છે? સારાંશ આપો.`,
+            `"${chapterTitle}" પ્રકરણ શું વિશે છે? મુખ્ય સારાંશ આપો.`,
     },
     {
         key: 'keynotes',
         icon: '📝',
-        color: '#8b5cf6',
+        color: '#7c3aed',
         bgColor: '#f5f3ff',
+        category: 'IMP મુદ્દા',
         getQuestion: (chapterTitle: string) =>
             `"${chapterTitle}" પ્રકરણના પરીક્ષામાં આવી શકે તેવા ૫ મહત્વના મુદ્દા આપો.`,
-        getAnswer: () => '',
         displayQ: (chapterTitle: string) =>
             `"${chapterTitle}" ના ૫ મહત્વના પ્રશ્નો (Key Points) જણાવો.`,
     },
     {
         key: 'exercise',
         icon: '✏️',
-        color: '#ec4899',
+        color: '#db2777',
         bgColor: '#fdf2f8',
+        category: 'સ્વાધ્યાય',
         getQuestion: (chapterTitle: string) =>
             `"${chapterTitle}" ના સ્વાધ્યાયના મુખ્ય પ્રશ્નો અને ઉત્તરો સમજાવો.`,
-        getAnswer: () => '',
         displayQ: (chapterTitle: string) =>
             `"${chapterTitle}" ના સ્વાધ્યાય (Exercise) ના પ્રશ્નોત્તર આપો.`,
     },
     {
         key: 'mcq',
         icon: '🎯',
-        color: '#f59e0b',
+        color: '#d97706',
         bgColor: '#fffbeb',
+        category: 'MCQ ટેસ્ટ',
         getQuestion: (chapterTitle: string) =>
-            `"${chapterTitle}" ના ૫ MCQ (બહુ-વિકલ્પ) પ્રશ્નો ઉત્તર સાથે આપો.`,
-        getAnswer: () => '',
+            `"${chapterTitle}" ના ૫ MCQ (બહુ-વિકલ્પ) પ્રશ્નો સાચા ઉત્તર સાથે આપો.`,
         displayQ: (chapterTitle: string) =>
-            `"${chapterTitle}" ના ૫ MCQ (ગુજરાતી) ઉત્તર સહ.`,
+            `"${chapterTitle}" ના ૫ MCQ (ગુજરાતી) ઉત્તર સહ પૂછો.`,
     },
     {
         key: 'funfact',
         icon: '🌟',
-        color: '#10b981',
-        bgColor: '#f0fdf4',
+        color: '#059669',
+        bgColor: '#ecfdf5',
+        category: 'રોચક તથ્ય',
         getQuestion: (chapterTitle: string) =>
             `"${chapterTitle}" પ્રકરણ સંબંધિત ૩ રસપ્રદ અજ્ઞાત વાતો (Fun Facts) જણાવો.`,
-        getAnswer: () => '',
         displayQ: (chapterTitle: string) =>
             `"${chapterTitle}" વિશે ૩ રોચક Fun Facts શું છે?`,
     },
 ];
 
+const FOLLOW_UP_CHIPS = [
+    { icon: '❓', text: 'અન્ય ૫ MCQ પૂછો' },
+    { icon: '💡', text: 'વધુ વિગતવાર સમજાવો' },
+    { icon: '📝', text: 'સરળ ભાષામાં ફરી લખો' },
+    { icon: '🧪', text: 'વાસ્તવિક ઉદાહરણ આપો' },
+];
+
 export function ChapterDetailScreen(props: any): React.JSX.Element {
     return (
         <ErrorBoundary fallbackMessage="પ્રકરણ વિગતો લોડ કરવામાં ભૂલ આવી.">
-            <ChapterDetailScreenContent {...props} />
+            <ChapterDetailScreenLoader {...props} />
         </ErrorBoundary>
     );
 }
 
-function ChapterDetailScreenContent({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
-    const { chapterId } = route.params || {};
+function ChapterDetailScreenLoader({ route, navigation }: any): React.JSX.Element {
+    const { chapterId } = route.params;
     const { chapter, loading, error } = useChapterDetail(chapterId);
-    const { userProfile } = useAuth();
-
-    const { progressMap } = useUserProgress(chapter?.subjectId);
-    const chapterProgress = progressMap[chapterId];
-    const isCompleted = chapterProgress?.isCompleted ?? false;
-    const { isBookmarked, toggle: toggleBookmark } = useBookmarks(userProfile?.uid);
-    const isChapterBookmarked = isBookmarked(chapterId);
-
-    const [updating, setUpdating] = useState(false);
-    const [premiumModalVisible, setPremiumModalVisible] = useState(false);
-
-    // Segmented Tab control
-    const [activeTab, setActiveTab] = useState<'menu' | 'chat' | 'help'>('menu');
-
-    // Chat states
-    const [sessionId, setSessionId] = useState<string | null>(null);
-    const [sessionError, setSessionError] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [inputText, setInputText] = useState('');
-    const [chatLoading, setChatLoading] = useState(false);
-    const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
-    const [recording, setRecording] = useState(false);
-    const [voiceModalVisible, setVoiceModalVisible] = useState(false);
-    const [voiceStatus, setVoiceStatus] = useState('સાંભળી રહ્યા છીએ...');
-
-    // Chapter Notes
-    const [notesModalVisible, setNotesModalVisible] = useState(false);
-    const [chapterNotes, setChapterNotes] = useState('');
-
-    const flatListRef = useRef<FlatList>(null);
-    const inputRef = useRef<TextInput>(null);
-    const webViewRef = useRef<any>(null);
-    const sessionPromiseRef = useRef<Promise<string> | null>(null);
-
-    // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
-    const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
-    const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(true);
-
-    useEffect(() => {
-        if (!chapterId) return;
-
-        const fetchSuggestedQuestions = async () => {
-            setSuggestionsLoading(true);
-            try {
-                let fetchedQuestions: string[] = [];
-
-                // ── Strategy 1: Direct query on root `questions` collection by chapterId
-                // This is the most reliable path — no composite index needed.
-                try {
-                    const directSnap = await firestore()
-                        .collection(COLLECTIONS.QUESTIONS)
-                        .where('chapterId', '==', chapterId)
-                        .limit(5)
-                        .get();
-
-                    if (!directSnap.empty) {
-                        fetchedQuestions = directSnap.docs
-                            .map(doc => {
-                                const d = doc.data();
-                                return d.questionTextGu || d.questionText || d.title || d.question || '';
-                            })
-                            .filter(Boolean);
-                    }
-                } catch (innerErr) {
-                    console.warn('[SuggestedQ] Strategy 1 (questions by chapterId) failed:', innerErr);
-                }
-
-                // ── Strategy 2: Quiz document embedded questions array
-                // Fallback: find the quiz for this chapter and read embedded array.
-                if (fetchedQuestions.length === 0) {
-                    try {
-                        const quizSnap = await firestore()
-                            .collection(COLLECTIONS.QUIZZES)
-                            .where('chapterId', '==', chapterId)
-                            .limit(1)
-                            .get();
-
-                        if (!quizSnap.empty && quizSnap.docs[0]) {
-                            const quizDoc = quizSnap.docs[0];
-                            const quizData = quizDoc.data();
-                            const embedded = quizData.questions || quizData.mcqs || [];
-
-                            if (Array.isArray(embedded) && embedded.length > 0) {
-                                fetchedQuestions = embedded
-                                    .map((q: any) => q.questionTextGu || q.questionText || q.title || q.question || '')
-                                    .filter(Boolean);
-                            }
-
-                            // ── Strategy 3: Questions by quizId in root collection
-                            if (fetchedQuestions.length === 0) {
-                                const byQuizSnap = await firestore()
-                                    .collection(COLLECTIONS.QUESTIONS)
-                                    .where('quizId', '==', quizDoc.id)
-                                    .limit(5)
-                                    .get();
-
-                                if (!byQuizSnap.empty) {
-                                    fetchedQuestions = byQuizSnap.docs
-                                        .map(doc => {
-                                            const d = doc.data();
-                                            return d.questionTextGu || d.questionText || d.title || d.question || '';
-                                        })
-                                        .filter(Boolean);
-                                }
-                            }
-                        }
-                    } catch (innerErr) {
-                        console.warn('[SuggestedQ] Strategy 2/3 (quiz lookup) failed:', innerErr);
-                    }
-                }
-
-                // Also try quiz_id field (snake_case) in case of legacy data
-                if (fetchedQuestions.length === 0) {
-                    try {
-                        const legacySnap = await firestore()
-                            .collection(COLLECTIONS.QUESTIONS)
-                            .where('chapter_id', '==', chapterId)
-                            .limit(5)
-                            .get();
-
-                        if (!legacySnap.empty) {
-                            fetchedQuestions = legacySnap.docs
-                                .map(doc => {
-                                    const d = doc.data();
-                                    return d.questionTextGu || d.questionText || d.title || d.question || '';
-                                })
-                                .filter(Boolean);
-                        }
-                    } catch (innerErr) {
-                        console.warn('[SuggestedQ] Strategy 4 (chapter_id snake_case) failed:', innerErr);
-                    }
-                }
-
-                if (fetchedQuestions.length > 0) {
-                    const unique = Array.from(new Set(fetchedQuestions)).slice(0, 5);
-                    setSuggestedQuestions(unique);
-                } else {
-                    setSuggestedQuestions([]);
-                }
-            } catch (err) {
-                console.error('[SuggestedQ] Outer error:', err);
-                setSuggestedQuestions([]);
-            } finally {
-                setSuggestionsLoading(false);
-            }
-        };
-
-        fetchSuggestedQuestions();
-    }, [chapterId]);
-
-    // Update opened timestamp and analytics
-    useEffect(() => {
-        if (chapter && userProfile?.uid) {
-            updateChapterLastOpened(userProfile.uid, chapter.id, chapter.subjectId, chapter.standardId);
-            logAnalyticsEvent('chapter_open', {
-                chapter_id: chapter.id,
-                subject_id: chapter.subjectId,
-                standard_id: chapter.standardId,
-                title: chapter.title,
-            });
-        }
-    }, [chapter?.id, userProfile?.uid]);
-
-    const getOrCreateSessionId = async (): Promise<string | null> => {
-        if (sessionId) return sessionId;
-
-        if (sessionPromiseRef.current) {
-            try {
-                const id = await sessionPromiseRef.current;
-                if (id) {
-                    setSessionId(id);
-                    setSessionError(false);
-                    return id;
-                }
-            } catch (e) {
-                console.error('Pending session promise failed:', e);
-                sessionPromiseRef.current = null;
-            }
-        }
-
-        if (!chapter) return null;
-        const currentUid = userProfile?.uid || `guest_${chapter.id || 'student'}`;
-
-        try {
-            const promise = aiTutorService.createChatSession(
-                currentUid,
-                `પ્રકરણ ચેટ: ${chapter.titleGu || chapter.title}`,
-                {
-                    standard: String(chapter.standardId || ''),
-                    subject: String(chapter.subjectId || ''),
-                    chapter: String(chapter.id || '')
-                }
-            );
-            sessionPromiseRef.current = promise;
-            const newId = await promise;
-            setSessionId(newId);
-            setSessionError(false);
-            return newId;
-        } catch (err) {
-            sessionPromiseRef.current = null;
-            console.error('Failed to create chapter AI session on demand:', err);
-            return null;
-        }
-    };
-
-    // Retry session creation — resets URL cache so it re-probes backend
-    const retrySession = async () => {
-        setSessionError(false);
-        aiTutorService.resetUrlCache();
-        const id = await getOrCreateSessionId();
-        if (!id) setSessionError(true);
-    };
-
-    // Initialize chat session for this chapter
-    useEffect(() => {
-        if (!chapter || !userProfile?.uid || sessionId) return;
-        getOrCreateSessionId();
-    }, [chapter?.id, userProfile?.uid]);
-
-    // Fetch notes for this chapter from AsyncStorage
-    useEffect(() => {
-        if (!chapterId) return;
-        const loadNotes = async () => {
-            try {
-                const savedNotes = await AsyncStorage.getItem(`notes_${chapterId}`);
-                if (savedNotes) setChapterNotes(savedNotes);
-            } catch (e) {
-                console.error('Failed to load chapter notes:', e);
-            }
-        };
-        loadNotes();
-    }, [chapterId]);
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
-                {/* Skeleton Header */}
-                <View style={styles.skeletonHeader}>
-                    <View style={styles.skeletonBackBtn} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Skeleton width="70%" height={18} borderRadius={6} style={{ marginBottom: 6 }} />
-                        <Skeleton width="45%" height={13} borderRadius={4} />
-                    </View>
-                    <View style={styles.skeletonBackBtn} />
-                </View>
-
-                {/* Skeleton Tab Row */}
-                <View style={styles.skeletonTabRow}>
-                    <Skeleton width="30%" height={36} borderRadius={20} />
-                    <Skeleton width="30%" height={36} borderRadius={20} />
-                    <Skeleton width="30%" height={36} borderRadius={20} />
-                </View>
-
-                {/* Skeleton Quick Actions */}
-                <View style={styles.skeletonQuickRow}>
-                    {[1, 2, 3, 4].map((_, i) => (
-                        <View key={i} style={{ alignItems: 'center', gap: 6 }}>
-                            <Skeleton width={52} height={52} borderRadius={16} />
-                            <Skeleton width={46} height={11} borderRadius={4} />
-                        </View>
-                    ))}
-                </View>
-
-                {/* Skeleton Section Header */}
-                <View style={{ paddingHorizontal: 16, marginTop: 16, marginBottom: 10 }}>
-                    <Skeleton width="55%" height={16} borderRadius={6} />
-                </View>
-
-                {/* Skeleton Question Cards */}
-                {[1, 2, 3, 4, 5].map((_, i) => (
-                    <View key={i} style={styles.skeletonCard}>
-                        <Skeleton width={52} height={68} borderRadius={10} />
-                        <View style={{ flex: 1, marginLeft: 10, gap: 8 }}>
-                            <Skeleton width="85%" height={14} borderRadius={4} />
-                            <Skeleton width="60%" height={14} borderRadius={4} />
-                            <Skeleton width={60} height={22} borderRadius={12} />
-                        </View>
-                        <Skeleton width={18} height={18} borderRadius={9} style={{ marginLeft: 8 }} />
-                    </View>
-                ))}
-            </View>
+            <SafeAreaView style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1d4ed8" />
+                <Text style={styles.loadingText}>પ્રકરણ વિગતો લોડ થઈ રહી છે...</Text>
+            </SafeAreaView>
         );
     }
 
     if (error || !chapter) {
         return (
-            <View style={styles.centered}>
-                <Text style={styles.errorText}>⚠️ Failed to load chapter</Text>
-            </View>
+            <SafeAreaView style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={48} color={studentColors.error} />
+                <Text style={styles.errorText}>પ્રકરણ મળ્યું નથી.</Text>
+                <AnimatedPressable style={styles.retryBtn} onPress={() => navigation.goBack()} scaleTo={0.92}>
+                    <Text style={styles.retryBtnText}>પાછા જાઓ</Text>
+                </AnimatedPressable>
+            </SafeAreaView>
         );
     }
 
-    // const isLocked = chapter.isPremium && !isPremiumUser;
+    return <ChapterDetailScreenContent chapter={chapter} navigation={navigation} />;
+}
+
+function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter; navigation: any }): React.JSX.Element {
+    const { user } = useAuth();
+    const { getChapterProgress } = useUserProgress(chapter.subjectId);
+    const { isBookmarked, toggle } = useBookmarks(user?.uid);
+
+    const [activeTab, setActiveTab] = useState<'menu' | 'chat'>('menu');
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [inputText, setInputText] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionError, setSessionError] = useState(false);
+    const [updating, setUpdating] = useState(false);
+    const [notesModalVisible, setNotesModalVisible] = useState(false);
+    const [chapterNotes, setChapterNotes] = useState('');
+    const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+    const [voiceStatus, setVoiceStatus] = useState('સાંભળી રહ્યા છીએ...');
+    const [recording, setRecording] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
+    const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+    const flatListRef = useRef<FlatList>(null);
+    const inputRef = useRef<TextInput>(null);
+    const webViewRef = useRef<any>(null);
+
+    const chapterProgress = getChapterProgress(chapter.id);
+    const isCompleted = chapterProgress?.isCompleted || false;
+    const isChapterBookmarked = isBookmarked(chapter.id);
+    const chapterTitle = chapter.titleGu || chapter.title;
+
+    // Track analytics & last opened
+    useEffect(() => {
+        if (user?.uid) {
+            updateChapterLastOpened(user.uid, chapter.id, chapter.subjectId, chapter.standardId);
+            logAnalyticsEvent('chapter_open', {
+                chapter_id: chapter.id,
+                chapter_title: chapter.title,
+                standard_id: chapter.standardId,
+            });
+        }
+    }, [chapter.id, chapter.subjectId, chapter.standardId, chapter.title, user?.uid]);
+
+    // Load saved notes
+    useEffect(() => {
+        const loadNotes = async () => {
+            try {
+                const saved = await AsyncStorage.getItem(`notes_${chapter.id}`);
+                if (saved) setChapterNotes(saved);
+            } catch (e) {
+                console.error('Failed to load notes:', e);
+            }
+        };
+        loadNotes();
+    }, [chapter.id]);
+
+    // Fetch dynamic questions from Firestore MCQs
+    useEffect(() => {
+        const fetchSuggestedQuestions = async () => {
+            setSuggestionsLoading(true);
+            try {
+                const snap = await firestore()
+                    .collection(COLLECTIONS.MCQS)
+                    .where('chapterId', '==', chapter.id)
+                    .limit(6)
+                    .get();
+
+                if (!snap.empty) {
+                    const qList = snap.docs
+                        .map(doc => doc.data()?.questionGu || doc.data()?.question || '')
+                        .filter(Boolean);
+                    if (qList.length > 0) {
+                        setSuggestedQuestions(qList);
+                    }
+                }
+            } catch (err) {
+                console.warn('[ChapterDetailScreen] MCQs fetch error:', err);
+            } finally {
+                setSuggestionsLoading(false);
+            }
+        };
+        fetchSuggestedQuestions();
+    }, [chapter.id]);
+
+    // Session Management for AI Chat
+    const getOrCreateSessionId = async (): Promise<string | null> => {
+        if (sessionId) return sessionId;
+        if (!user?.uid) return null;
+
+        const metadata = {
+            chapterId: chapter.id,
+            chapterTitle: chapter.title,
+            chapterTitleGu: chapterTitle,
+            standardId: chapter.standardId,
+            subjectId: chapter.subjectId,
+            startPage: chapter.startPage,
+            endPage: chapter.endPage,
+            pdfUrl: chapter.pdfUrl,
+        };
+
+        try {
+            const sid = await aiTutorService.createChatSession(
+                user.uid,
+                `પ્રકરણ: ${chapterTitle}`,
+                metadata
+            );
+            setSessionId(sid);
+            setSessionError(false);
+            return sid;
+        } catch (err) {
+            console.error('[ChapterDetailScreen] Error creating chat session:', err);
+            setSessionError(true);
+            return null;
+        }
+    };
+
+    const retrySession = async () => {
+        setSessionError(false);
+        const sid = await getOrCreateSessionId();
+        if (sid) {
+            setSessionError(false);
+        }
+    };
 
     const handleToggleBookmark = async () => {
-        if (!userProfile?.uid || updating) return;
+        if (updating) return;
         setUpdating(true);
         try {
-            await toggleBookmark(chapter.id, {
-                standardId: chapter.standardId,
-                standardName: `Std ${chapter.standardId}`,
+            await toggle(chapter.id, {
+                chapterTitle,
                 subjectId: chapter.subjectId,
-                chapterTitle: chapter.title
+                standardId: chapter.standardId,
             });
         } catch (err) {
-            console.error('Bookmark toggle error:', err);
+            console.error('Error toggling bookmark:', err);
         } finally {
             setUpdating(false);
         }
     };
 
     const handleMarkCompleted = async () => {
-        if (!userProfile?.uid || isCompleted || updating) return;
+        if (!user?.uid || updating) return;
         setUpdating(true);
-        const success = await markChapterCompleted(userProfile.uid, chapter.id, chapter.subjectId, chapter.standardId);
-        if (success) {
-            Alert.alert('Success', 'Chapter marked as completed! 🎉');
-        } else {
-            Alert.alert('Error', 'Failed to update progress.');
+        try {
+            const ok = await markChapterCompleted(user.uid, chapter.id, chapter.subjectId, chapter.standardId);
+            if (ok) {
+                Alert.alert('અભિનંદન! 🎉', 'આ પ્રકરણ પૂર્ણ થયું તરીકે નોંધાયું છે!');
+            }
+        } catch (err) {
+            console.error('Error marking completed:', err);
+            Alert.alert('Error', 'પ્રકરણ પૂર્ણ કરવામાં ભૂલ આવી.');
+        } finally {
+            setUpdating(false);
         }
-        setUpdating(false);
     };
 
-    const openPDF = async () => {
+    const openPDF = () => {
         if (!chapter.pdfUrl) {
-            Alert.alert('Notice', 'આ પ્રકરણ માટે પીડીએફ ઉપલબ્ધ નથી.');
+            Alert.alert('Notice', 'આ પ્રકરણ માટે ડિજિટલ પુસ્તક ઉપલબ્ધ નથી.');
             return;
         }
         navigation.navigate('PdfViewer', {
             url: chapter.pdfUrl,
-            title: chapter.titleGu || chapter.title,
+            title: chapterTitle,
             pdfId: chapter.id,
             pdfType: 'chapter',
-            startPage: chapter.startPage,
+            startPage: chapter.startPage || 1,
             endPage: chapter.endPage,
             bookStartPage: chapter.bookStartPage
         });
@@ -519,7 +380,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
         navigation.navigate('PdfViewer', {
             url: chapter.pdfUrl,
-            title: `${chapter.titleGu || chapter.title} (Page ${targetPage || startPageToUse})`,
+            title: `${chapterTitle} (પાનું ${targetPage || startPageToUse})`,
             pdfId: chapter.id,
             pdfType: 'chapter',
             startPage: startPageToUse,
@@ -531,7 +392,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     const saveChapterNotes = async (text: string) => {
         setChapterNotes(text);
         try {
-            await AsyncStorage.setItem(`notes_${chapterId}`, text);
+            await AsyncStorage.setItem(`notes_${chapter.id}`, text);
         } catch (e) {
             console.error('Failed to save notes:', e);
         }
@@ -601,18 +462,14 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
 
     // Handle question card press from Chapter Menu → send to Chat
     const handleQuestionPress = async (item: { questionText: string; displayText: string }) => {
-        const chapterTitle = chapter.titleGu || chapter.title;
         const displayQuestion = item.displayText;
 
-        // Explicit context to ensure AI answers strictly from this open chapter
         const contextPrefix =
             `[સંદર્ભ: ધોરણ ${chapter.standardId}, વિષય: ${chapter.subjectId}, પ્રકરણ: "${chapterTitle}", પ્રકરણ ક્રમાંક: ${chapter.id}]\nવિનંતી: કૃપા કરીને ફક્ત આ ખુલેલા પ્રકરણ ("${chapterTitle}") ના જ ઉત્તરો તથા પ્રશ્નોત્તરી આપો.\n`;
         const questionText = contextPrefix + item.questionText;
 
-        // Switch to chat tab first
         setActiveTab('chat');
 
-        // Execute handleSend immediately
         setTimeout(() => {
             handleSend(questionText, displayQuestion);
         }, 0);
@@ -628,12 +485,11 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         setInputText('');
         setSelectedImage(null);
 
-        // Append user message locally
         const userMsg: Message = {
             id: `user_${Date.now()}`,
             role: 'user',
             content: selectedImage
-                ? `[છબી મોકલી: ${selectedImage.name}]\n${displayQueryText}`
+                ? `[📷 ફોટો: ${selectedImage.name}]\n${displayQueryText}`
                 : displayQueryText,
             timestamp: new Date(),
         };
@@ -687,7 +543,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             const errorMsg: Message = {
                 id: `error_${Date.now()}`,
                 role: 'assistant',
-                content: '⚠️ માફ કરશો, AI સર્વર સાથે જોડાવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ૧૦-૧૫ સેકન્ડ પછી ફરીથી પ્રશ્ન પૂછો.',
+                content: '⚠️ માફ કરશો, AI સર્વર સાથે જોડાવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ૧૦-૧૫ સેકન્ડ પછી ફરીથી પ્રયત્ન કરો.',
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, errorMsg]);
@@ -702,23 +558,27 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
         return date.toLocaleTimeString('gu-IN', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const chapterTitle = chapter.titleGu || chapter.title;
-
     const suggestedItems = suggestedQuestions.length > 0
         ? suggestedQuestions.map((qText, idx) => {
             const colors = [
-                { color: '#3b82f6', bgColor: '#eff6ff', icon: '🎯' },
-                { color: '#8b5cf6', bgColor: '#f5f3ff', icon: '📝' },
-                { color: '#ec4899', bgColor: '#fdf2f8', icon: '✏️' },
-                { color: '#f59e0b', bgColor: '#fffbeb', icon: '🌟' },
-                { color: '#10b981', bgColor: '#f0fdf4', icon: '📖' }
+                { color: '#2563eb', bgColor: '#eff6ff', icon: '🎯', category: 'MCQ પ્રશ્ન' },
+                { color: '#7c3aed', bgColor: '#f5f3ff', icon: '📝', category: 'IMP મુદ્દો' },
+                { color: '#db2777', bgColor: '#fdf2f8', icon: '✏️', category: 'સ્વાધ્યાય' },
+                { color: '#d97706', bgColor: '#fffbeb', icon: '🌟', category: 'વિચારવા જેવું' },
+                { color: '#059669', bgColor: '#ecfdf5', icon: '📖', category: 'વાંચન' }
             ];
-            const styleConfig = colors[idx % colors.length] || { color: '#3b82f6', bgColor: '#eff6ff', icon: '🎯' };
+            const styleConfig = colors[idx % colors.length] || {
+                color: '#2563eb',
+                bgColor: '#eff6ff',
+                icon: '🎯',
+                category: 'MCQ પ્રશ્ન'
+            };
             return {
                 key: `suggested_${idx}`,
                 icon: styleConfig.icon,
                 color: styleConfig.color,
                 bgColor: styleConfig.bgColor,
+                category: styleConfig.category,
                 questionText: qText,
                 displayText: qText
             };
@@ -728,181 +588,252 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             icon: q.icon,
             color: q.color,
             bgColor: q.bgColor,
+            category: q.category,
             questionText: q.getQuestion(chapterTitle),
             displayText: q.displayQ(chapterTitle)
         }));
 
     return (
         <View style={styles.container}>
-            {/* Header & Tabs wrapped with Top-only Safe Area */}
-            <SafeAreaView
-                edges={['top']}
-                style={{ backgroundColor: '#FFFFFF' }}
-            >
-                {/* Header bar */}
+            {/* Header with Safe Area */}
+            <SafeAreaView edges={['top']} style={{ backgroundColor: '#1d4ed8' }}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={22} color="#1f2937" />
-                    </TouchableOpacity>
-                    <View style={styles.headerTitleContainer}>
-                        <Text style={styles.headerTitle} numberOfLines={1}>
+                    <AnimatedPressable onPress={() => navigation.goBack()} style={styles.headerIconBtn} scaleTo={0.88}>
+                        <Ionicons name="arrow-back" size={22} color="#fff" />
+                    </AnimatedPressable>
+
+                    <View style={styles.headerTitleWrap}>
+                        <Text style={styles.headerMainTitle} numberOfLines={1}>
                             {chapterTitle}
                         </Text>
-                        <Text style={styles.headerSubtitle} numberOfLines={1}>
+                        <Text style={styles.headerSubTitle} numberOfLines={1}>
                             {chapter.title}
                         </Text>
                     </View>
-                    <TouchableOpacity onPress={handleToggleBookmark} style={styles.bookmarkBtn} disabled={updating}>
-                        {updating ? (
-                            <ActivityIndicator size="small" color={studentColors.secondary} />
-                        ) : (
-                            <Ionicons
-                                name={isChapterBookmarked ? 'bookmark' : 'bookmark-outline'}
-                                size={22}
-                                color={isChapterBookmarked ? studentColors.secondary : '#6b7280'}
-                            />
-                        )}
-                    </TouchableOpacity>
+
+                    <View style={styles.headerRightActions}>
+                        <AnimatedPressable
+                            onPress={() => setNotesModalVisible(true)}
+                            style={styles.headerIconBtn}
+                            scaleTo={0.88}
+                        >
+                            <Ionicons name="document-text-outline" size={19} color="#fff" />
+                        </AnimatedPressable>
+
+                        <AnimatedPressable
+                            onPress={handleToggleBookmark}
+                            style={styles.headerIconBtn}
+                            disabled={updating}
+                            scaleTo={0.88}
+                        >
+                            {updating ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Ionicons
+                                    name={isChapterBookmarked ? 'star' : 'star-outline'}
+                                    size={19}
+                                    color={isChapterBookmarked ? '#facc15' : '#fff'}
+                                />
+                            )}
+                        </AnimatedPressable>
+                    </View>
                 </View>
 
-                {/* Segmented Tab Row */}
+                {/* Modern Segmented Pill Tabs */}
                 <View style={styles.tabContainer}>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'menu' && styles.activeTab]}
+                    <AnimatedPressable
+                        style={[styles.tab, activeTab === 'menu' && styles.tabActive]}
                         onPress={() => setActiveTab('menu')}
+                        scaleTo={0.95}
                     >
                         <Ionicons
-                            name="grid-outline"
-                            size={15}
-                            color={activeTab === 'menu' ? studentColors.secondary : '#6b7280'}
-                            style={{ marginRight: 4 }}
+                            name="grid"
+                            size={16}
+                            color={activeTab === 'menu' ? '#1d4ed8' : 'rgba(255,255,255,0.8)'}
+                            style={{ marginRight: 6 }}
                         />
-                        <Text style={[styles.tabText, activeTab === 'menu' && styles.activeTabText]}>Chapter Menu</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
+                        <Text style={[styles.tabText, activeTab === 'menu' && styles.tabTextActive]}>
+                            પ્રકરણ ઓવરવ્યૂ
+                        </Text>
+                    </AnimatedPressable>
+
+                    <AnimatedPressable
+                        style={[styles.tab, activeTab === 'chat' && styles.tabActive]}
                         onPress={() => setActiveTab('chat')}
+                        scaleTo={0.95}
                     >
                         <Ionicons
-                            name="chatbubbles-outline"
-                            size={15}
-                            color={activeTab === 'chat' ? studentColors.secondary : '#6b7280'}
-                            style={{ marginRight: 4 }}
+                            name="chatbubbles"
+                            size={16}
+                            color={activeTab === 'chat' ? '#1d4ed8' : 'rgba(255,255,255,0.8)'}
+                            style={{ marginRight: 6 }}
                         />
-                        <Text style={[styles.tabText, activeTab === 'chat' && styles.activeTabText]}>AI Chat</Text>
+                        <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>
+                            AI Chat (ટ્યુટર)
+                        </Text>
                         {messages.length > 0 && (
-                            <View style={styles.tabBadge}>
-                                <Text style={styles.tabBadgeText}>{messages.length}</Text>
+                            <View style={[styles.tabBadge, activeTab === 'chat' && styles.tabBadgeActive]}>
+                                <Text style={[styles.tabBadgeText, activeTab === 'chat' && styles.tabBadgeTextActive]}>
+                                    {messages.length}
+                                </Text>
                             </View>
                         )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'help' && styles.activeTab]}
-                        onPress={() => setActiveTab('help')}
-                    >
-                        <Ionicons
-                            name="help-circle-outline"
-                            size={15}
-                            color={activeTab === 'help' ? studentColors.secondary : '#6b7280'}
-                            style={{ marginRight: 4 }}
-                        />
-                        <Text style={[styles.tabText, activeTab === 'help' && styles.activeTabText]}>Help</Text>
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                 </View>
             </SafeAreaView>
 
-            {/* ─── MENU TAB ─── */}
+            {/* ─── TAB 1: MENU / OVERVIEW ─── */}
             {activeTab === 'menu' && (
                 <ScrollView contentContainerStyle={styles.menuScroll} showsVerticalScrollIndicator={false}>
 
-                    {/* Quick Action Buttons */}
-                    <View style={styles.quickActionRow}>
-                        <AnimatedPressable style={styles.quickActionBtn} onPress={openPDF} scaleTo={0.92}>
-                            <View style={[styles.quickActionIcon, { backgroundColor: '#eff6ff' }]}>
-                                <Ionicons name="book-outline" size={20} color="#3b82f6" />
+                    {/* Chapter Hero Info Card */}
+                    <View style={styles.chapterHeroCard}>
+                        <View style={styles.heroTopRow}>
+                            <View style={styles.orderBadge}>
+                                <Text style={styles.orderBadgeText}>પ્રકરણ વિગતો</Text>
                             </View>
-                            <Text style={styles.quickActionText}>Textbook</Text>
-                        </AnimatedPressable>
-                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => setNotesModalVisible(true)} scaleTo={0.92}>
-                            <View style={[styles.quickActionIcon, { backgroundColor: '#fdf4ff' }]}>
-                                <Ionicons name="document-text-outline" size={20} color="#a855f7" />
+                            <View style={[styles.statusBadge, isCompleted ? styles.statusCompleted : styles.statusInProgress]}>
+                                <Text style={[styles.statusBadgeText, isCompleted ? styles.statusTextCompleted : styles.statusTextInProgress]}>
+                                    {isCompleted ? '✓ પૂર્ણ થયેલ' : '▶️ અભ્યાસ ચાલુ'}
+                                </Text>
                             </View>
-                            <Text style={styles.quickActionText}>My Notes</Text>
-                        </AnimatedPressable>
-                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => navigateToQuiz(false)} scaleTo={0.92}>
-                            <View style={[styles.quickActionIcon, { backgroundColor: '#f0fdf4' }]}>
-                                <Ionicons name="trophy-outline" size={20} color="#22c55e" />
-                            </View>
-                            <Text style={styles.quickActionText}>MCQ Quiz</Text>
-                        </AnimatedPressable>
-                        <AnimatedPressable style={styles.quickActionBtn} onPress={() => navigation.navigate('StudentFlashcards', { chapterId: chapter.id, chapterTitle })} scaleTo={0.92}>
-                            <View style={[styles.quickActionIcon, { backgroundColor: '#fff7ed' }]}>
-                                <Ionicons name="flash-outline" size={20} color="#f59e0b" />
-                            </View>
-                            <Text style={styles.quickActionText}>Flashcards</Text>
-                        </AnimatedPressable>
+                        </View>
+
+                        <Text style={styles.heroTitle}>{chapterTitle}</Text>
+                        {chapter.titleGu && chapter.title !== chapter.titleGu ? (
+                            <Text style={styles.heroSubTitle}>{chapter.title}</Text>
+                        ) : null}
+
+                        {/* Page Range Pill */}
+                        <View style={styles.heroMetaRow}>
+                            {chapter.startPage ? (
+                                <View style={styles.heroPageBadge}>
+                                    <Ionicons name="book" size={13} color="#2563eb" />
+                                    <Text style={styles.heroPageBadgeText}>
+                                        પાઠ્યપુસ્તક પાના: {chapter.endPage ? `${chapter.startPage} - ${chapter.endPage}` : chapter.startPage}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {chapterNotes ? (
+                                <View style={[styles.heroPageBadge, { backgroundColor: '#fdf4ff', borderColor: '#f0abfc' }]}>
+                                    <Ionicons name="create" size={13} color="#c026d3" />
+                                    <Text style={[styles.heroPageBadgeText, { color: '#c026d3' }]}>
+                                        નોંધ સાચવેલ છે
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </View>
+
+                        {chapter.description ? (
+                            <Text style={styles.heroDesc} numberOfLines={2}>
+                                {chapter.description}
+                            </Text>
+                        ) : null}
                     </View>
 
-                    {/* Chapter Questions Section */}
+                    {/* Modern 2x2 Interactive Tools Grid */}
+                    <View style={styles.toolsSection}>
+                        <Text style={styles.sectionHeading}>⚡ મુખ્ય સાધનો & અભ્યાસ સામગ્રી</Text>
+                        <View style={styles.toolsGrid}>
+                            <AnimatedPressable
+                                style={[styles.toolCard, { borderTopColor: '#2563eb' }]}
+                                onPress={openPDF}
+                                scaleTo={0.94}
+                            >
+                                <View style={[styles.toolIconBox, { backgroundColor: '#eff6ff' }]}>
+                                    <Ionicons name="book-outline" size={22} color="#2563eb" />
+                                </View>
+                                <Text style={styles.toolTitle}>પાઠ્યપુસ્તક</Text>
+                                <Text style={styles.toolSub}>ડિજિટલ PDF</Text>
+                            </AnimatedPressable>
+
+                            <AnimatedPressable
+                                style={[styles.toolCard, { borderTopColor: '#7c3aed' }]}
+                                onPress={() => setNotesModalVisible(true)}
+                                scaleTo={0.94}
+                            >
+                                <View style={[styles.toolIconBox, { backgroundColor: '#f5f3ff' }]}>
+                                    <Ionicons name="document-text-outline" size={22} color="#7c3aed" />
+                                </View>
+                                <Text style={styles.toolTitle}>મારી નોંધ</Text>
+                                <Text style={styles.toolSub}>ચેપ્ટર નોટ્સ</Text>
+                            </AnimatedPressable>
+
+                            <AnimatedPressable
+                                style={[styles.toolCard, { borderTopColor: '#059669' }]}
+                                onPress={() => navigateToQuiz(false)}
+                                scaleTo={0.94}
+                            >
+                                <View style={[styles.toolIconBox, { backgroundColor: '#ecfdf5' }]}>
+                                    <Ionicons name="trophy-outline" size={22} color="#059669" />
+                                </View>
+                                <Text style={styles.toolTitle}>MCQ ક્વિઝ</Text>
+                                <Text style={styles.toolSub}>ટેસ્ટ પ્રેક્ટિસ</Text>
+                            </AnimatedPressable>
+
+                            <AnimatedPressable
+                                style={[styles.toolCard, { borderTopColor: '#d97706' }]}
+                                onPress={() => navigation.navigate('StudentFlashcards', { chapterId: chapter.id, chapterTitle })}
+                                scaleTo={0.94}
+                            >
+                                <View style={[styles.toolIconBox, { backgroundColor: '#fffbeb' }]}>
+                                    <Ionicons name="flash-outline" size={22} color="#d97706" />
+                                </View>
+                                <Text style={styles.toolTitle}>ફ્લેશકાર્ડ્સ</Text>
+                                <Text style={styles.toolSub}>ઝડપી રિવિઝન</Text>
+                            </AnimatedPressable>
+                        </View>
+                    </View>
+
+                    {/* Chapter Questions Section ("AI ને પ્રશ્ન પૂછો") */}
                     <View style={styles.questionsSection}>
                         <View style={styles.questionsSectionHeader}>
                             <View style={styles.qSectionIconWrap}>
-                                <Ionicons name="sparkles" size={16} color={studentColors.secondary} />
+                                <Ionicons name="sparkles" size={16} color="#2563eb" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.questionsSectionTitle}>AI ને પ્રશ્ન પૂછો</Text>
                                 <Text style={styles.questionsSectionSub}>
                                     {suggestionsLoading
                                         ? 'પ્રશ્નો લોડ થઈ રહ્યા છે...'
-                                        : suggestedQuestions.length > 0
-                                            ? `📚 આ પ્રકરણના ${suggestedQuestions.length} MCQ પ્રશ્નો — ક્લિક કરો → AI ઉત્તર`
-                                            : 'ક્લિક કરો → AI Chat ટૅબ પર ઉત્તર આવશે'
+                                        : `📚 આ પ્રકરણના મહત્વના પ્રશ્નો — ક્લિક કરતાં જ AI ઉત્તર આપશે`
                                     }
                                 </Text>
                             </View>
                         </View>
 
-                        {/* Loading skeleton */}
+                        {/* Loading skeletons */}
                         {suggestionsLoading ? (
-                            [1, 2, 3, 4, 5].map((_, i) => (
+                            [1, 2, 3, 4].map((_, i) => (
                                 <View key={i} style={[styles.questionCard, { borderLeftColor: '#e2e8f0', opacity: 0.6 }]}>
-                                    <Skeleton width={52} height={68} borderRadius={10} />
-                                    <View style={{ flex: 1, marginLeft: 10, gap: 8 }}>
+                                    <Skeleton width={42} height={42} borderRadius={10} />
+                                    <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
                                         <Skeleton width="85%" height={14} borderRadius={4} />
-                                        <Skeleton width="60%" height={14} borderRadius={4} />
-                                        <Skeleton width={60} height={20} borderRadius={10} />
+                                        <Skeleton width="55%" height={12} borderRadius={4} />
                                     </View>
-                                    <Skeleton width={18} height={18} borderRadius={9} style={{ marginLeft: 8 }} />
                                 </View>
                             ))
                         ) : (
-                            suggestedItems.map((item, idx) => (
+                            suggestedItems.map((item) => (
                                 <AnimatedPressable
                                     key={item.key}
                                     style={[styles.questionCard, { borderLeftColor: item.color }]}
                                     onPress={() => handleQuestionPress(item)}
                                     scaleTo={0.97}
                                 >
-                                    {/* Number badge */}
-                                    <View style={[styles.qNumBadge, { backgroundColor: item.bgColor }]}>
-                                        <Text style={styles.qNumBadgeIcon}>{item.icon}</Text>
-                                        <View style={[styles.qNumCircle, { backgroundColor: item.color }]}>
-                                            <Text style={styles.qNumText}>{idx + 1}</Text>
-                                        </View>
+                                    <View style={[styles.qIconBox, { backgroundColor: item.bgColor }]}>
+                                        <Text style={styles.qEmoji}>{item.icon}</Text>
                                     </View>
 
-                                    {/* Question text */}
                                     <View style={styles.questionCardBody}>
+                                        <View style={[styles.qCategoryBadge, { backgroundColor: item.bgColor }]}>
+                                            <Text style={[styles.qCategoryText, { color: item.color }]}>{item.category}</Text>
+                                        </View>
                                         <Text style={styles.questionCardText}>
                                             {item.displayText}
                                         </Text>
-                                        <View style={[styles.qAiChip, { backgroundColor: item.bgColor }]}>
-                                            <Ionicons name="chatbubble-ellipses" size={10} color={item.color} />
-                                            <Text style={[styles.qAiChipText, { color: item.color }]}>AI ઉત્તર</Text>
-                                        </View>
                                     </View>
 
-                                    {/* Arrow */}
                                     <View style={styles.qArrowWrap}>
                                         <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
                                     </View>
@@ -911,7 +842,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         )}
                     </View>
 
-                    {/* Mark Completed */}
+                    {/* Mark Completed Button */}
                     {!isCompleted && (
                         <AnimatedPressable
                             style={styles.markCompletedBtn}
@@ -923,8 +854,8 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 <ActivityIndicator size="small" color="#FFFFFF" />
                             ) : (
                                 <>
-                                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                                    <Text style={styles.markCompletedText}>Mark Chapter as Completed</Text>
+                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.markCompletedText}>આ પ્રકરણ પૂર્ણ થયું તરીકે ચિહ્નિત કરો</Text>
                                 </>
                             )}
                         </AnimatedPressable>
@@ -932,38 +863,24 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                 </ScrollView>
             )}
 
-            {/* ─── CHAT TAB (Exact same layout structure as AITutorScreen) ─── */}
+            {/* ─── TAB 2: AI CHAT ─── */}
             {activeTab === 'chat' && (
                 <KeyboardAvoidingView
-                    style={{ flex: 1, backgroundColor: '#F0F4F8' }}
+                    style={{ flex: 1, backgroundColor: '#F1F5F9' }}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
                 >
-                    {/* ── Connection Error Banner ── */}
+                    {/* Connection Error Banner */}
                     {sessionError && (
                         <View style={styles.sessionErrorBanner}>
-                            <View style={styles.sessionErrorIconWrap}>
-                                <Ionicons name="cloud-offline-outline" size={28} color="#ef4444" />
-                            </View>
-                            <Text style={styles.sessionErrorTitle}>સર્વર સાથે જોડાઈ શકાયું નથી</Text>
-                            <Text style={styles.sessionErrorSub}>
-                                AI backend unreachable. Local server down or tunnel expired.
-                            </Text>
-                            <TouchableOpacity
-                                style={styles.sessionRetryBtn}
-                                onPress={retrySession}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons name="refresh" size={16} color="#fff" />
-                                <Text style={styles.sessionRetryBtnText}>ફરીથી પ્રયત્ન કરો</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.sessionErrorHint}>
-                                💡 Tip: Mac પર{' '}
-                                <Text style={{ fontWeight: '700' }}>./start_ai.sh</Text>
-                                {' '}ચલાવો
-                            </Text>
+                            <Ionicons name="cloud-offline-outline" size={22} color="#ef4444" style={{ marginRight: 8 }} />
+                            <Text style={styles.sessionErrorTitle}>સર્વર જોડાણ નથી</Text>
+                            <AnimatedPressable style={styles.sessionRetryBtn} onPress={retrySession} scaleTo={0.90}>
+                                <Text style={styles.sessionRetryBtnText}>ફરી જોડો</Text>
+                            </AnimatedPressable>
                         </View>
                     )}
+
                     <FlatList
                         ref={flatListRef}
                         data={messages}
@@ -971,7 +888,6 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                         contentContainerStyle={[styles.chatList, { flexGrow: 1 }]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="on-drag"
                         renderItem={({ item, index }) => {
                             const isUser = item.role === 'user';
                             const isLast = index === messages.length - 1;
@@ -979,7 +895,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 <View style={[
                                     styles.msgRow,
                                     isUser ? styles.msgUser : styles.msgAssistant,
-                                    isLast && { marginBottom: 8 }
+                                    isLast && { marginBottom: 12 }
                                 ]}>
                                     {!isUser && (
                                         <View style={styles.aiAvatar}>
@@ -998,27 +914,26 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                                 {item.content}
                                             </Text>
 
+                                            {/* Citations Card */}
                                             {!isUser && (
-                                                <TouchableOpacity
+                                                <AnimatedPressable
                                                     style={styles.citationBadgeCard}
                                                     onPress={() => openPDFAtPage(item.pageNumber || chapter.bookStartPage || chapter.startPage || 1)}
-                                                    activeOpacity={0.85}
+                                                    scaleTo={0.96}
                                                 >
                                                     <View style={styles.citationBadgeHeader}>
-                                                        <Ionicons name="book" size={14} color="#1d4ed8" />
+                                                        <Ionicons name="book" size={13} color="#2563eb" />
                                                         <Text style={styles.citationChapterName} numberOfLines={1}>
-                                                            {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : (chapter.titleGu || chapter.title)}
+                                                            {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : chapterTitle}
                                                         </Text>
                                                     </View>
                                                     <View style={styles.citationBadgeFooter}>
                                                         <Text style={styles.citationPageNoText}>
-                                                            📄 પાનું (Page): {item.pageNumber || chapter.bookStartPage || chapter.startPage || 1}
+                                                            📖 પાઠ્યપુસ્તક પાનું: {item.pageNumber || chapter.bookStartPage || chapter.startPage || 1}
                                                         </Text>
-                                                        <View style={styles.citationPdfRedirectBtn}>
-                                                            <Text style={styles.citationPdfRedirectText}>પાઠ્યપુસ્તકમાં ખોલો ➔</Text>
-                                                        </View>
+                                                        <Text style={styles.citationRedirectText}>ખોલો ➔</Text>
                                                     </View>
-                                                </TouchableOpacity>
+                                                </AnimatedPressable>
                                             )}
                                         </View>
                                         <Text style={[
@@ -1030,7 +945,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                     </View>
                                     {isUser && (
                                         <View style={styles.userAvatar}>
-                                            <Ionicons name="person" size={14} color="#FFFFFF" />
+                                            <Ionicons name="person" size={13} color="#FFFFFF" />
                                         </View>
                                     )}
                                 </View>
@@ -1043,21 +958,21 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 </View>
                                 <Text style={styles.emptyChatTitle}>AI ડાઉટ સોલ્વર — {chapterTitle}</Text>
                                 <Text style={styles.emptyChatSub}>
-                                    આ પ્રકરણમાંથી કોઈપણ પ્રશ્ન પૂછો.{'\n'}
-                                    નીચે ટાઇપ કરો, માઇકથી બોલો અથવા ફોટો પાડો!
+                                    આ પ્રકરણમાંથી કોઈપણ પ્રશ્ન પૂછો. AI સીધા પાઠ્યપુસ્તકમાંથી ઉત્તર આપશે!
                                 </Text>
+
                                 <Text style={styles.emptyQuickTitle}>ઝડપી પ્રશ્નો 👇</Text>
                                 <View style={styles.emptyChipsGrid}>
-                                    {suggestedItems.map((q: any, idx: number) => (
-                                        <TouchableOpacity
-                                            key={q.key || idx}
+                                    {suggestedItems.map((q: any) => (
+                                        <AnimatedPressable
+                                            key={q.key}
                                             style={styles.emptyChip}
                                             onPress={() => handleQuestionPress(q)}
-                                            activeOpacity={0.75}
+                                            scaleTo={0.96}
                                         >
                                             <Text style={styles.emptyChipIcon}>{q.icon}</Text>
                                             <Text style={styles.emptyChipText} numberOfLines={1}>{q.displayText}</Text>
-                                        </TouchableOpacity>
+                                        </AnimatedPressable>
                                     ))}
                                 </View>
                             </View>
@@ -1071,13 +986,28 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                                 <Text style={styles.aiAvatarText}>🤖</Text>
                             </View>
                             <View style={styles.typingBubble}>
-                                <View style={styles.typingDots}>
-                                    <View style={[styles.dot, styles.dot1]} />
-                                    <View style={[styles.dot, styles.dot2]} />
-                                    <View style={[styles.dot, styles.dot3]} />
-                                </View>
-                                <Text style={styles.typingText}>AI જવાબ તૈયાર કરી રહ્યો છે...</Text>
+                                <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 8 }} />
+                                <Text style={styles.typingText}>AI ઉત્તર તૈયાર કરી રહ્યો છે...</Text>
                             </View>
+                        </View>
+                    )}
+
+                    {/* Follow-up Quick Chips */}
+                    {messages.length > 0 && !chatLoading && (
+                        <View style={styles.followUpBar}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followUpScroll}>
+                                {FOLLOW_UP_CHIPS.map((chip, idx) => (
+                                    <AnimatedPressable
+                                        key={idx}
+                                        style={styles.followUpChip}
+                                        onPress={() => handleSend(chip.text)}
+                                        scaleTo={0.93}
+                                    >
+                                        <Text style={styles.followUpIcon}>{chip.icon}</Text>
+                                        <Text style={styles.followUpText}>{chip.text}</Text>
+                                    </AnimatedPressable>
+                                ))}
+                            </ScrollView>
                         </View>
                     )}
 
@@ -1085,111 +1015,61 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     {selectedImage && (
                         <View style={styles.imagePreviewRow}>
                             <Image source={{ uri: selectedImage.uri }} style={styles.imagePreviewThumb} />
-                            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                            <View style={{ flex: 1, marginLeft: 8 }}>
                                 <Text style={styles.imagePreviewName} numberOfLines={1}>{selectedImage.name}</Text>
-                                <Text style={styles.imagePreviewSub}>ছবি attach করা</Text>
+                                <Text style={styles.imagePreviewSub}>ફોટો જોડાયેલ છે</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.imagePreviewRemove}>
+                            <AnimatedPressable onPress={() => setSelectedImage(null)} scaleTo={0.85}>
                                 <Ionicons name="close-circle" size={24} color={studentColors.error} />
-                            </TouchableOpacity>
+                            </AnimatedPressable>
                         </View>
                     )}
 
-                    {/* Input Bar */}
+                    {/* Chat Input Bar */}
                     <View style={styles.chatInputBar}>
-                        <TouchableOpacity onPress={handleVoicePress} style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}>
+                        <AnimatedPressable
+                            onPress={handleVoicePress}
+                            style={[styles.inputActionBtn, recording && styles.inputActionBtnActive]}
+                            scaleTo={0.90}
+                        >
                             <Ionicons
                                 name={recording ? 'mic-sharp' : 'mic-outline'}
-                                size={21}
-                                color={recording ? '#FFFFFF' : studentColors.secondary}
+                                size={22}
+                                color={recording ? '#FFFFFF' : '#2563eb'}
                             />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handlePickImage} style={styles.inputActionBtn}>
-                            <Ionicons name="camera-outline" size={22} color={studentColors.secondary} />
-                        </TouchableOpacity>
+                        </AnimatedPressable>
+
+                        <AnimatedPressable onPress={handlePickImage} style={styles.inputActionBtn} scaleTo={0.90}>
+                            <Ionicons name="camera-outline" size={22} color="#2563eb" />
+                        </AnimatedPressable>
+
                         <TextInput
                             ref={inputRef}
                             style={styles.chatTextInput}
-                            placeholder="ગુજરાતીમાં પ્રશ્ન ટાઇપ કરો..."
-                            placeholderTextColor="#9ca3af"
+                            placeholder="આ પ્રકરણમાંથી પ્રશ્ન પૂછો..."
+                            placeholderTextColor="#94a3b8"
                             value={inputText}
                             onChangeText={setInputText}
                             multiline
                             maxLength={600}
                         />
-                        <TouchableOpacity
+
+                        <AnimatedPressable
                             style={[
                                 styles.chatSendBtn,
                                 (!inputText.trim() && !selectedImage) && styles.sendBtnDisabled
                             ]}
                             onPress={() => handleSend()}
                             disabled={!inputText.trim() && !selectedImage}
+                            scaleTo={0.90}
                         >
                             <Ionicons name="send" size={17} color="#FFFFFF" />
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     </View>
                 </KeyboardAvoidingView>
             )}
 
-            {/* ─── HELP TAB ─── */}
-            {activeTab === 'help' && (
-                <ScrollView contentContainerStyle={styles.helpScroll} showsVerticalScrollIndicator={false}>
-                    <View style={styles.helpHero}>
-                        <Text style={styles.helpHeroEmoji}>💡</Text>
-                        <Text style={styles.helpTitle}>Chapter AI — ઉપયોગ માર્ગદર્શિકા</Text>
-                    </View>
-
-                    <View style={styles.helpCard}>
-                        <View style={styles.helpCardHeader}>
-                            <View style={[styles.helpCardIcon, { backgroundColor: '#eff6ff' }]}>
-                                <Ionicons name="grid-outline" size={18} color="#3b82f6" />
-                            </View>
-                            <Text style={styles.helpHeading}>૧. Chapter Menu</Text>
-                        </View>
-                        <Text style={styles.helpBody}>
-                            Chapter Menu માં ૫ તૈયાર AI પ્રશ્નો છે. ગમે ત્યારે ક્લિક કરો — AI Chat ટૅબ પર ઉત્તર આવશે.
-                        </Text>
-                    </View>
-
-                    <View style={styles.helpCard}>
-                        <View style={styles.helpCardHeader}>
-                            <View style={[styles.helpCardIcon, { backgroundColor: '#f0fdf4' }]}>
-                                <Ionicons name="mic-outline" size={18} color="#22c55e" />
-                            </View>
-                            <Text style={styles.helpHeading}>૨. Voice Input (ઓડિઓ)</Text>
-                        </View>
-                        <Text style={styles.helpBody}>
-                            Chat ટૅબ માં 🎤 icon tap કરો → ગુજરાતીમાં બોલો → app automatic ટ્રાન્સ્ક્રાઇબ કરશે.
-                        </Text>
-                    </View>
-
-                    <View style={styles.helpCard}>
-                        <View style={styles.helpCardHeader}>
-                            <View style={[styles.helpCardIcon, { backgroundColor: '#fdf2f8' }]}>
-                                <Ionicons name="camera-outline" size={18} color="#ec4899" />
-                            </View>
-                            <Text style={styles.helpHeading}>૩. Camera / Photo (ફોટો OCR)</Text>
-                        </View>
-                        <Text style={styles.helpBody}>
-                            Chat ટૅબ 📷 icon tap → textbook page / printed question photo → AI scan કરી ઉત્તર આપશે.
-                        </Text>
-                    </View>
-
-                    <View style={styles.helpCard}>
-                        <View style={styles.helpCardHeader}>
-                            <View style={[styles.helpCardIcon, { backgroundColor: '#fffbeb' }]}>
-                                <Ionicons name="chatbubbles-outline" size={18} color="#f59e0b" />
-                            </View>
-                            <Text style={styles.helpHeading}>૪. Follow-up Questions</Text>
-                        </View>
-                        <Text style={styles.helpBody}>
-                            AI ઉત્તર પછી "ફરી સમજાવ" કે "example આપો" લખીને follow-up પ્રશ્ન પૂછી શકો છો.
-                        </Text>
-                    </View>
-                </ScrollView>
-            )}
-
-            {/* Chapter Notes Modal */}
+            {/* Chapter Notes Bottom Sheet Modal */}
             <Modal
                 visible={notesModalVisible}
                 animationType="slide"
@@ -1200,28 +1080,31 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     <View style={styles.modalContent}>
                         <View style={styles.modalHandle} />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>📝 મારા ચેપ્ટર નોટ્સ</Text>
-                            <TouchableOpacity onPress={() => setNotesModalVisible(false)} style={styles.modalCloseBtn}>
-                                <Ionicons name="close" size={22} color="#374151" />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontSize: 20 }}>📝</Text>
+                                <Text style={styles.modalTitle}>મારી નોંધ (Notes)</Text>
+                            </View>
+                            <AnimatedPressable onPress={() => setNotesModalVisible(false)} scaleTo={0.88}>
+                                <Ionicons name="close-circle" size={24} color="#94a3b8" />
+                            </AnimatedPressable>
                         </View>
                         <TextInput
                             style={styles.notesInput}
                             multiline
-                            placeholder="આ ચેપ્ટર વાંચતી વખતે તમારા અગત્યના પોઈન્ટ્સ અહીં નોંધો..."
-                            placeholderTextColor="#9ca3af"
+                            placeholder="આ પ્રકરણ વાંચતી વખતે અગત્યના મુદ્દા અહીં નોંધો..."
+                            placeholderTextColor="#94a3b8"
                             value={chapterNotes}
                             onChangeText={saveChapterNotes}
                         />
-                        <TouchableOpacity style={styles.saveNotesBtn} onPress={() => setNotesModalVisible(false)}>
-                            <Ionicons name="checkmark" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <AnimatedPressable style={styles.saveNotesBtn} onPress={() => setNotesModalVisible(false)} scaleTo={0.96}>
+                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                             <Text style={styles.saveNotesText}>સાચવો અને બંધ કરો</Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     </View>
                 </View>
             </Modal>
 
-            {/* Voice Modal */}
+            {/* Voice Speech Modal */}
             <Modal
                 visible={voiceModalVisible}
                 transparent={true}
@@ -1233,372 +1116,444 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
             >
                 <View style={styles.voiceModalOverlay}>
                     <View style={styles.voiceModalContent}>
-                        <Text style={styles.voiceModalTitle}>🎤 ગુજરાતીમાં બોલો</Text>
-                        <View style={styles.voicePulseOuter}>
-                            <View style={styles.voicePulseMiddle}>
-                                <View style={styles.voicePulseCircle}>
-                                    <Ionicons name="mic" size={40} color="#FFFFFF" />
+                        <View style={styles.voiceRingOuter}>
+                            <View style={styles.voiceRingMid}>
+                                <View style={styles.voiceRingInner}>
+                                    <Ionicons name="mic" size={38} color="#FFFFFF" />
                                 </View>
                             </View>
                         </View>
+                        <Text style={styles.voiceModalTitle}>🎤 ગુજરાતીમાં બોલો</Text>
                         <Text style={styles.voiceModalStatus} numberOfLines={3}>
                             {voiceStatus}
                         </Text>
-                        <TouchableOpacity
+                        <AnimatedPressable
                             onPress={() => {
                                 setRecording(false);
                                 setVoiceModalVisible(false);
                                 webViewRef.current?.postMessage('stop');
                             }}
-                            style={styles.voiceStopBtn}
+                            style={styles.voiceModalCancelBtn}
+                            scaleTo={0.94}
                         >
-                            <Ionicons name="stop-circle" size={18} color={studentColors.secondary} style={{ marginRight: 6 }} />
-                            <Text style={styles.voiceStopText}>રિકોર્ડ બંધ કરો</Text>
-                        </TouchableOpacity>
+                            <Ionicons name="stop-circle" size={18} color="#2563eb" style={{ marginRight: 6 }} />
+                            <Text style={styles.voiceModalCancelText}>બોલવાનું પૂરું થયું</Text>
+                        </AnimatedPressable>
                     </View>
                 </View>
             </Modal>
 
-            {/* Hidden WebView for Speech Recognition */}
+            {/* Hidden WebView for Speech recognition */}
             <WebView
                 ref={webViewRef}
-                originWhitelist={['*']}
                 source={{ html: webViewHTML }}
                 onMessage={onWebViewMessage}
                 javaScriptEnabled={true}
                 style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
             />
-
-            {/* PremiumModal */}
-            <PremiumModal
-                visible={premiumModalVisible}
-                onClose={() => setPremiumModalVisible(false)}
-                onUpgrade={() => {
-                    setPremiumModalVisible(false);
-                    navigation.navigate('PremiumAccess');
-                }}
-            />
         </View>
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#F1F5F9',
     },
-    centered: {
+    loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
-        padding: spacing.md,
+        backgroundColor: '#F1F5F9',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '600',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        padding: 24,
     },
     errorText: {
         fontSize: 16,
-        color: studentColors.error,
-        fontWeight: 'bold',
+        color: '#334155',
+        marginTop: 12,
+        marginBottom: 16,
+        fontWeight: '700',
     },
-
-    // ── Skeleton Loading ─────────────────────────────────────────────────────
-    skeletonHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 14,
+    retryBtn: {
+        backgroundColor: '#2563eb',
+        paddingHorizontal: 20,
         paddingVertical: 10,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        borderRadius: 20,
     },
-    skeletonBackBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#e5e7eb',
-    },
-    skeletonTabRow: {
-        flexDirection: 'row',
-        gap: 8,
-        marginHorizontal: 16,
-        marginVertical: 10,
-        justifyContent: 'space-between',
-    },
-    skeletonQuickRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    skeletonCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginHorizontal: 14,
-        marginBottom: 10,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        padding: 12,
-        borderWidth: 1,
-        borderLeftWidth: 4,
-        borderColor: '#e2e8f0',
+    retryBtnText: {
+        color: '#fff',
+        fontWeight: '700',
     },
 
-    // ── Header ──────────────────────────────────────────────────
+    // ── Header ─────────────────────────────────────────────────────
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: 10,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-        ...shadows.sm,
+        paddingHorizontal: 12,
+        paddingTop: 10,
+        paddingBottom: 10,
+        backgroundColor: '#1d4ed8',
+        gap: 8,
     },
-    backBtn: {
+    headerIconBtn: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'rgba(255,255,255,0.18)',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerTitleContainer: {
+    headerTitleWrap: {
         flex: 1,
-        marginLeft: spacing.sm,
+        paddingHorizontal: 4,
     },
-    headerTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#111827',
+    headerMainTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#FFFFFF',
         letterSpacing: -0.2,
     },
-    headerSubtitle: {
+    headerSubTitle: {
         fontSize: 11,
-        color: '#9ca3af',
+        color: 'rgba(255,255,255,0.85)',
         marginTop: 1,
     },
-    bookmarkBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#f8fafc',
-        justifyContent: 'center',
-        alignItems: 'center',
+    headerRightActions: {
+        flexDirection: 'row',
+        gap: 6,
     },
 
-    // ── Tabs ────────────────────────────────────────────────────
+    // ── Segmented Pill Tab Bar ─────────────────────────────────────
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 50,
-        padding: 4,
-        marginHorizontal: 16,
-        marginVertical: 10,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        ...shadows.sm,
+        backgroundColor: '#1e40af',
+        padding: 6,
+        gap: 6,
     },
     tab: {
         flex: 1,
         flexDirection: 'row',
-        paddingVertical: 9,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 46,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.12)',
     },
-    activeTab: {
-        backgroundColor: '#EFF6FF',
+    tabActive: {
+        backgroundColor: '#FFFFFF',
+        ...shadows.sm,
     },
     tabText: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#9ca3af',
+        color: 'rgba(255,255,255,0.85)',
     },
-    activeTabText: {
-        color: studentColors.secondary,
+    tabTextActive: {
+        color: '#1d4ed8',
+        fontWeight: '800',
     },
     tabBadge: {
-        backgroundColor: studentColors.secondary,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        paddingHorizontal: 6,
+        paddingVertical: 1,
         borderRadius: 10,
-        minWidth: 16,
-        height: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 4,
-        paddingHorizontal: 4,
+        marginLeft: 6,
+    },
+    tabBadgeActive: {
+        backgroundColor: '#dbeafe',
     },
     tabBadgeText: {
-        color: '#FFFFFF',
-        fontSize: 9,
-        fontWeight: 'bold',
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#fff',
+    },
+    tabBadgeTextActive: {
+        color: '#1d4ed8',
     },
 
-    // ── Menu Tab ─────────────────────────────────────────────────
+    // ── Menu / Overview Scroll ─────────────────────────────────────
     menuScroll: {
-        paddingBottom: 40,
+        padding: 14,
+        paddingBottom: 24,
     },
-    quickActionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
+
+    // ── Chapter Hero Card ──────────────────────────────────────────
+    chapterHeroCard: {
         backgroundColor: '#FFFFFF',
-        marginBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    quickActionBtn: {
-        alignItems: 'center',
-    },
-    quickActionIcon: {
-        width: 52,
-        height: 52,
         borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 6,
+        padding: 16,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
         ...shadows.sm,
     },
-    quickActionText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#374151',
+    heroTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
-
-    // ── Questions Section ─────────────────────────────────────────
-    questionsSection: {
-        marginHorizontal: 14,
+    orderBadge: {
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+    },
+    orderBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#2563eb',
+        textTransform: 'uppercase',
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+    },
+    statusCompleted: {
+        backgroundColor: '#ecfdf5',
+    },
+    statusInProgress: {
+        backgroundColor: '#fffbeb',
+    },
+    statusBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    statusTextCompleted: {
+        color: '#059669',
+    },
+    statusTextInProgress: {
+        color: '#d97706',
+    },
+    heroTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#0f172a',
+        letterSpacing: -0.3,
+    },
+    heroSubTitle: {
+        fontSize: 13,
+        color: '#64748b',
+        marginTop: 2,
+    },
+    heroMetaRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
         marginTop: 10,
         marginBottom: 6,
+    },
+    heroPageBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+        gap: 4,
+    },
+    heroPageBadgeText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#1e40af',
+    },
+    heroDesc: {
+        fontSize: 12,
+        color: '#64748b',
+        lineHeight: 18,
+        marginTop: 6,
+    },
+
+    // ── Tools Grid ─────────────────────────────────────────────────
+    toolsSection: {
+        marginBottom: 16,
+    },
+    sectionHeading: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#0f172a',
+        marginBottom: 10,
+    },
+    toolsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    toolCard: {
+        width: (width - 38) / 2,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 12,
+        borderTopWidth: 3,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        ...shadows.sm,
+    },
+    toolIconBox: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    toolTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    toolSub: {
+        fontSize: 10,
+        color: '#64748b',
+        marginTop: 2,
+    },
+
+    // ── Question Cards Section ─────────────────────────────────────
+    questionsSection: {
+        marginBottom: 16,
     },
     questionsSectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        marginBottom: 14,
-        marginTop: 4,
+        marginBottom: 10,
+        gap: 8,
     },
     qSectionIconWrap: {
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        backgroundColor: '#EFF6FF',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        flexShrink: 0,
     },
     questionsSectionTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#111827',
-        lineHeight: 20,
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#0f172a',
     },
     questionsSectionSub: {
         fontSize: 11,
-        color: '#6b7280',
-        lineHeight: 16,
+        color: '#64748b',
         marginTop: 1,
     },
     questionCard: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        marginBottom: 10,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        borderLeftWidth: 4,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        borderLeftWidth: 4,
-        overflow: 'hidden',
         ...shadows.sm,
+        gap: 10,
     },
-    qNumBadge: {
-        width: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 16,
-        gap: 4,
-    },
-    qNumBadgeIcon: {
-        fontSize: 22,
-    },
-    qNumCircle: {
-        width: 20,
-        height: 20,
+    qIconBox: {
+        width: 36,
+        height: 36,
         borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    qNumText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: '#FFFFFF',
+    qEmoji: {
+        fontSize: 16,
     },
     questionCardBody: {
         flex: 1,
-        paddingHorizontal: 12,
-        paddingVertical: 14,
+    },
+    qCategoryBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 6,
+        paddingVertical: 1.5,
+        borderRadius: 6,
+        marginBottom: 3,
+    },
+    qCategoryText: {
+        fontSize: 9.5,
+        fontWeight: '800',
+        textTransform: 'uppercase',
     },
     questionCardText: {
         fontSize: 13,
-        color: '#1f2937',
-        fontWeight: '500',
-        lineHeight: 20,
-        marginBottom: 6,
-    },
-    qAiChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-start',
-        borderRadius: 20,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        gap: 3,
-    },
-    qAiChipText: {
-        fontSize: 10,
         fontWeight: '700',
+        color: '#1e293b',
+        lineHeight: 18,
     },
     qArrowWrap: {
-        paddingHorizontal: 12,
-        paddingVertical: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
+        marginLeft: 2,
     },
 
-    // ── Mark Completed ─────────────────────────────────────────────
+    // ── Mark Completed Button ──────────────────────────────────────
     markCompletedBtn: {
         flexDirection: 'row',
-        marginHorizontal: 16,
-        marginTop: 12,
-        backgroundColor: studentColors.secondary,
-        borderRadius: 16,
-        paddingVertical: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        ...shadows.md,
+        backgroundColor: '#059669',
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        marginTop: 4,
+        ...shadows.sm,
     },
     markCompletedText: {
-        color: '#FFFFFF',
         fontSize: 14,
-        fontWeight: '700',
+        fontWeight: '800',
+        color: '#FFFFFF',
     },
 
-    // ── Chat Tab ─────────────────────────────────────────────────
-    chatContainer: {
-        flex: 1,
-        backgroundColor: '#F0F4F8',
-    },
+    // ── Chat Tab Styles ────────────────────────────────────────────
     chatList: {
         paddingHorizontal: 12,
         paddingTop: 12,
-        paddingBottom: 0,
+        paddingBottom: 6,
+    },
+    sessionErrorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fef2f2',
+        borderBottomWidth: 1,
+        borderBottomColor: '#fecaca',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+    },
+    sessionErrorTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#b91c1c',
+        flex: 1,
+    },
+    sessionRetryBtn: {
+        backgroundColor: '#ef4444',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    sessionRetryBtnText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#fff',
     },
     msgRow: {
         flexDirection: 'row',
-        marginVertical: 4,
         alignItems: 'flex-end',
+        marginBottom: 10,
     },
     msgUser: {
         justifyContent: 'flex-end',
@@ -1607,349 +1562,312 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     aiAvatar: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: '#e0e7ff',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 6,
+        marginRight: 8,
         flexShrink: 0,
     },
     aiAvatarText: {
-        fontSize: 16,
+        fontSize: 18,
     },
     userAvatar: {
         width: 28,
         height: 28,
         borderRadius: 14,
-        backgroundColor: studentColors.secondary,
+        backgroundColor: '#2563eb',
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 6,
         flexShrink: 0,
     },
     msgBubbleWrapper: {
-        maxWidth: '80%',
+        maxWidth: width * 0.78,
     },
     msgBubble: {
+        borderRadius: 16,
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 18,
     },
     bubbleUser: {
-        backgroundColor: studentColors.secondary,
-        borderBottomRightRadius: 4,
+        backgroundColor: '#2563eb',
+        borderBottomRightRadius: 3,
+        ...shadows.sm,
     },
     bubbleAssistant: {
         backgroundColor: '#FFFFFF',
-        borderBottomLeftRadius: 4,
+        borderBottomLeftRadius: 3,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         ...shadows.sm,
     },
     msgText: {
-        fontSize: 14,
-        lineHeight: 21,
+        fontSize: 13.5,
+        lineHeight: 20,
     },
     txtUser: {
         color: '#FFFFFF',
         fontWeight: '500',
     },
     txtAssistant: {
-        color: '#1f2937',
+        color: '#0f172a',
     },
     msgTime: {
         fontSize: 10,
-        color: '#9ca3af',
+        color: '#94a3b8',
         marginTop: 3,
     },
     msgTimeUser: {
         textAlign: 'right',
+        marginRight: 2,
     },
     msgTimeAssistant: {
-        textAlign: 'left',
         marginLeft: 4,
     },
 
-    // ── Typing indicator ──────────────────────────────────────────
-    typingIndicator: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingHorizontal: 12,
-        paddingBottom: 8,
-    },
-    typingBubble: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 18,
-        borderBottomLeftRadius: 4,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+    // ── Citation Card ──────────────────────────────────────────────
+    citationBadgeCard: {
+        marginTop: 8,
+        backgroundColor: '#f8fafc',
+        borderRadius: 10,
+        padding: 8,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        ...shadows.sm,
+    },
+    citationBadgeHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 4,
+        marginBottom: 2,
     },
-    typingDots: {
+    citationChapterName: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#1e293b',
+        flex: 1,
+    },
+    citationBadgeFooter: {
         flexDirection: 'row',
-        marginRight: 8,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 3,
     },
-    dot: {
-        width: 7,
-        height: 7,
-        borderRadius: 3.5,
-        backgroundColor: '#9ca3af',
-        marginHorizontal: 2,
+    citationPageNoText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#64748b',
     },
-    dot1: {},
-    dot2: {},
-    dot3: {},
-    typingText: {
-        fontSize: 12,
-        color: '#6b7280',
+    citationRedirectText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#2563eb',
     },
 
-    // ── Empty chat ─────────────────────────────────────────────────
+    // ── Empty Chat ─────────────────────────────────────────────────
     emptyChat: {
+        paddingVertical: 16,
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 70,
-        paddingHorizontal: 28,
     },
     emptyChatIconBg: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        backgroundColor: '#e0e7ff',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 10,
     },
     emptyChatEmoji: {
-        fontSize: 36,
+        fontSize: 26,
     },
     emptyChatTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 8,
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#0f172a',
+        marginBottom: 4,
+        textAlign: 'center',
     },
     emptyChatSub: {
-        fontSize: 13,
-        color: '#6b7280',
+        fontSize: 12,
+        color: '#64748b',
         textAlign: 'center',
-        lineHeight: 19,
-        marginBottom: 18,
-    },
-    quickChipsRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    quickChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#eff6ff',
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderWidth: 1,
-        borderColor: '#bfdbfe',
-    },
-    quickChipText: {
-        fontSize: 13,
-        color: studentColors.secondary,
-        fontWeight: '600',
-        marginLeft: 5,
+        lineHeight: 18,
+        paddingHorizontal: 16,
+        marginBottom: 14,
     },
     emptyQuickTitle: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
-        color: '#374151',
+        color: '#334155',
         alignSelf: 'flex-start',
         marginBottom: 8,
-        marginTop: 6,
     },
     emptyChipsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        justifyContent: 'flex-start',
+        width: '100%',
+        gap: 6,
     },
     emptyChip: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#dbeafe',
-        borderRadius: 20,
-        paddingHorizontal: 12,
+        borderRadius: 10,
         paddingVertical: 8,
-        gap: 6,
-        maxWidth: '100%',
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        gap: 8,
         ...shadows.sm,
     },
     emptyChipIcon: {
         fontSize: 14,
     },
     emptyChipText: {
+        flex: 1,
         fontSize: 12,
         fontWeight: '600',
-        color: studentColors.secondary,
-        maxWidth: 240,
+        color: '#1e293b',
     },
 
-    // ── Image Preview ─────────────────────────────────────────────
-    imagePreviewRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
-        backgroundColor: '#f8fafc',
-    },
-    imagePreviewThumb: {
-        width: 42,
-        height: 42,
-        borderRadius: 8,
-    },
-    imagePreviewName: {
-        fontSize: 13,
-        color: '#374151',
-        fontWeight: '500',
-    },
-    imagePreviewSub: {
-        fontSize: 11,
-        color: '#6b7280',
-        marginTop: 1,
-    },
-    imagePreviewRemove: {
-        padding: 4,
-    },
-
-    // ── Chat Input ────────────────────────────────────────────────
-    chatInputBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingTop: 4,
-        paddingBottom: 4,
+    // ── Follow-Up Bar ──────────────────────────────────────────────
+    followUpBar: {
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#e2e8f0',
+        paddingVertical: 6,
+    },
+    followUpScroll: {
+        paddingHorizontal: 12,
         gap: 6,
-        // flexDirection: 'row',
-        // alignItems: 'center',
-        // paddingHorizontal: 10,
-        // paddingVertical: 8,
-        // backgroundColor: '#FFFFFF',
-        // borderTopWidth: 1,
-        // borderTopColor: '#e2e8f0',
-        // gap: 6,
+    },
+    followUpChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+        borderRadius: 16,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        gap: 4,
+    },
+    followUpIcon: {
+        fontSize: 12,
+    },
+    followUpText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#1d4ed8',
+    },
+
+    // ── Typing Indicator ───────────────────────────────────────────
+    typingIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingBottom: 8,
+    },
+    typingBubble: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    typingText: {
+        fontSize: 11,
+        color: '#64748b',
+        fontWeight: '600',
+    },
+
+    // ── Image Preview ──────────────────────────────────────────────
+    imagePreviewRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        borderTopWidth: 1,
+        borderTopColor: '#bfdbfe',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    imagePreviewThumb: {
+        width: 36,
+        height: 36,
+        borderRadius: 6,
+    },
+    imagePreviewName: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1e40af',
+    },
+    imagePreviewSub: {
+        fontSize: 10,
+        color: '#64748b',
+    },
+
+    // ── Chat Input Bar ─────────────────────────────────────────────
+    chatInputBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        gap: 6,
     },
     inputActionBtn: {
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#f0f4f8',
+        backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
     },
     inputActionBtnActive: {
-        backgroundColor: studentColors.error,
+        backgroundColor: '#ef4444',
     },
     chatTextInput: {
         flex: 1,
-        backgroundColor: '#f0f4f8',
-        borderRadius: 22,
+        backgroundColor: '#f8fafc',
+        borderRadius: 20,
         paddingHorizontal: 14,
-        paddingVertical: 6,
-        fontSize: 14,
-        color: '#1f2937',
-        minHeight: 40,
-        maxHeight: 100,
+        paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+        fontSize: 13,
+        color: '#0f172a',
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        textAlignVertical: 'center',
+        maxHeight: 90,
     },
     chatSendBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: studentColors.secondary,
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#2563eb',
         justifyContent: 'center',
         alignItems: 'center',
-        ...shadows.sm,
     },
     sendBtnDisabled: {
-        backgroundColor: '#d1d5db',
+        backgroundColor: '#cbd5e1',
     },
 
-    // ── Help Tab ─────────────────────────────────────────────────
-    helpScroll: {
-        padding: 16,
-        paddingBottom: 40,
-    },
-    helpHero: {
-        alignItems: 'center',
-        marginBottom: 20,
-        paddingTop: 8,
-    },
-    helpHeroEmoji: {
-        fontSize: 40,
-        marginBottom: 8,
-    },
-    helpTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    helpCard: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        ...shadows.sm,
-    },
-    helpCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    helpCardIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    helpHeading: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    helpBody: {
-        fontSize: 13,
-        color: '#4b5563',
-        lineHeight: 19,
-    },
-
-    // ── Notes Modal ────────────────────────────────────────────────
+    // ── Notes Modal Bottom Sheet ───────────────────────────────────
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.45)',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'flex-end',
     },
     modalContent: {
         backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
-        maxHeight: '80%',
+        minHeight: 380,
     },
     modalHandle: {
         width: 40,
@@ -1963,226 +1881,109 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 14,
     },
     modalTitle: {
         fontSize: 16,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    modalCloseBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center',
-        alignItems: 'center',
+        fontWeight: '800',
+        color: '#0f172a',
     },
     notesInput: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 14,
+        padding: 14,
+        fontSize: 13,
+        color: '#0f172a',
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        borderRadius: 16,
-        padding: 14,
-        height: 180,
+        minHeight: 200,
         textAlignVertical: 'top',
-        fontSize: 14,
-        color: '#1f2937',
-        marginBottom: 14,
-        backgroundColor: '#f8fafc',
+        lineHeight: 20,
     },
     saveNotesBtn: {
         flexDirection: 'row',
-        backgroundColor: studentColors.secondary,
-        borderRadius: 14,
-        paddingVertical: 13,
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: '#2563eb',
+        borderRadius: 14,
+        paddingVertical: 13,
+        marginTop: 14,
     },
     saveNotesText: {
-        color: '#FFFFFF',
+        fontSize: 13,
         fontWeight: '700',
-        fontSize: 14,
+        color: '#FFFFFF',
     },
 
     // ── Voice Modal ────────────────────────────────────────────────
     voiceModalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.72)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
     },
     voiceModalContent: {
-        width: '82%',
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 28,
+        padding: 24,
         alignItems: 'center',
+        width: '100%',
+        maxWidth: 320,
+        ...shadows.lg,
     },
-    voiceModalTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 20,
-    },
-    voicePulseOuter: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+    voiceRingOuter: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 16,
     },
-    voicePulseMiddle: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
-        backgroundColor: 'rgba(25, 118, 210, 0.15)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    voicePulseCircle: {
+    voiceRingMid: {
         width: 72,
         height: 72,
         borderRadius: 36,
-        backgroundColor: studentColors.secondary,
+        backgroundColor: '#93c5fd',
         justifyContent: 'center',
         alignItems: 'center',
-        ...shadows.md,
+    },
+    voiceRingInner: {
+        width: 54,
+        height: 54,
+        borderRadius: 27,
+        backgroundColor: '#2563eb',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    voiceModalTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#0f172a',
+        marginBottom: 8,
     },
     voiceModalStatus: {
-        fontSize: 14,
-        color: '#4b5563',
+        fontSize: 13,
+        color: '#334155',
         textAlign: 'center',
-        marginVertical: 16,
-        lineHeight: 20,
+        lineHeight: 19,
+        minHeight: 40,
+        marginBottom: 16,
     },
-    voiceStopBtn: {
+    voiceModalCancelBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 11,
+        backgroundColor: '#eff6ff',
         borderRadius: 20,
-        backgroundColor: '#eff6ff',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
         borderWidth: 1,
         borderColor: '#bfdbfe',
     },
-    voiceStopText: {
-        fontSize: 14,
-        color: studentColors.secondary,
-        fontWeight: '600',
-    },
-
-    // ── Citation Badge Card ──────────────────────────────────────
-    citationBadgeCard: {
-        marginTop: 10,
-        padding: 10,
-        backgroundColor: '#eff6ff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#bfdbfe',
-    },
-    citationBadgeHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    citationChapterName: {
+    voiceModalCancelText: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#1e3a8a',
-        marginLeft: 6,
-        flex: 1,
-    },
-    citationBadgeFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 4,
-    },
-    citationPageNoText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#2563eb',
-    },
-    citationPdfRedirectBtn: {
-        backgroundColor: '#2563eb',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 8,
-    },
-    citationPdfRedirectText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-
-    // ── Skeleton ─────────────────────────────────────────────────
-    skeletonActions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: spacing.md,
-    },
-    skeletonCircle: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#e2e8f0',
-        marginHorizontal: 8,
-    },
-
-    // ── Session Error Banner ──────────────────────────────────────
-    sessionErrorBanner: {
-        margin: 16,
-        marginBottom: 0,
-        backgroundColor: '#fff5f5',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#fecaca',
-        padding: 20,
-        alignItems: 'center',
-    },
-    sessionErrorIconWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#fee2e2',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
-    },
-    sessionErrorTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#b91c1c',
-        marginBottom: 4,
-        textAlign: 'center',
-    },
-    sessionErrorSub: {
-        fontSize: 12,
-        color: '#6b7280',
-        textAlign: 'center',
-        marginBottom: 14,
-        lineHeight: 18,
-    },
-    sessionRetryBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#ef4444',
-        borderRadius: 10,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        gap: 6,
-        marginBottom: 12,
-    },
-    sessionRetryBtnText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    sessionErrorHint: {
-        fontSize: 11,
-        color: '#9ca3af',
-        textAlign: 'center',
+        color: '#1d4ed8',
     },
 });
