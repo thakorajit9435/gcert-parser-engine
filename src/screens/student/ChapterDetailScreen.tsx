@@ -13,6 +13,7 @@ import {
     Platform,
     Modal,
     Image,
+    InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -197,13 +198,19 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     const webViewRef = useRef<any>(null);
     const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
-    // Auto-focus input and open keyboard when switching to AI Chat tab
+    // Auto-focus input and open keyboard when switching to AI Chat tab after interactions complete
     useEffect(() => {
         if (activeTab === 'chat') {
-            const timer = setTimeout(() => {
-                inputRef.current?.focus();
-            }, 250);
-            return () => clearTimeout(timer);
+            let timeoutId: any;
+            const task = InteractionManager.runAfterInteractions(() => {
+                timeoutId = setTimeout(() => {
+                    inputRef.current?.focus();
+                }, 100);
+            });
+            return () => {
+                task.cancel();
+                if (timeoutId) clearTimeout(timeoutId);
+            };
         }
         return undefined;
     }, [activeTab]);
@@ -809,12 +816,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
-                        onPress={() => {
-                            setActiveTab('chat');
-                            setTimeout(() => {
-                                inputRef.current?.focus();
-                            }, 100);
-                        }}
+                        onPress={() => setActiveTab('chat')}
                     >
                         <Ionicons
                             name="chatbubbles-outline"
