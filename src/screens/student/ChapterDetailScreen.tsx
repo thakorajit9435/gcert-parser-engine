@@ -194,12 +194,25 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     const [chapterNotes, setChapterNotes] = useState('');
 
     const flatListRef = useRef<FlatList>(null);
+    const inputRef = useRef<TextInput>(null);
     const webViewRef = useRef<any>(null);
     const sessionPromiseRef = useRef<Promise<string> | null>(null);
+
+    // Auto-focus input and open keyboard when switching to AI Chat tab
+    useEffect(() => {
+        if (activeTab === 'chat') {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 150);
+            return () => clearTimeout(timer);
+        }
+        return undefined;
+    }, [activeTab]);
 
     // State to hold suggested quiz questions from this specific chapter (like NotebookLLM)
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(true);
+    const [headerHeight, setHeaderHeight] = useState(0);
 
     useEffect(() => {
         if (!chapterId) return;
@@ -769,7 +782,12 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
     return (
         <View style={styles.container}>
             {/* Header & Tabs wrapped with Top-only Safe Area */}
-            <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
+            {/* <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}> */}
+            <SafeAreaView
+                edges={['top']}
+                style={{ backgroundColor: '#FFFFFF' }}
+                onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+            >
                 {/* Header bar */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -812,7 +830,12 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.tab, activeTab === 'chat' && styles.activeTab]}
-                        onPress={() => setActiveTab('chat')}
+                        onPress={() => {
+                            setActiveTab('chat');
+                            setTimeout(() => {
+                                inputRef.current?.focus();
+                            }, 100);
+                        }}
                     >
                         <Ionicons
                             name="chatbubbles-outline"
@@ -1021,8 +1044,8 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                 <KeyboardAvoidingView
                     style={styles.chatContainer}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-                    enabled={Platform.OS === 'ios'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+                    enabled
                 >
                     {/* ── Connection Error Banner ── */}
                     {sessionError && (
@@ -1191,6 +1214,7 @@ function ChapterDetailScreenContent({ route, navigation }: { route: any; navigat
                             <Ionicons name="camera-outline" size={22} color={studentColors.secondary} />
                         </TouchableOpacity>
                         <TextInput
+                            ref={inputRef}
                             style={styles.chatTextInput}
                             placeholder="ગુજરાતીમાં પ્રશ્ન ટાઇપ કરો..."
                             placeholderTextColor="#9ca3af"
