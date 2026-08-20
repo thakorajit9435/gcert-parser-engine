@@ -11,7 +11,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -69,15 +69,12 @@ export function StandardSelectionModal({
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <View style={styles.overlay}>
-                {/* Fullscreen Backdrop Touchable (tap outside dialog to close) */}
-                <TouchableOpacity
-                    style={StyleSheet.absoluteFillObject}
-                    activeOpacity={1}
-                    onPress={onClose}
-                />
-
-                {/* Centered Modal Card (onStartShouldSetResponder isolates touch events inside card) */}
+            <TouchableOpacity
+                style={styles.overlay}
+                activeOpacity={1}
+                onPress={onClose}
+            >
+                {/* Centered Modal Card */}
                 <Animated.View
                     style={[
                         styles.dialogContainer,
@@ -155,21 +152,22 @@ export function StandardSelectionModal({
                         </Text>
                     </View>
                 </Animated.View>
-            </View>
+            </TouchableOpacity>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
     overlay: {
-        flex: 1,
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 18,
+        padding: 20,
     },
     dialogContainer: {
-        width: Math.min(SCREEN_WIDTH - 36, 360),
+        width: Math.min(SCREEN_WIDTH - 40, 360),
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 18,
@@ -178,7 +176,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 20,
         elevation: 20,
-        alignSelf: 'center',
     },
     header: {
         flexDirection: 'row',
