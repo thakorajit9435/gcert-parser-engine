@@ -11,7 +11,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -38,7 +38,6 @@ export function StandardSelectionModal({
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
-    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
         return Array.from(
@@ -49,34 +48,16 @@ export function StandardSelectionModal({
 
     useEffect(() => {
         if (visible) {
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 180,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(scaleAnim, {
-                    toValue: 1,
-                    damping: 15,
-                    stiffness: 250,
-                    useNativeDriver: true,
-                }),
-            ]).start();
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                damping: 15,
+                stiffness: 250,
+                useNativeDriver: true,
+            }).start();
         } else {
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 0,
-                    duration: 120,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(scaleAnim, {
-                    toValue: 0.9,
-                    duration: 120,
-                    useNativeDriver: true,
-                }),
-            ]).start();
+            scaleAnim.setValue(0.9);
         }
-    }, [visible, fadeAnim, scaleAnim]);
+    }, [visible, scaleAnim]);
 
     if (!visible) return <></>;
 
@@ -84,29 +65,27 @@ export function StandardSelectionModal({
         <Modal
             visible={visible}
             transparent={true}
-            animationType="none"
+            animationType="fade"
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <View style={styles.modalRootContainer}>
-                {/* Fullscreen Backdrop touchable */}
+            <View style={styles.overlay}>
+                {/* Fullscreen Backdrop Touchable (tap outside dialog to close) */}
                 <TouchableOpacity
-                    style={styles.backdropTouchable}
+                    style={StyleSheet.absoluteFillObject}
                     activeOpacity={1}
                     onPress={onClose}
-                >
-                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
-                </TouchableOpacity>
+                />
 
-                {/* Centered Modal Card */}
+                {/* Centered Modal Card (onStartShouldSetResponder isolates touch events inside card) */}
                 <Animated.View
                     style={[
                         styles.dialogContainer,
                         {
-                            opacity: fadeAnim,
                             transform: [{ scale: scaleAnim }],
                         },
                     ]}
+                    onStartShouldSetResponder={() => true}
                 >
                     {/* Header */}
                     <View style={styles.header}>
@@ -123,9 +102,9 @@ export function StandardSelectionModal({
                             onPress={onClose}
                             style={styles.closeBtn}
                             activeOpacity={0.7}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         >
-                            <Ionicons name="close" size={19} color="#64748b" />
+                            <Ionicons name="close" size={20} color="#64748b" />
                         </TouchableOpacity>
                     </View>
 
@@ -143,7 +122,7 @@ export function StandardSelectionModal({
                                         onSelectStandard(String(num));
                                         onClose();
                                     }}
-                                    activeOpacity={0.75}
+                                    activeOpacity={0.7}
                                 >
                                     <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
                                         <Text style={[styles.numText, isActive && styles.numTextActive]}>
@@ -182,32 +161,12 @@ export function StandardSelectionModal({
 }
 
 const styles = StyleSheet.create({
-    modalRootContainer: {
-        width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT,
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 99999,
-        elevation: 99999,
-    },
-    backdropTouchable: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100%',
-        height: '100%',
-    },
-    backdropBg: {
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(15, 23, 42, 0.68)',
+        padding: 18,
     },
     dialogContainer: {
         width: Math.min(SCREEN_WIDTH - 36, 360),
@@ -219,7 +178,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 20,
         elevation: 20,
-        zIndex: 100000,
         alignSelf: 'center',
     },
     header: {
@@ -262,9 +220,9 @@ const styles = StyleSheet.create({
         marginTop: 1,
     },
     closeBtn: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
