@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    Modal,
     TouchableOpacity,
     Animated,
     Dimensions,
@@ -37,7 +36,7 @@ export function StandardSelectionModal({
     onClose,
     selectedStandard,
     onSelectStandard,
-}: StandardSelectionModalProps): React.JSX.Element {
+}: StandardSelectionModalProps): React.JSX.Element | null {
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +52,7 @@ export function StandardSelectionModal({
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
-                    duration: 150,
+                    duration: 160,
                     useNativeDriver: true,
                 }),
                 Animated.spring(scaleAnim, {
@@ -68,116 +67,109 @@ export function StandardSelectionModal({
         }
     }, [visible, fadeAnim, scaleAnim]);
 
-    if (!visible) return <></>;
+    if (!visible) return null;
 
     return (
-        <Modal
-            visible={visible}
-            transparent={true}
-            animationType="none"
-            onRequestClose={onClose}
-        >
-            <View style={styles.overlay}>
-                {/* Backdrop Layer */}
-                <TouchableOpacity
-                    style={styles.backdrop}
-                    activeOpacity={1}
-                    onPress={onClose}
-                >
-                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
-                </TouchableOpacity>
+        <View style={styles.overlay} pointerEvents="auto">
+            {/* Backdrop Layer */}
+            <TouchableOpacity
+                style={styles.backdrop}
+                activeOpacity={1}
+                onPress={onClose}
+            >
+                <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
+            </TouchableOpacity>
 
-                {/* Centered Modal Dialog Card */}
-                <Animated.View
-                    style={[
-                        styles.dialogContainer,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ scale: scaleAnim }],
-                        },
-                    ]}
-                >
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.titleRow}>
-                            <View style={styles.iconBox}>
-                                <Text style={styles.iconEmoji}>🎓</Text>
-                            </View>
-                            <View style={styles.headerTextWrap}>
-                                <Text style={styles.title}>ધોરણ પસંદ કરો</Text>
-                                <Text style={styles.subtitle}>GCERT અભ્યાસક્રમ (ધોરણ ૧ થી ૮)</Text>
-                            </View>
+            {/* Centered Modal Dialog Card */}
+            <Animated.View
+                style={[
+                    styles.dialogContainer,
+                    {
+                        opacity: fadeAnim,
+                        transform: [{ scale: scaleAnim }],
+                    },
+                ]}
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.titleRow}>
+                        <View style={styles.iconBox}>
+                            <Text style={styles.iconEmoji}>🎓</Text>
                         </View>
-                        <TouchableOpacity
-                            onPress={onClose}
-                            style={styles.closeBtn}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        >
-                            <Ionicons name="close" size={20} color="#64748b" />
-                        </TouchableOpacity>
+                        <View style={styles.headerTextWrap}>
+                            <Text style={styles.title}>ધોરણ પસંદ કરો</Text>
+                            <Text style={styles.subtitle}>GCERT અભ્યાસક્રમ (ધોરણ ૧ થી ૮)</Text>
+                        </View>
                     </View>
+                    <TouchableOpacity
+                        onPress={onClose}
+                        style={styles.closeBtn}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Ionicons name="close" size={20} color="#64748b" />
+                    </TouchableOpacity>
+                </View>
 
-                    {/* Standard Grid (2 Columns, 4 Rows) */}
-                    <View style={styles.gridContainer}>
-                        {standards.map(num => {
-                            const isActive = String(num) === String(selectedStandard);
-                            const gujNum = GUJARATI_NUMERALS[num] || String(num);
+                {/* Standard Grid (2 Columns, 4 Rows) */}
+                <View style={styles.gridContainer}>
+                    {standards.map(num => {
+                        const isActive = String(num) === String(selectedStandard);
+                        const gujNum = GUJARATI_NUMERALS[num] || String(num);
 
-                            return (
-                                <TouchableOpacity
-                                    key={num}
-                                    style={[styles.gridCard, isActive && styles.gridCardActive]}
-                                    onPress={() => {
-                                        onSelectStandard(String(num));
-                                        onClose();
-                                    }}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
-                                        <Text style={[styles.numText, isActive && styles.numTextActive]}>
-                                            {num}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.gridCardTextWrap}>
-                                        <Text style={[styles.gridCardTitle, isActive && styles.gridCardTitleActive]}>
-                                            ધોરણ {gujNum}
-                                        </Text>
-                                        <Text style={[styles.gridCardSub, isActive && styles.gridCardSubActive]}>
-                                            Class {num}
-                                        </Text>
-                                    </View>
-                                    {isActive ? (
-                                        <Ionicons name="checkmark-circle" size={20} color="#2563eb" />
-                                    ) : (
-                                        <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
+                        return (
+                            <TouchableOpacity
+                                key={num}
+                                style={[styles.gridCard, isActive && styles.gridCardActive]}
+                                onPress={() => {
+                                    onSelectStandard(String(num));
+                                    onClose();
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
+                                    <Text style={[styles.numText, isActive && styles.numTextActive]}>
+                                        {num}
+                                    </Text>
+                                </View>
+                                <View style={styles.gridCardTextWrap}>
+                                    <Text style={[styles.gridCardTitle, isActive && styles.gridCardTitleActive]}>
+                                        ધોરણ {gujNum}
+                                    </Text>
+                                    <Text style={[styles.gridCardSub, isActive && styles.gridCardSubActive]}>
+                                        Class {num}
+                                    </Text>
+                                </View>
+                                {isActive ? (
+                                    <Ionicons name="checkmark-circle" size={20} color="#2563eb" />
+                                ) : (
+                                    <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
 
-                    {/* Footer Info */}
-                    <View style={styles.footer}>
-                        <Ionicons name="information-circle-outline" size={15} color="#64748b" style={{ marginRight: 4 }} />
-                        <Text style={styles.footerText}>
-                            ધોરણ બદલવાથી તમામ વિષયો આપોઆપ બદલાઈ જશે.
-                        </Text>
-                    </View>
-                </Animated.View>
-            </View>
-        </Modal>
+                {/* Footer Info */}
+                <View style={styles.footer}>
+                    <Ionicons name="information-circle-outline" size={15} color="#64748b" style={{ marginRight: 4 }} />
+                    <Text style={styles.footerText}>
+                        ધોરણ બદલવાથી તમામ વિષયો આપોઆપ બદલાઈ જશે.
+                    </Text>
+                </View>
+            </Animated.View>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     overlay: {
-        flex: 1,
-        width: '100%',
-        height: '100%',
+        ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 20,
+        zIndex: 99999,
+        elevation: 99999,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
@@ -193,7 +185,8 @@ const styles = StyleSheet.create({
         padding: 18,
         alignSelf: 'center',
         ...shadows.lg,
-        elevation: 16,
+        elevation: 20,
+        zIndex: 100000,
     },
     header: {
         flexDirection: 'row',
