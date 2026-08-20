@@ -21,8 +21,8 @@ android {
         applicationId "com.gyandeeps"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion 35
-        versionCode 12
-        versionName "1.1.1"
+        versionCode 13
+        versionName "1.1.2"
     }
 
     splits {
