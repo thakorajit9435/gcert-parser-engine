@@ -11,19 +11,31 @@ export async function getLanguageItems(
   try {
     const snapshot = await firestore()
       .collection(COLLECTIONS.LANGUAGE_SECTION)
-      .where('standard', '==', standard)
-      .where('language', '==', language)
       .where('isDeleted', '==', false)
-      .where('isActive', '==', true)
       .get();
 
-    const items = snapshot.docs.map(doc => ({
+    const stdStr = String(standard || '').trim();
+    const numStr = stdStr.replace(/[^0-9]/g, '');
+    const langStr = String(language || '').trim().toLowerCase();
+
+    let items = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as LanguageItem[];
 
-    items.sort((a, b) => (a.order || 0) - (b.order || 0));
+    items = items.filter(item => {
+      if (item.isActive === false) return false;
+      const itemStdStr = String(item.standard || '').trim();
+      const itemNumStr = itemStdStr.replace(/[^0-9]/g, '');
+      const matchStd =
+        !stdStr || itemStdStr === stdStr || (numStr && itemNumStr === numStr);
+      const matchLang =
+        !langStr ||
+        String(item.language || '').trim().toLowerCase() === langStr;
+      return matchStd && matchLang;
+    });
 
+    items.sort((a, b) => (a.order || 0) - (b.order || 0));
     return {success: true, data: items};
   } catch (error) {
     return {success: false, error: (error as Error).message};
@@ -36,21 +48,43 @@ export function subscribeToLanguageItems(
   onData: (items: LanguageItem[]) => void,
   onError?: (error: string) => void,
 ): () => void {
+  const stdStr = String(standard || '').trim();
+  const numStr = stdStr.replace(/[^0-9]/g, '');
+  const langStr = String(language || '').trim().toLowerCase();
+
   return firestore()
     .collection(COLLECTIONS.LANGUAGE_SECTION)
-    .where('standard', '==', standard)
-    .where('language', '==', language)
-    .where('isDeleted', '==', false)
     .onSnapshot(
       snapshot => {
+        if (!snapshot) {
+          onData([]);
+          return;
+        }
         const items = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as LanguageItem[];
-        items.sort((a, b) => (a.order || 0) - (b.order || 0));
-        onData(items);
+
+        const filtered = items.filter(item => {
+          if (item.isDeleted === true) return false;
+          if (item.isActive === false) return false;
+          const itemStdStr = String(item.standard || '').trim();
+          const itemNumStr = itemStdStr.replace(/[^0-9]/g, '');
+          const matchStd =
+            !stdStr || itemStdStr === stdStr || (numStr && itemNumStr === numStr);
+          const matchLang =
+            !langStr ||
+            String(item.language || '').trim().toLowerCase() === langStr;
+          return matchStd && matchLang;
+        });
+
+        filtered.sort((a, b) => (a.order || 0) - (b.order || 0));
+        onData(filtered);
       },
-      error => onError?.(error.message),
+      error => {
+        console.error('[subscribeToLanguageItems] error:', error);
+        onError?.(error.message);
+      },
     );
 }
 
@@ -102,27 +136,37 @@ export async function deleteLanguageItem(
 // ─── Admin: Get all (including inactive) ───────────────────────
 
 export async function getAllLanguageItems(
-  standard: string,
+  standard?: string,
+  language?: string,
 ): Promise<ServiceResult<LanguageItem[]>> {
   try {
     const snapshot = await firestore()
       .collection(COLLECTIONS.LANGUAGE_SECTION)
-      .where('standard', '==', standard)
       .where('isDeleted', '==', false)
       .get();
 
-    const items = snapshot.docs.map(doc => ({
+    let items = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as LanguageItem[];
 
-    items.sort((a, b) => {
-      if (a.language !== b.language) {
-        return (a.language || '').localeCompare(b.language || '');
-      }
-      return (a.order || 0) - (b.order || 0);
-    });
+    if (standard) {
+      const numStr = String(standard).replace(/[^0-9]/g, '');
+      items = items.filter(item => {
+        const itemStdStr = String(item.standard || '').trim();
+        const itemNumStr = itemStdStr.replace(/[^0-9]/g, '');
+        return itemStdStr === standard || (numStr && itemNumStr === numStr);
+      });
+    }
 
+    if (language) {
+      const langStr = String(language).trim().toLowerCase();
+      items = items.filter(
+        item => String(item.language || '').trim().toLowerCase() === langStr,
+      );
+    }
+
+    items.sort((a, b) => (a.order || 0) - (b.order || 0));
     return {success: true, data: items};
   } catch (error) {
     return {success: false, error: (error as Error).message};

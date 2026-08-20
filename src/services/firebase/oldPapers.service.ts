@@ -10,22 +10,49 @@ export function subscribeToOldPapers(
   onData: (items: OldPaper[]) => void,
   onError?: (error: string) => void,
 ): () => void {
+  const stdStr = String(standard || '').trim();
+  const numStr = stdStr.replace(/[^0-9]/g, '');
+
   return firestore()
     .collection(COLLECTIONS.OLD_PAPERS)
-    .where('standard', '==', standard)
-    .where('semester', '==', semester)
-    .where('isDeleted', '==', false)
-    .where('isActive', '==', true)
-    .orderBy('year', 'desc')
     .onSnapshot(
       snapshot => {
+        if (!snapshot) {
+          onData([]);
+          return;
+        }
         const items = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as OldPaper[];
-        onData(items);
+
+        const filtered = items.filter(item => {
+          if (item.isDeleted === true) return false;
+          if (item.isActive === false) return false;
+
+          // Match standard
+          const itemStdStr = String(item.standard || item.standardId || '').trim();
+          const itemNumStr = itemStdStr.replace(/[^0-9]/g, '');
+          const matchStd = !stdStr || itemStdStr === stdStr || (numStr && itemNumStr === numStr);
+          if (!matchStd) return false;
+
+          // Match semester if specified
+          if (semester && semester !== 'all') {
+            const itemSem = String(item.semester || '').trim().toLowerCase();
+            const targetSem = String(semester).trim().toLowerCase();
+            if (itemSem && itemSem !== targetSem) return false;
+          }
+
+          return true;
+        });
+
+        filtered.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0));
+        onData(filtered);
       },
-      error => onError?.(error.message),
+      error => {
+        console.error('[subscribeToOldPapers] error:', error);
+        onError?.(error.message);
+      },
     );
 }
 
@@ -79,21 +106,34 @@ export async function getAllOldPapers(
   semester?: string,
 ): Promise<ServiceResult<OldPaper[]>> {
   try {
-    let query: any = firestore()
+    const snapshot = await firestore()
       .collection(COLLECTIONS.OLD_PAPERS)
-      .where('standard', '==', standard)
-      .where('isDeleted', '==', false);
+      .where('isDeleted', '==', false)
+      .get();
 
-    if (semester) {
-      query = query.where('semester', '==', semester);
-    }
-
-    const snapshot = await query.orderBy('year', 'desc').get();
-    const items = snapshot.docs.map((doc: any) => ({
+    let items = snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     })) as OldPaper[];
 
+    if (standard) {
+      const numStr = String(standard).replace(/[^0-9]/g, '');
+      items = items.filter(item => {
+        const itemStdStr = String(item.standard || item.standardId || '').trim();
+        const itemNumStr = itemStdStr.replace(/[^0-9]/g, '');
+        return itemStdStr === standard || (numStr && itemNumStr === numStr);
+      });
+    }
+
+    if (semester && semester !== 'all') {
+      items = items.filter(
+        item =>
+          String(item.semester || '').trim().toLowerCase() ===
+          String(semester).trim().toLowerCase(),
+      );
+    }
+
+    items.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0));
     return {success: true, data: items};
   } catch (error) {
     return {success: false, error: (error as Error).message};
