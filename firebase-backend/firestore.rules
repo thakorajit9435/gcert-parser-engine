@@ -729,6 +729,12 @@ service cloud.firestore {
     }
 
 
+    match /languageSection/{sectionId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
     match /language_sections/{sectionId} {
       allow read: if isAuthenticated();
 
@@ -755,12 +761,11 @@ service cloud.firestore {
 
     // ==================================================================
     // ASSESSMENT — question_bank, mcq_bank, mixed_quiz,
-    //              old_papers, blueprints
+    //              old_papers, blueprints, practiceSettings
     // ==================================================================
 
     match /question_bank/{questionId} {
-      allow read: if isAuthenticated() &&
-        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+      allow read: if isAuthenticated();
 
       allow create: if isAnyAdmin() &&
         hasRequiredFields(['question_id', 'question_text_gu', 'question_type',
@@ -794,8 +799,7 @@ service cloud.firestore {
     }
 
     match /mcq_bank/{mcqId} {
-      allow read: if isAuthenticated() &&
-        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+      allow read: if isAuthenticated();
 
       allow create: if isAnyAdmin() &&
         hasRequiredFields(['mcq_id', 'question_text_gu', 'options', 'correct_option_id',
@@ -825,8 +829,7 @@ service cloud.firestore {
     }
 
     match /mixed_quiz/{quizId} {
-      allow read: if isAuthenticated() &&
-        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+      allow read: if isAuthenticated();
 
       allow create: if isAnyAdmin() &&
         hasRequiredFields(['quiz_id', 'title_gu', 'quiz_type', 'standard_id',
@@ -861,30 +864,62 @@ service cloud.firestore {
 
       // Quiz attempts: student creates own; both read own; immutable after creation
       match /attempts/{attemptId} {
-        allow read: if (isAuthenticated() &&
-                         resource.data.user_id == request.auth.uid) ||
-                       isAnyAdmin();
-
-        allow create: if isAuthenticated() &&
-          request.resource.data.user_id == request.auth.uid &&
-          request.resource.data.quiz_id == quizId &&
-          request.resource.data.score is number &&
-          request.resource.data.percentage is number &&
-            request.resource.data.percentage >= 0.0 &&
-            request.resource.data.percentage <= 100.0 &&
-          isValidList('answers', 200) &&
-          request.resource.data.time_taken_minutes is number &&
-            request.resource.data.time_taken_minutes >= 0 &&
-          isBool('is_passed');
-
-        // Attempt records are immutable — no modifications after submission
-        allow update, delete: if false;
+        allow read, write: if isAuthenticated();
       }
     }
 
+    match /quizzes/{quizId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAnyAdmin() || isAuthenticated();
+        allow delete: if isSuperAdmin();
+      }
+    }
+
+    match /questions/{questionId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /mcqs/{mcqId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin() || isAuthenticated();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /quiz_attempts/{attemptId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /practiceSettings/{settingId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /practice_settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /oldPapers/{paperId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
     match /old_papers/{paperId} {
-      allow read: if isAuthenticated() &&
-        (isAnyAdmin() || resource.data.get('is_premium', resource.data.get('isPremium', false)) == false || hasPremiumAccess());
+      allow read: if isAuthenticated();
 
       allow create: if isAnyAdmin() &&
         hasRequiredFields(['paper_id', 'title_gu', 'standard_id', 'standard_number',
@@ -944,9 +979,9 @@ service cloud.firestore {
     // ==================================================================
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.get('role', '') == 'super_admin');
-      allow create, update: if isOwner(userId);
-      allow delete: if isAuthenticated() && request.auth.token.get('role', '') == 'super_admin';
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
 
       match /devices/{deviceId} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
@@ -955,6 +990,11 @@ service cloud.firestore {
       match /preferences/{prefId} {
         allow read, write: if isOwner(userId) || isSuperAdmin();
       }
+    }
+
+    match /leaderboardConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
     }
 
     match /sessions/{sessionId} {
@@ -980,17 +1020,15 @@ service cloud.firestore {
     }
 
     match /userProgress/{progressId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAnyAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAnyAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAnyAdmin());
-      allow delete: if isSuperAdmin();
+      allow read, write: if isAuthenticated();
+    }
+
+    match /pdfReadingProgress/{progressId} {
+      allow read, write: if isAuthenticated();
     }
 
     match /pdf_reading_progress/{progressId} {
-      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow update: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow delete: if isSuperAdmin();
+      allow read, write: if isAuthenticated();
     }
 
     // ==================================================================
@@ -998,10 +1036,28 @@ service cloud.firestore {
     // ==================================================================
 
     match /bookmarks/{bookmarkId} {
-      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow update: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAnyAdmin());
-      allow delete: if (isAuthenticated() && resource.data.user_id == request.auth.uid) || isSuperAdmin();
+      allow read, write: if isAuthenticated();
+    }
+
+    match /dailyChallenges/{challengeId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /daily_challenges/{challengeId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAnyAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /appConfig/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAnyAdmin();
+    }
+
+    match /importLogs/{logId} {
+      allow read, write: if isAnyAdmin();
     }
 
     match /notifications/{notificationId} {
