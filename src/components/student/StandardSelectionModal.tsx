@@ -9,9 +9,10 @@ import {
     Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { shadows } from '../../theme';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -37,8 +38,7 @@ export function StandardSelectionModal({
     selectedStandard,
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
-    const scaleAnim = useRef(new Animated.Value(0.9)).current;
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
         return Array.from(
@@ -49,24 +49,15 @@ export function StandardSelectionModal({
 
     useEffect(() => {
         if (visible) {
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 150,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(scaleAnim, {
-                    toValue: 1,
-                    damping: 16,
-                    stiffness: 260,
-                    useNativeDriver: true,
-                }),
-            ]).start();
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                friction: 8,
+            }).start();
         } else {
-            fadeAnim.setValue(0);
-            scaleAnim.setValue(0.9);
+            scaleAnim.setValue(0);
         }
-    }, [visible, fadeAnim, scaleAnim]);
+    }, [visible, scaleAnim]);
 
     if (!visible) return <></>;
 
@@ -74,26 +65,22 @@ export function StandardSelectionModal({
         <Modal
             visible={visible}
             transparent={true}
-            animationType="none"
+            animationType="fade"
             onRequestClose={onClose}
-            statusBarTranslucent={true}
         >
             <View style={styles.overlay}>
-                {/* Backdrop Layer (tap outside dialog to close) */}
+                {/* Backdrop Area */}
                 <TouchableOpacity
-                    style={StyleSheet.absoluteFillObject}
+                    style={styles.backdrop}
                     activeOpacity={1}
                     onPress={onClose}
-                >
-                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
-                </TouchableOpacity>
+                />
 
                 {/* Centered Modal Card */}
                 <Animated.View
                     style={[
                         styles.dialogContainer,
                         {
-                            opacity: fadeAnim,
                             transform: [{ scale: scaleAnim }],
                         },
                     ]}
@@ -106,13 +93,13 @@ export function StandardSelectionModal({
                             </View>
                             <View style={styles.headerTextWrap}>
                                 <Text style={styles.title}>ધોરણ પસંદ કરો</Text>
-                                <Text style={styles.subtitle}>GCERT પાઠ્યક્રમ (ધોરણ ૧ થી ૮)</Text>
+                                <Text style={styles.subtitle}>GCERT અભ્યાસક્રમ (ધોરણ ૧ થી ૮)</Text>
                             </View>
                         </View>
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeBtn}
-                            activeOpacity={0.6}
+                            activeOpacity={0.7}
                             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         >
                             <Ionicons name="close" size={20} color="#64748b" />
@@ -133,7 +120,7 @@ export function StandardSelectionModal({
                                         onSelectStandard(String(num));
                                         onClose();
                                     }}
-                                    activeOpacity={0.6}
+                                    activeOpacity={0.7}
                                 >
                                     <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
                                         <Text style={[styles.numText, isActive && styles.numTextActive]}>
@@ -162,7 +149,7 @@ export function StandardSelectionModal({
                     <View style={styles.footer}>
                         <Ionicons name="information-circle-outline" size={15} color="#64748b" style={{ marginRight: 4 }} />
                         <Text style={styles.footerText}>
-                            ધોરણ બદલવાથી તમામ વિષયો આપોઆપ અપડેટ થશે.
+                            ધોરણ બદલવાથી તમામ વિષયો આપોઆપ બદલાઈ જશે.
                         </Text>
                     </View>
                 </Animated.View>
@@ -178,21 +165,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
     },
-    backdropBg: {
-        flex: 1,
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
     },
     dialogContainer: {
-        width: Math.min(SCREEN_WIDTH - 36, 360),
+        width: Math.min(width - 36, 360),
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 18,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 24,
-        zIndex: 10,
+        ...shadows.lg,
+        elevation: 16,
     },
     header: {
         flexDirection: 'row',
