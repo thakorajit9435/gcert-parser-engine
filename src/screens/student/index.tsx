@@ -191,12 +191,12 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
         return (
             <View style={styles.bookmarkSection}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>📌 My Bookmarks</Text>
+                    <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ (Bookmarks)</Text>
                 </View>
                 <View style={styles.bookmarkEmpty}>
-                    <Text style={styles.bookmarkEmptyIcon}>📚</Text>
-                    <Text style={styles.bookmarkEmptyText}>No bookmarks yet</Text>
-                    <Text style={styles.bookmarkEmptySub}>Chapters you bookmark will appear here</Text>
+                    <Text style={styles.bookmarkEmptyIcon}>⭐</Text>
+                    <Text style={styles.bookmarkEmptyText}>હજુ સુધી કોઈ પ્રકરણ બુકમાર્ક કરેલ નથી</Text>
+                    <Text style={styles.bookmarkEmptySub}>તમે બુકમાર્ક કરેલા પ્રકરણો અહીં ઝડપી ઍક્સેસ માટે દેખાશે</Text>
                 </View>
             </View>
         );
@@ -205,48 +205,55 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
     return (
         <View style={styles.bookmarkSection}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📌 My Bookmarks</Text>
+                <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ (Bookmarks)</Text>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('Bookmarks')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Text style={styles.seeAllText}>બધા જુઓ ({bookmarks.length}) →</Text>
+                </TouchableOpacity>
             </View>
             <ScrollView
                 horizontal
+                nestedScrollEnabled={true}
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.bookmarkScrollContent}
             >
-                {bookmarks.slice(0, 5).map(bm => {
+                {bookmarks.map((bm, index) => {
+                    const isLast = index === bookmarks.length - 1;
                     return (
                         <AnimatedPressable
-                            key={bm.id}
-                            style={styles.bookmarkCardHorizontal}
+                            key={bm.id || `bm_${index}`}
+                            style={[styles.bookmarkCardHorizontal, isLast && { marginRight: spacing.xl }]}
                             onPress={() => {
                                 if (bm.standardId) {
                                     setSelectedStandard(bm.standardId);
                                 }
-                                navigation.navigate('MainTabs', {
-                                    screen: 'Subjects',
-                                    params: {
-                                        subjectId: bm.subjectId,
-                                        subjectName: bm.subjectName,
-                                    }
-                                });
                                 navigation.navigate('ChapterDetail', { chapterId: bm.chapterId });
                             }}
                             scaleTo={0.96}
                         >
                             <View style={styles.bookmarkIconRow}>
                                 <View style={styles.bookmarkIconHorizontal}>
-                                    <Text style={styles.bookmarkIconText}>⭐</Text>
+                                    <Ionicons name="star" size={14} color="#f59e0b" />
                                 </View>
                                 <Text style={styles.bookmarkSubjectText} numberOfLines={1}>
-                                    {bm.subjectName || 'Subject'}
+                                    {bm.subjectName || 'વિષય'}
                                 </Text>
                             </View>
                             <Text style={styles.bookmarkTitleHorizontal} numberOfLines={2}>
-                                {bm.chapterTitle || 'Chapter'}
+                                {bm.chapterTitle || 'પ્રકરણ'}
                             </Text>
                             <View style={styles.bookmarkFooter}>
-                                <Text style={styles.bookmarkMetaHorizontal}>{bm.standardName || `Std ${bm.standardId || '—'}`}</Text>
+                                <View style={styles.bookmarkStdPill}>
+                                    <Text style={styles.bookmarkMetaHorizontal}>
+                                        {bm.standardName || `ધોરણ ${bm.standardId || '—'}`}
+                                    </Text>
+                                </View>
                                 <View style={styles.bookmarkOpenBadge}>
-                                    <Text style={styles.bookmarkOpenBadgeText}>Open</Text>
+                                    <Text style={styles.bookmarkOpenBadgeText}>ખોલો ➔</Text>
                                 </View>
                             </View>
                         </AnimatedPressable>
@@ -1666,69 +1673,78 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
         marginBottom: spacing.md,
     },
+    seeAllText: {
+        fontSize: 12.5,
+        fontWeight: '700',
+        color: '#2563eb',
+    },
     bookmarkEmpty: {
         alignItems: 'center',
-        paddingVertical: spacing.xl,
+        paddingVertical: spacing.lg,
         marginHorizontal: spacing.xl,
-        backgroundColor: studentColors.surface,
-        borderRadius: borderRadius.xl,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: studentColors.border,
+        borderColor: '#e2e8f0',
+        ...shadows.sm,
     },
     bookmarkEmptyIcon: {
-        fontSize: 32,
-        marginBottom: spacing.sm,
+        fontSize: 28,
+        marginBottom: 4,
     },
     bookmarkEmptyText: {
-        fontSize: typography.size.md,
-        color: studentColors.textMuted,
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#334155',
     },
     bookmarkEmptySub: {
-        fontSize: typography.size.sm,
-        color: studentColors.textMuted,
-        marginTop: spacing.xs,
+        fontSize: 11,
+        color: '#94a3b8',
+        marginTop: 2,
     },
     bookmarkScrollContent: {
         paddingHorizontal: spacing.xl,
-        paddingBottom: spacing.md,
+        paddingBottom: 8,
+        paddingTop: 2,
     },
     bookmarkCardHorizontal: {
-        width: 240,
-        backgroundColor: studentColors.surface,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
+        width: 220,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 14,
         borderWidth: 1,
-        borderColor: studentColors.border,
-        marginRight: spacing.md,
+        borderColor: '#e2e8f0',
+        marginRight: 12,
         ...shadows.sm,
     },
     bookmarkIconRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: 8,
     },
     bookmarkIconHorizontal: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: studentColors.primaryLight,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: '#fef3c7',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: spacing.sm,
+        marginRight: 6,
     },
     bookmarkSubjectText: {
         flex: 1,
-        fontSize: typography.size.xs,
-        fontWeight: typography.weight.bold,
-        color: studentColors.primary,
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#1d4ed8',
         textTransform: 'uppercase',
     },
     bookmarkTitleHorizontal: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.semibold,
-        color: studentColors.textPrimary,
-        marginBottom: spacing.md,
-        height: 40,
+        fontSize: 13.5,
+        fontWeight: '700',
+        color: '#0f172a',
+        marginBottom: 10,
+        minHeight: 36,
+        lineHeight: 18,
     },
     bookmarkFooter: {
         flexDirection: 'row',
@@ -1736,20 +1752,29 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: 'auto',
     },
+    bookmarkStdPill: {
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
     bookmarkMetaHorizontal: {
-        fontSize: typography.size.sm,
-        color: studentColors.textMuted,
+        fontSize: 10.5,
+        fontWeight: '700',
+        color: '#64748b',
     },
     bookmarkOpenBadge: {
-        backgroundColor: studentColors.secondary,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.md,
+        backgroundColor: '#eff6ff',
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
     },
     bookmarkOpenBadgeText: {
-        fontSize: typography.size.sm,
-        fontWeight: typography.weight.bold,
-        color: '#FFFFFF',
+        fontSize: 10.5,
+        fontWeight: '800',
+        color: '#2563eb',
     },
     bookmarkCard: {
         flexDirection: 'row',
