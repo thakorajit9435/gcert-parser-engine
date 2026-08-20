@@ -11,7 +11,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -38,6 +38,7 @@ export function StandardSelectionModal({
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
         return Array.from(
@@ -48,16 +49,24 @@ export function StandardSelectionModal({
 
     useEffect(() => {
         if (visible) {
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                damping: 15,
-                stiffness: 250,
-                useNativeDriver: true,
-            }).start();
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    damping: 16,
+                    stiffness: 260,
+                    useNativeDriver: true,
+                }),
+            ]).start();
         } else {
+            fadeAnim.setValue(0);
             scaleAnim.setValue(0.9);
         }
-    }, [visible, scaleAnim]);
+    }, [visible, fadeAnim, scaleAnim]);
 
     if (!visible) return <></>;
 
@@ -65,24 +74,29 @@ export function StandardSelectionModal({
         <Modal
             visible={visible}
             transparent={true}
-            animationType="fade"
+            animationType="none"
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <TouchableOpacity
-                style={styles.overlay}
-                activeOpacity={1}
-                onPress={onClose}
-            >
+            <View style={styles.overlay}>
+                {/* Backdrop Layer (tap outside dialog to close) */}
+                <TouchableOpacity
+                    style={StyleSheet.absoluteFillObject}
+                    activeOpacity={1}
+                    onPress={onClose}
+                >
+                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
+                </TouchableOpacity>
+
                 {/* Centered Modal Card */}
                 <Animated.View
                     style={[
                         styles.dialogContainer,
                         {
+                            opacity: fadeAnim,
                             transform: [{ scale: scaleAnim }],
                         },
                     ]}
-                    onStartShouldSetResponder={() => true}
                 >
                     {/* Header */}
                     <View style={styles.header}>
@@ -98,7 +112,7 @@ export function StandardSelectionModal({
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeBtn}
-                            activeOpacity={0.7}
+                            activeOpacity={0.6}
                             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         >
                             <Ionicons name="close" size={20} color="#64748b" />
@@ -119,7 +133,7 @@ export function StandardSelectionModal({
                                         onSelectStandard(String(num));
                                         onClose();
                                     }}
-                                    activeOpacity={0.7}
+                                    activeOpacity={0.6}
                                 >
                                     <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
                                         <Text style={[styles.numText, isActive && styles.numTextActive]}>
@@ -152,22 +166,24 @@ export function StandardSelectionModal({
                         </Text>
                     </View>
                 </Animated.View>
-            </TouchableOpacity>
+            </View>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
     overlay: {
-        width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
+    backdropBg: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    },
     dialogContainer: {
-        width: Math.min(SCREEN_WIDTH - 40, 360),
+        width: Math.min(SCREEN_WIDTH - 36, 360),
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 18,
@@ -175,7 +191,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.25,
         shadowRadius: 20,
-        elevation: 20,
+        elevation: 24,
+        zIndex: 10,
     },
     header: {
         flexDirection: 'row',
