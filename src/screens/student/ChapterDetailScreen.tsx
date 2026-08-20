@@ -12,7 +12,6 @@ import {
     Modal,
     Image,
     Alert,
-    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -32,8 +31,6 @@ import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import firestore from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants';
 import { Chapter } from '../../types';
-
-const { width } = Dimensions.get('window');
 
 interface Message {
     id: string;
@@ -842,7 +839,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 <View style={[
                                     styles.msgRow,
                                     isUser ? styles.msgUser : styles.msgAssistant,
-                                    isLast && { marginBottom: 10 }
+                                    isLast && { marginBottom: 12 }
                                 ]}>
                                     {!isUser && (
                                         <View style={styles.aiAvatar}>
@@ -869,7 +866,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                                     scaleTo={0.96}
                                                 >
                                                     <View style={styles.citationBadgeHeader}>
-                                                        <Ionicons name="book" size={12} color="#2563eb" />
+                                                        <Ionicons name="book" size={13} color="#2563eb" />
                                                         <Text style={styles.citationChapterName} numberOfLines={1}>
                                                             {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : chapterTitle}
                                                         </Text>
@@ -892,7 +889,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                     </View>
                                     {isUser && (
                                         <View style={styles.userAvatar}>
-                                            <Ionicons name="person" size={12} color="#FFFFFF" />
+                                            <Ionicons name="person" size={13} color="#FFFFFF" />
                                         </View>
                                     )}
                                 </View>
@@ -915,10 +912,16 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                             key={q.key}
                                             style={styles.emptyChip}
                                             onPress={() => handleQuestionPress(q)}
-                                            scaleTo={0.96}
+                                            scaleTo={0.97}
                                         >
-                                            <Text style={styles.emptyChipIcon}>{q.icon}</Text>
-                                            <Text style={styles.emptyChipText} numberOfLines={1}>{q.displayText}</Text>
+                                            <View style={[styles.emptyChipIconBox, { backgroundColor: q.bgColor || '#eff6ff' }]}>
+                                                <Text style={styles.emptyChipIcon}>{q.icon}</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.emptyChipCategory, { color: q.color || '#2563eb' }]}>{q.category}</Text>
+                                                <Text style={styles.emptyChipText} numberOfLines={2}>{q.displayText}</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
                                         </AnimatedPressable>
                                     ))}
                                 </View>
@@ -933,7 +936,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 <Text style={styles.aiAvatarText}>🤖</Text>
                             </View>
                             <View style={styles.typingBubble}>
-                                <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 6 }} />
+                                <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 8 }} />
                                 <Text style={styles.typingText}>AI ઉત્તર તૈયાર કરી રહ્યો છે...</Text>
                             </View>
                         </View>
@@ -942,7 +945,12 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                     {/* Follow-up Quick Chips */}
                     {messages.length > 0 && !chatLoading && (
                         <View style={styles.followUpBar}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followUpScroll}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.followUpScroll}
+                                nestedScrollEnabled={true}
+                            >
                                 {FOLLOW_UP_CHIPS.map((chip, idx) => (
                                     <AnimatedPressable
                                         key={idx}
@@ -1472,9 +1480,9 @@ const styles = StyleSheet.create({
 
     // ── Chat Tab Styles ────────────────────────────────────────────
     chatList: {
-        paddingHorizontal: 12,
-        paddingTop: 10,
-        paddingBottom: 6,
+        paddingHorizontal: 14,
+        paddingTop: 12,
+        paddingBottom: 10,
     },
     sessionErrorBanner: {
         flexDirection: 'row',
@@ -1482,30 +1490,30 @@ const styles = StyleSheet.create({
         backgroundColor: '#fef2f2',
         borderBottomWidth: 1,
         borderBottomColor: '#fecaca',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
     },
     sessionErrorTitle: {
-        fontSize: 11.5,
+        fontSize: 12,
         fontWeight: '700',
         color: '#b91c1c',
         flex: 1,
     },
     sessionRetryBtn: {
         backgroundColor: '#ef4444',
-        paddingHorizontal: 9,
-        paddingVertical: 3,
-        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     sessionRetryBtnText: {
-        fontSize: 10.5,
+        fontSize: 11,
         fontWeight: '700',
         color: '#fff',
     },
     msgRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        marginBottom: 8,
+        marginBottom: 10,
     },
     msgUser: {
         justifyContent: 'flex-end',
@@ -1514,51 +1522,53 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     aiAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 6,
+        marginRight: 8,
         flexShrink: 0,
+        ...shadows.sm,
     },
     aiAvatarText: {
-        fontSize: 14,
+        fontSize: 16,
     },
     userAvatar: {
-        width: 26,
-        height: 26,
-        borderRadius: 13,
-        backgroundColor: '#2563eb',
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#1d4ed8',
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 6,
+        marginLeft: 8,
         flexShrink: 0,
+        ...shadows.sm,
     },
     msgBubbleWrapper: {
-        maxWidth: width * 0.80,
+        maxWidth: '82%',
     },
     msgBubble: {
-        borderRadius: 14,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
     },
     bubbleUser: {
-        backgroundColor: '#2563eb',
-        borderBottomRightRadius: 3,
+        backgroundColor: '#1d4ed8',
+        borderBottomRightRadius: 4,
         ...shadows.sm,
     },
     bubbleAssistant: {
         backgroundColor: '#FFFFFF',
-        borderBottomLeftRadius: 3,
+        borderBottomLeftRadius: 4,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         ...shadows.sm,
     },
     msgText: {
-        fontSize: 13,
-        lineHeight: 19,
+        fontSize: 14,
+        lineHeight: 21,
     },
     txtUser: {
         color: '#FFFFFF',
@@ -1566,37 +1576,38 @@ const styles = StyleSheet.create({
     },
     txtAssistant: {
         color: '#0f172a',
+        fontWeight: '400',
     },
     msgTime: {
-        fontSize: 9.5,
+        fontSize: 10,
         color: '#94a3b8',
-        marginTop: 2,
+        marginTop: 3,
     },
     msgTimeUser: {
         textAlign: 'right',
-        marginRight: 2,
+        marginRight: 4,
     },
     msgTimeAssistant: {
-        marginLeft: 4,
+        marginLeft: 6,
     },
 
     // ── Citation Card ──────────────────────────────────────────────
     citationBadgeCard: {
-        marginTop: 6,
+        marginTop: 8,
         backgroundColor: '#f8fafc',
-        borderRadius: 8,
-        padding: 6,
+        borderRadius: 10,
+        padding: 8,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: '#cbd5e1',
     },
     citationBadgeHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        marginBottom: 2,
+        gap: 6,
+        marginBottom: 4,
     },
     citationChapterName: {
-        fontSize: 10.5,
+        fontSize: 11.5,
         fontWeight: '700',
         color: '#1e293b',
         flex: 1,
@@ -1608,79 +1619,97 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     citationPageNoText: {
-        fontSize: 9.5,
+        fontSize: 10.5,
         fontWeight: '600',
         color: '#64748b',
     },
     citationRedirectText: {
-        fontSize: 9.5,
+        fontSize: 10.5,
         fontWeight: '700',
         color: '#2563eb',
     },
 
     // ── Empty Chat ─────────────────────────────────────────────────
     emptyChat: {
-        paddingVertical: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 6,
         alignItems: 'center',
     },
     emptyChatIconBg: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
+        borderWidth: 2,
+        borderColor: '#bfdbfe',
+        ...shadows.sm,
     },
     emptyChatEmoji: {
-        fontSize: 22,
+        fontSize: 28,
     },
     emptyChatTitle: {
-        fontSize: 14,
+        fontSize: 15.5,
         fontWeight: '800',
         color: '#0f172a',
-        marginBottom: 3,
+        marginBottom: 4,
         textAlign: 'center',
     },
     emptyChatSub: {
-        fontSize: 11.5,
+        fontSize: 12.5,
         color: '#64748b',
         textAlign: 'center',
-        lineHeight: 16,
-        paddingHorizontal: 12,
-        marginBottom: 12,
+        lineHeight: 18,
+        paddingHorizontal: 16,
+        marginBottom: 16,
     },
     emptyQuickTitle: {
-        fontSize: 11.5,
-        fontWeight: '700',
-        color: '#334155',
+        fontSize: 12.5,
+        fontWeight: '800',
+        color: '#1e293b',
         alignSelf: 'flex-start',
-        marginBottom: 6,
+        marginBottom: 8,
+        marginLeft: 2,
     },
     emptyChipsGrid: {
         width: '100%',
-        gap: 6,
+        gap: 8,
     },
     emptyChip: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderRadius: 10,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        gap: 6,
+        gap: 10,
         ...shadows.sm,
     },
+    emptyChipIconBox: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     emptyChipIcon: {
-        fontSize: 13,
+        fontSize: 16,
+    },
+    emptyChipCategory: {
+        fontSize: 10,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        marginBottom: 1,
     },
     emptyChipText: {
-        flex: 1,
-        fontSize: 11.5,
+        fontSize: 12.5,
         fontWeight: '600',
         color: '#1e293b',
+        lineHeight: 17,
     },
 
     // ── Follow-Up Bar ──────────────────────────────────────────────
@@ -1688,11 +1717,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#e2e8f0',
-        paddingVertical: 5,
+        paddingVertical: 6,
     },
     followUpScroll: {
-        paddingHorizontal: 10,
-        gap: 6,
+        paddingHorizontal: 12,
+        gap: 8,
     },
     followUpChip: {
         flexDirection: 'row',
@@ -1700,16 +1729,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
         borderWidth: 1,
         borderColor: '#bfdbfe',
-        borderRadius: 14,
-        paddingVertical: 3.5,
-        paddingHorizontal: 9,
-        gap: 4,
+        borderRadius: 16,
+        paddingVertical: 5,
+        paddingHorizontal: 12,
+        gap: 6,
     },
     followUpIcon: {
-        fontSize: 11,
+        fontSize: 13,
     },
     followUpText: {
-        fontSize: 10.5,
+        fontSize: 11.5,
         fontWeight: '600',
         color: '#1d4ed8',
     },
@@ -1718,21 +1747,22 @@ const styles = StyleSheet.create({
     typingIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingBottom: 6,
+        paddingHorizontal: 14,
+        paddingBottom: 8,
     },
     typingBubble: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
         borderWidth: 1,
         borderColor: '#e2e8f0',
+        ...shadows.sm,
     },
     typingText: {
-        fontSize: 10.5,
+        fontSize: 11.5,
         color: '#64748b',
         fontWeight: '600',
     },
@@ -1744,21 +1774,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
         borderTopWidth: 1,
         borderTopColor: '#bfdbfe',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     imagePreviewThumb: {
-        width: 32,
-        height: 32,
-        borderRadius: 6,
+        width: 36,
+        height: 36,
+        borderRadius: 8,
     },
     imagePreviewName: {
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '700',
         color: '#1e40af',
     },
     imagePreviewSub: {
-        fontSize: 9.5,
+        fontSize: 10,
         color: '#64748b',
     },
 
@@ -1769,14 +1799,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#e2e8f0',
-        paddingHorizontal: 8,
-        paddingVertical: 6,
-        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        gap: 8,
     },
     inputActionBtn: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
@@ -1787,22 +1817,24 @@ const styles = StyleSheet.create({
     chatTextInput: {
         flex: 1,
         backgroundColor: '#f8fafc',
-        borderRadius: 18,
-        paddingHorizontal: 12,
-        paddingVertical: Platform.OS === 'ios' ? 6 : 5,
-        fontSize: 12.5,
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+        fontSize: 13.5,
         color: '#0f172a',
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        maxHeight: 80,
+        minHeight: 40,
+        maxHeight: 90,
     },
     chatSendBtn: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#2563eb',
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#1d4ed8',
         justifyContent: 'center',
         alignItems: 'center',
+        ...shadows.sm,
     },
     sendBtnDisabled: {
         backgroundColor: '#cbd5e1',
