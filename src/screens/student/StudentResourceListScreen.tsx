@@ -41,31 +41,60 @@ export function StudentResourceListScreen({ route, navigation }: { route: any; n
         if (resourceType === 'textbooks') {
           // Textbook spans the entire subject, not a specific chapter.
           const chapDoc = await firestore().collection('chapters').doc(chapterId).get();
-          const chapData = chapDoc.data();
-          if (chapData) {
-            const subjectId = chapData.subjectId || chapData.subject_id;
+          const chapData = chapDoc.data() || {};
+          const subjectId = chapData.subjectId || chapData.subject_id;
 
-            // Fetch subject Gujarati name for listing visibility
-            let subjectNameGu = '';
+          // Fetch subject Gujarati name for listing visibility
+          let subjectNameGu = '';
+          let subjectPdfUrl = '';
+          if (subjectId) {
             const subDoc = await firestore().collection('subjects').doc(subjectId).get();
-            const subData = subDoc.data();
-            if (subData) {
-              subjectNameGu = subData.nameGu || subData.name || '';
-            }
+            const subData = subDoc.data() || {};
+            subjectNameGu = subData.nameGu || subData.name || '';
+            subjectPdfUrl = subData.pdfUrl || subData.pdf_url || subData.textbookUrl || subData.file_url || '';
+          }
 
-            const snapshot = await firestore()
+          let snapshot = await firestore()
+            .collection('textbooks')
+            .where('subject_id', '==', subjectId)
+            .get();
+
+          if (snapshot.empty && subjectId) {
+            snapshot = await firestore()
               .collection('textbooks')
-              .where('subject_id', '==', subjectId)
+              .where('subjectId', '==', subjectId)
               .get();
+          }
+
+          if (!snapshot.empty) {
             // Attach the chapter page boundaries so PdfViewerScreen opens at the right page
-            data = snapshot.docs.map(doc => ({
-              id: doc.id,
-              subjectNameGu: subjectNameGu,
-              _chapterStartPage: chapData.startPage ?? undefined,
-              _chapterEndPage: chapData.endPage ?? undefined,
-              _chapterBookStartPage: chapData.bookStartPage ?? undefined,
-              ...doc.data(),
-            }));
+            data = snapshot.docs.map(doc => {
+              const tbData = doc.data() || {};
+              return {
+                id: doc.id,
+                subjectNameGu: subjectNameGu,
+                _chapterStartPage: chapData.startPage ?? chapData.start_page ?? undefined,
+                _chapterEndPage: chapData.endPage ?? chapData.end_page ?? undefined,
+                _chapterBookStartPage: chapData.bookStartPage ?? chapData.book_start_page ?? undefined,
+                pdf_url: tbData.pdf_url || tbData.pdfUrl || tbData.file_url || tbData.url || '',
+                title_gu: tbData.title_gu || tbData.titleGu || tbData.title || subjectNameGu || 'પાઠ્યપુસ્તક',
+                ...tbData,
+              };
+            });
+          } else {
+            // Fallback: If no document in 'textbooks' collection, use subject's or chapter's PDF URL
+            const resolvedPdf = subjectPdfUrl || chapData.pdfUrl || chapData.pdf_url || chapData.file_url || chapData.url || '';
+            if (resolvedPdf) {
+              data = [{
+                id: `tb_${subjectId || chapterId}`,
+                subjectNameGu: subjectNameGu,
+                _chapterStartPage: chapData.startPage ?? chapData.start_page ?? undefined,
+                _chapterEndPage: chapData.endPage ?? chapData.end_page ?? undefined,
+                _chapterBookStartPage: chapData.bookStartPage ?? chapData.book_start_page ?? undefined,
+                pdf_url: resolvedPdf,
+                title_gu: `${subjectNameGu || 'વિષય'} પાઠ્યપુસ્તક`,
+              }];
+            }
           }
         } else {
           const snapshot = await firestore()

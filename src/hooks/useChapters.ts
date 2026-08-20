@@ -1,8 +1,8 @@
-import {useState, useEffect, useMemo} from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import firestore from '@react-native-firebase/firestore';
-import {COLLECTIONS} from '../constants';
-import {Chapter} from '../types';
-import {useUserProgress} from './useUserProgress';
+import { COLLECTIONS } from '../constants';
+import { Chapter } from '../types';
+import { useUserProgress } from './useUserProgress';
 
 interface UseChaptersReturn {
   chapters: Chapter[];
@@ -17,7 +17,7 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const {progressMap} = useUserProgress(subjectId);
+  const { progressMap } = useUserProgress(subjectId);
 
   const refresh = () => setRefreshTrigger(prev => prev + 1);
 
@@ -40,10 +40,27 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
         if (!snapshot || snapshot.empty) {
           setChapters([]);
         } else {
-          let data = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Chapter[];
+          let data = snapshot.docs.map(doc => {
+            const raw = doc.data() || {};
+            return {
+              id: doc.id,
+              ...raw,
+              subjectId: raw.subjectId || raw.subject_id || subjectId,
+              pdfUrl:
+                raw.pdfUrl ||
+                raw.pdf_url ||
+                raw.file_url ||
+                raw.url ||
+                raw.textbookUrl ||
+                raw.textbook_url ||
+                '',
+              titleGu: raw.titleGu || raw.title_gu || raw.title || '',
+              title: raw.title || raw.titleGu || raw.title_gu || '',
+              startPage: Number(raw.startPage ?? raw.start_page ?? raw.bookStartPage ?? raw.book_start_page ?? 1),
+              endPage: raw.endPage ?? raw.end_page ?? undefined,
+              bookStartPage: Number(raw.bookStartPage ?? raw.book_start_page ?? raw.startPage ?? raw.start_page ?? 1),
+            } as Chapter;
+          });
 
           // Filter out deleted chapters
           data = data.filter(ch => ch.isDeleted !== true);
@@ -82,5 +99,5 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
     }));
   }, [chapters, progressMap]);
 
-  return {chapters: chaptersWithProgress, loading, error, refresh};
+  return { chapters: chaptersWithProgress, loading, error, refresh };
 }

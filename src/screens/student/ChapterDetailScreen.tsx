@@ -364,12 +364,13 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     };
 
     const openPDF = () => {
-        if (!chapter.pdfUrl) {
+        const resolvedPdfUrl = chapter.pdfUrl || (chapter as any).pdf_url || (chapter as any).file_url || (chapter as any).url || (chapter as any).textbookUrl;
+        if (!resolvedPdfUrl) {
             Alert.alert('Notice', 'આ પ્રકરણ માટે ડિજિટલ પુસ્તક ઉપલબ્ધ નથી.');
             return;
         }
         navigation.navigate('PdfViewer', {
-            url: chapter.pdfUrl,
+            url: resolvedPdfUrl,
             title: chapterTitle,
             pdfId: chapter.id,
             pdfType: 'chapter',
@@ -380,7 +381,8 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     };
 
     const openPDFAtPage = (targetPage?: number) => {
-        if (!chapter.pdfUrl) {
+        const resolvedPdfUrl = chapter.pdfUrl || (chapter as any).pdf_url || (chapter as any).file_url || (chapter as any).url || (chapter as any).textbookUrl;
+        if (!resolvedPdfUrl) {
             Alert.alert('Notice', 'આ પ્રકરણ માટે પીડીએફ ઉપલબ્ધ નથી.');
             return;
         }
@@ -395,7 +397,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         }
 
         navigation.navigate('PdfViewer', {
-            url: chapter.pdfUrl,
+            url: resolvedPdfUrl,
             title: `${chapterTitle} (પાનું ${targetPage || startPageToUse})`,
             pdfId: chapter.id,
             pdfType: 'chapter',
