@@ -155,21 +155,28 @@ const StandardSwitcher = React.memo(function StandardSwitcher({
         <TouchableOpacity
             style={styles.standardSwitcher}
             onPress={onPress}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
             <View style={styles.standardSwitcherLeft}>
                 <View style={styles.standardSwitcherIconWrap}>
                     <Text style={styles.standardSwitcherIcon}>🎓</Text>
                 </View>
-                <View>
-                    <Text style={styles.standardSwitcherLabel}>વર્તમાન ધોરણ (Current Standard)</Text>
-                    <Text style={styles.standardSwitcherText}>ધોરણ {selectedStandard} ({standardLabel})</Text>
+                <View style={styles.standardSwitcherTextCol}>
+                    <View style={styles.standardSwitcherTagRow}>
+                        <Text style={styles.standardSwitcherLabel}>વર્તમાન ધોરણ</Text>
+                        <View style={styles.standardSwitcherGcertTag}>
+                            <Text style={styles.standardSwitcherGcertText}>GCERT</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.standardSwitcherText}>
+                        ધોરણ {selectedStandard} <Text style={styles.standardSwitcherSubText}>({standardLabel})</Text>
+                    </Text>
                 </View>
             </View>
-            <View style={styles.standardSwitcherValue}>
+            <View style={styles.standardSwitcherBtn}>
                 <Text style={styles.standardSwitcherChangeText}>બદલો</Text>
-                <Ionicons name="chevron-down" size={14} color="#1d4ed8" style={{ marginLeft: 3 }} />
+                <Ionicons name="swap-horizontal" size={15} color="#1d4ed8" style={{ marginLeft: 4 }} />
             </View>
         </TouchableOpacity>
     );
@@ -1573,165 +1580,83 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         marginHorizontal: spacing.xl,
         marginBottom: spacing.md,
-        borderRadius: 16,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        ...shadows.sm,
+        borderRadius: 18,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderWidth: 1.5,
+        borderColor: '#e0e7ff',
+        shadowColor: '#3b82f6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        elevation: 3,
     },
     standardSwitcherLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
+        flex: 1,
     },
     standardSwitcherIconWrap: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         backgroundColor: '#eff6ff',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#dbeafe',
     },
     standardSwitcherIcon: {
-        fontSize: 18,
+        fontSize: 22,
+    },
+    standardSwitcherTextCol: {
+        flex: 1,
+    },
+    standardSwitcherTagRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 2,
     },
     standardSwitcherLabel: {
         fontSize: 11,
         color: '#64748b',
         fontWeight: '600',
     },
+    standardSwitcherGcertTag: {
+        backgroundColor: '#f1f5f9',
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 4,
+    },
+    standardSwitcherGcertText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#475569',
+    },
     standardSwitcherText: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '800',
         color: '#0f172a',
-        marginTop: 1,
     },
-    standardSwitcherValue: {
+    standardSwitcherSubText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    standardSwitcherBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#eff6ff',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
         borderRadius: 12,
         borderWidth: 1,
         borderColor: '#bfdbfe',
     },
     standardSwitcherChangeText: {
         fontSize: 12,
-        fontWeight: '700',
-        color: '#1d4ed8',
-    },
-    // ─── Dropdown Modal ─────────────────────────────────────────
-    dropdownOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        justifyContent: 'flex-end',
-    },
-    modalBackdropArea: {
-        flex: 1,
-        width: '100%',
-    },
-    dropdownCard: {
-        ...shadows.lg,
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingHorizontal: 20,
-        paddingTop: 14,
-        paddingBottom: 28,
-        width: '100%',
-    },
-    modalHandle: {
-        width: 40,
-        height: 4,
-        backgroundColor: '#e2e8f0',
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginBottom: 12,
-    },
-    dropdownHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 14,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    dropdownTitleWrap: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    dropdownHeaderIconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: '#eff6ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dropdownTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#0f172a',
-    },
-    dropdownSub: {
-        fontSize: 11,
-        color: '#64748b',
-        marginTop: 1,
-    },
-    dropdownCloseBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#f1f5f9',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dropdownGrid: {
-        gap: 8,
-    },
-    dropdownItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderRadius: 14,
-        backgroundColor: '#f8fafc',
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        gap: 10,
-    },
-    dropdownItemActive: {
-        backgroundColor: '#eff6ff',
-        borderColor: '#93c5fd',
-    },
-    stdNumCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#e2e8f0',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    stdNumCircleActive: {
-        backgroundColor: '#2563eb',
-    },
-    stdNumText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#475569',
-    },
-    stdNumTextActive: {
-        color: '#FFFFFF',
-    },
-    dropdownItemText: {
-        fontSize: 14,
-        color: '#334155',
-        fontWeight: '600',
-    },
-    dropdownItemTextActive: {
         fontWeight: '800',
         color: '#1d4ed8',
     },
