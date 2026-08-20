@@ -12,7 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { shadows } from '../../theme';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -38,7 +38,8 @@ export function StandardSelectionModal({
     selectedStandard,
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
-    const scaleAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
         return Array.from(
@@ -49,15 +50,23 @@ export function StandardSelectionModal({
 
     useEffect(() => {
         if (visible) {
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                useNativeDriver: true,
-                friction: 8,
-            }).start();
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    friction: 8,
+                    useNativeDriver: true,
+                }),
+            ]).start();
         } else {
-            scaleAnim.setValue(0);
+            fadeAnim.setValue(0);
+            scaleAnim.setValue(0.9);
         }
-    }, [visible, scaleAnim]);
+    }, [visible, fadeAnim, scaleAnim]);
 
     if (!visible) return <></>;
 
@@ -65,22 +74,25 @@ export function StandardSelectionModal({
         <Modal
             visible={visible}
             transparent={true}
-            animationType="fade"
+            animationType="none"
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                {/* Backdrop Area */}
+                {/* Backdrop Layer */}
                 <TouchableOpacity
                     style={styles.backdrop}
                     activeOpacity={1}
                     onPress={onClose}
-                />
+                >
+                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
+                </TouchableOpacity>
 
-                {/* Centered Modal Card */}
+                {/* Centered Modal Dialog Card */}
                 <Animated.View
                     style={[
                         styles.dialogContainer,
                         {
+                            opacity: fadeAnim,
                             transform: [{ scale: scaleAnim }],
                         },
                     ]}
@@ -161,19 +173,25 @@ export function StandardSelectionModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        paddingHorizontal: 20,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
+    },
+    backdropBg: {
+        flex: 1,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
     },
     dialogContainer: {
-        width: Math.min(width - 36, 360),
+        width: Math.min(SCREEN_WIDTH - 40, 360),
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 18,
+        alignSelf: 'center',
         ...shadows.lg,
         elevation: 16,
     },
@@ -189,7 +207,6 @@ const styles = StyleSheet.create({
     titleRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
     },
     iconBox: {
         width: 38,
@@ -198,6 +215,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
         justifyContent: 'center',
         alignItems: 'center',
+        marginRight: 10,
     },
     iconEmoji: {
         fontSize: 18,
@@ -228,7 +246,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 10,
     },
     gridCard: {
         width: '48%',
@@ -240,7 +257,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8fafc',
         borderWidth: 1.5,
         borderColor: '#e2e8f0',
-        gap: 8,
+        marginBottom: 10,
     },
     gridCardActive: {
         backgroundColor: '#eff6ff',
@@ -254,6 +271,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#e2e8f0',
         justifyContent: 'center',
         alignItems: 'center',
+        marginRight: 8,
     },
     numBadgeActive: {
         backgroundColor: '#2563eb',
@@ -290,7 +308,7 @@ const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 14,
+        marginTop: 6,
         paddingTop: 10,
         borderTopWidth: 1,
         borderTopColor: '#f1f5f9',
