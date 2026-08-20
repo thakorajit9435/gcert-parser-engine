@@ -14,6 +14,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Clipboard,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -634,26 +635,28 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         {/* ── HORIZONTAL SUBJECT FILTER BAR ── */}
         <View style={styles.subjectFilterBar}>
           <ScrollView
-            horizontal
+            horizontal={true}
             nestedScrollEnabled={true}
             showsHorizontalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            directionalLockEnabled={true}
+            scrollEventThrottle={16}
             contentContainerStyle={styles.subjectFilterScroll}
           >
-            <AnimatedPressable
+            <TouchableOpacity
               style={[
                 styles.subjectChip,
                 !activeSubject && styles.subjectChipActive,
                 { marginRight: 8 },
               ]}
               onPress={() => handleToggleSubject(null)}
-              scaleTo={0.93}
+              activeOpacity={0.75}
             >
               <Text style={styles.subjectChipEmoji}>🌟</Text>
               <Text style={[styles.subjectChipText, !activeSubject && styles.subjectChipTextActive]}>
                 બધા વિષયો
               </Text>
-            </AnimatedPressable>
+            </TouchableOpacity>
 
             {subjectsLoading ? (
               <ActivityIndicator size="small" color="#93c5fd" style={{ marginLeft: 8 }} />
@@ -662,12 +665,13 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
                 const isActive = activeSubject?.id === sub.id || activeSubject?.name === sub.name;
                 const isLast = idx === subjects.length - 1;
                 return (
-                  <AnimatedPressable
+                  <TouchableOpacity
                     key={sub.id || `sub_${idx}`}
                     style={[
                       styles.subjectChip,
                       isActive && styles.subjectChipActive,
                       !isLast && { marginRight: 8 },
+                      isLast && { marginRight: 16 },
                     ]}
                     onPress={() =>
                       handleToggleSubject({
@@ -676,13 +680,13 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
                         nameGu: sub.nameGu,
                       })
                     }
-                    scaleTo={0.93}
+                    activeOpacity={0.75}
                   >
                     <Text style={styles.subjectChipEmoji}>{getSubjectEmoji(sub.name)}</Text>
                     <Text style={[styles.subjectChipText, isActive && styles.subjectChipTextActive]}>
                       {sub.nameGu || sub.name}
                     </Text>
-                  </AnimatedPressable>
+                  </TouchableOpacity>
                 );
               })
             )}
