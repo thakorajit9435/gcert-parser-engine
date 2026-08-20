@@ -19,15 +19,9 @@ export async function toggleBookmark(
 ): Promise<ServiceResult<boolean>> {
   try {
     const currentUser = auth().currentUser;
-    if (!currentUser) {
+    const activeUserId = userId || currentUser?.uid;
+    if (!activeUserId) {
       return {success: false, error: 'User is not authenticated'};
-    }
-
-    const activeUserId = userId || currentUser.uid;
-    if (currentUser.uid !== activeUserId) {
-      console.warn(
-        `UserId mismatch in toggleBookmark: ${currentUser.uid} vs ${activeUserId}`,
-      );
     }
 
     const docId = `${activeUserId}_${chapterId}`;
@@ -35,7 +29,14 @@ export async function toggleBookmark(
       .collection(COLLECTIONS.USER_BOOKMARKS)
       .doc(docId);
 
-    // De-duplication check: check if any bookmarks exist for this user and chapter
+    const docSnap = await docRef.get();
+
+    if (docSnap.exists) {
+      await docRef.delete();
+      return {success: true, data: false}; // removed
+    }
+
+    // Also check if any duplicate bookmarks exist for this user and chapter
     const snapshot = await firestore()
       .collection(COLLECTIONS.USER_BOOKMARKS)
       .where('userId', '==', activeUserId)
@@ -43,78 +44,68 @@ export async function toggleBookmark(
       .get();
 
     if (!snapshot.empty) {
-      // Delete all matching documents to remove the bookmark and clean up duplicates
       const batch = firestore().batch();
       snapshot.docs.forEach(doc => {
         batch.delete(doc.ref);
       });
-      // Also ensure the standard docId is deleted
       batch.delete(docRef);
       await batch.commit();
       return {success: true, data: false}; // removed
-    } else {
-      // Fetch missing details to ensure data integrity
-      let standardId = data?.standardId || '';
-      let standardName = data?.standardName || '';
-      let subjectId = data?.subjectId || '';
-      let subjectName = data?.subjectName || '';
-      let chapterTitle = data?.chapterTitle || '';
-
-      // 1. Fetch chapter details if any required chapter fields are missing
-      if (!chapterTitle || !subjectId || !standardId) {
-        const chapterDoc = await firestore()
-          .collection(COLLECTIONS.CHAPTERS)
-          .doc(chapterId)
-          .get();
-        if (chapterDoc.exists) {
-          const cData = chapterDoc.data();
-          if (!chapterTitle) chapterTitle = cData?.title || '';
-          if (!subjectId) subjectId = cData?.subjectId || '';
-          if (!standardId) standardId = cData?.standardId || '';
-        }
-      }
-
-      // 2. Fetch subject name if missing
-      if (!subjectName && subjectId) {
-        const subjectDoc = await firestore()
-          .collection(COLLECTIONS.SUBJECTS)
-          .doc(subjectId)
-          .get();
-        if (subjectDoc.exists) {
-          subjectName = subjectDoc.data()?.name || '';
-        }
-      }
-
-      // 3. Fetch standard name if missing
-      if (!standardName && standardId) {
-        const stdDocId = standardId.startsWith('std_')
-          ? standardId
-          : `std_${standardId}`;
-        const stdDoc = await firestore()
-          .collection(COLLECTIONS.STANDARDS)
-          .doc(stdDocId)
-          .get();
-        if (stdDoc.exists) {
-          standardName = stdDoc.data()?.label || `Std ${standardId}`;
-        } else {
-          standardName = `Std ${standardId}`;
-        }
-      }
-
-      // Create bookmark with standard docId
-      await docRef.set({
-        userId: activeUserId,
-        chapterId,
-        standardId,
-        standardName,
-        subjectId,
-        subjectName,
-        chapterTitle,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-      });
-      return {success: true, data: true}; // added
     }
+
+    // Fetch missing details to ensure data integrity
+    let standardId = data?.standardId || '';
+    let standardName = data?.standardName || '';
+    let subjectId = data?.subjectId || '';
+    let subjectName = data?.subjectName || '';
+    let chapterTitle = data?.chapterTitle || '';
+
+    // 1. Fetch chapter details if any required chapter fields are missing
+    if (!chapterTitle || !subjectId || !standardId) {
+      const chapterDoc = await firestore()
+        .collection(COLLECTIONS.CHAPTERS)
+        .doc(chapterId)
+        .get();
+      if (chapterDoc.exists) {
+        const cData = chapterDoc.data();
+        if (!chapterTitle) chapterTitle = cData?.titleGu || cData?.title || '';
+        if (!subjectId) subjectId = cData?.subjectId || '';
+        if (!standardId) standardId = cData?.standardId || '';
+      }
+    }
+
+    // 2. Fetch subject name if missing
+    if (!subjectName && subjectId) {
+      const subjectDoc = await firestore()
+        .collection(COLLECTIONS.SUBJECTS)
+        .doc(subjectId)
+        .get();
+      if (subjectDoc.exists) {
+        const sData = subjectDoc.data();
+        subjectName = sData?.nameGu || sData?.name || '';
+      }
+    }
+
+    // 3. Fetch standard name if missing
+    if (!standardName && standardId) {
+      standardName = `ધોરણ ${standardId}`;
+    }
+
+    // Create bookmark with deterministic docId
+    await docRef.set({
+      userId: activeUserId,
+      chapterId,
+      standardId: String(standardId),
+      standardName: standardName || `ધોરણ ${standardId}`,
+      subjectId: subjectId || '',
+      subjectName: subjectName || 'વિષય',
+      chapterTitle: chapterTitle || 'પ્રકરણ',
+      createdAt: firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {success: true, data: true}; // added
   } catch (error) {
+    console.error('[toggleBookmark] error:', error);
     return {success: false, error: getFirestoreErrorMessage(error)};
   }
 }
@@ -127,31 +118,45 @@ export function subscribeToBookmarks(
   onError?: (error: string) => void,
 ): () => void {
   const currentUser = auth().currentUser;
-  if (!currentUser) {
-    onError?.('User is not authenticated');
+  const activeUserId = userId || currentUser?.uid;
+  if (!activeUserId) {
+    onData([]);
     return () => {};
-  }
-
-  const activeUserId = userId || currentUser.uid;
-  if (currentUser.uid !== activeUserId) {
-    console.warn(
-      `UserId mismatch in subscribeToBookmarks: ${currentUser.uid} vs ${activeUserId}`,
-    );
   }
 
   return firestore()
     .collection(COLLECTIONS.USER_BOOKMARKS)
     .where('userId', '==', activeUserId)
-    .orderBy('createdAt', 'desc')
     .onSnapshot(
       snapshot => {
+        if (!snapshot || snapshot.empty) {
+          onData([]);
+          return;
+        }
         const items = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as UserBookmark[];
+
+        // Sort in-memory by createdAt descending (avoids requiring Firestore composite index)
+        items.sort((a: any, b: any) => {
+          const tA = a.createdAt?.toMillis
+            ? a.createdAt.toMillis()
+            : a.createdAt?.seconds
+            ? a.createdAt.seconds * 1000
+            : 0;
+          const tB = b.createdAt?.toMillis
+            ? b.createdAt.toMillis()
+            : b.createdAt?.seconds
+            ? b.createdAt.seconds * 1000
+            : 0;
+          return tB - tA;
+        });
+
         onData(items);
       },
       error => {
+        console.error('[subscribeToBookmarks] error:', error);
         const friendlyMessage = getFirestoreErrorMessage(error);
         onError?.(friendlyMessage);
       },
@@ -166,14 +171,16 @@ export async function isBookmarked(
 ): Promise<boolean> {
   try {
     const currentUser = auth().currentUser;
-    if (!currentUser) return false;
+    const activeUserId = userId || currentUser?.uid;
+    if (!activeUserId) return false;
 
-    const activeUserId = userId || currentUser.uid;
-    if (currentUser.uid !== activeUserId) {
-      console.warn(
-        `UserId mismatch in isBookmarked: ${currentUser.uid} vs ${activeUserId}`,
-      );
-    }
+    const docId = `${activeUserId}_${chapterId}`;
+    const docSnap = await firestore()
+      .collection(COLLECTIONS.USER_BOOKMARKS)
+      .doc(docId)
+      .get();
+
+    if (docSnap.exists) return true;
 
     const snapshot = await firestore()
       .collection(COLLECTIONS.USER_BOOKMARKS)

@@ -288,12 +288,12 @@ const QuickAccessCards = React.memo(function QuickAccessCards({ navigation, stan
 
 export function StudentHomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
     const { t } = useTranslation();
-    const { userProfile } = useAuth();
+    const { userProfile, user } = useAuth();
     const { selectedStandard, setSelectedStandard, standardLabel } = useStandardContext();
     const standardId = selectedStandard;
     const { entries: leaderboardEntries } = useLeaderboard(3);
     const { progressMap } = useUserProgress();
-    const { bookmarks } = useBookmarks(userProfile?.uid);
+    const { bookmarks } = useBookmarks(user?.uid || userProfile?.uid);
     const [refreshing, setRefreshing] = useState(false);
     const [standardModalVisible, setStandardModalVisible] = useState(false);
 
@@ -420,7 +420,8 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
 
 export function StudentSubjectsScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { t } = useTranslation();
-    const { userProfile } = useAuth();
+    const { userProfile, user } = useAuth();
+    const currentUserId = user?.uid || userProfile?.uid;
     const { selectedStandard } = useStandardContext();
     const subjectId = route?.params?.subjectId;
     const subjectName = route?.params?.subjectName || 'Subjects';
@@ -430,7 +431,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
     // Fix: We need to pass both subjectId AND effectiveStandardId to useChapters
     const { chapters: chapterList, loading: chaptersLoading } = require('../../hooks/useChapters').useChapters(subjectId, effectiveStandardId);
     const { subjects, loading: subjectsLoading } = useSubjects(effectiveStandardId, session);
-    const { isBookmarked, toggle: toggleBookmark } = useBookmarks(userProfile?.uid);
+    const { isBookmarked, toggle: toggleBookmark } = useBookmarks(currentUserId);
     const isPremium = userProfile?.premium ?? false;
     const [bookmarkLoadingMap, setBookmarkLoadingMap] = useState<{ [chapterId: string]: boolean }>({});
     const [chapterCounts, setChapterCounts] = useState<{ [subjectId: string]: number }>({});
@@ -479,13 +480,13 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
     }, [effectiveStandardId]);
 
     const handleToggleBookmark = async (chapterItem: any) => {
-        if (!userProfile?.uid || bookmarkLoadingMap[chapterItem.id]) return;
+        if (!currentUserId || bookmarkLoadingMap[chapterItem.id]) return;
         setBookmarkLoadingMap(prev => ({ ...prev, [chapterItem.id]: true }));
         try {
             await toggleBookmark(chapterItem.id, {
-                standardId: effectiveStandardId,
-                standardName: `Std ${effectiveStandardId}`,
-                subjectId: subjectId,
+                standardId: String(effectiveStandardId || chapterItem.standardId || ''),
+                standardName: `ધોરણ ${effectiveStandardId || chapterItem.standardId || ''}`,
+                subjectId: subjectId || chapterItem.subjectId,
                 subjectName: subjectName,
                 chapterTitle: chapterItem.titleGu || chapterItem.title,
             });
@@ -665,12 +666,12 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             activeOpacity={0.6}
                                         >
                                             {bookmarkLoadingMap[item.id] ? (
-                                                <ActivityIndicator size="small" color={studentColors.primary} style={{ width: 22, height: 22 }} />
+                                                <ActivityIndicator size="small" color="#2563eb" style={{ width: 22, height: 22 }} />
                                             ) : (
                                                 <Ionicons
                                                     name={bookmarked ? "bookmark" : "bookmark-outline"}
                                                     size={22}
-                                                    color={bookmarked ? studentColors.primary : studentColors.textMuted}
+                                                    color={bookmarked ? "#f59e0b" : studentColors.textMuted}
                                                 />
                                             )}
                                         </TouchableOpacity>

@@ -19,9 +19,9 @@ import { UserBookmark } from '../../types';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
 
 export function BookmarkListScreen(): React.JSX.Element {
-    const { userProfile } = useAuth();
+    const { userProfile, user } = useAuth();
     const navigation = useNavigation<any>();
-    const { bookmarks, loading, error, toggle } = useBookmarks(userProfile?.uid);
+    const { bookmarks, loading, error, toggle } = useBookmarks(user?.uid || userProfile?.uid);
     const { setSelectedStandard } = useStandardContext();
 
     const [searchQuery, setSearchQuery] = useState('');
