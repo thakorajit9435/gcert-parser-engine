@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     Animated,
     ScrollView,
-    Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { shadows } from '../../theme';
@@ -20,24 +19,13 @@ interface StandardSelectionModalProps {
     onSelectStandard: (standard: string) => void;
 }
 
-const STANDARD_GUJARATI_MAP: { [key: number]: string } = {
-    1: 'ધોરણ ૧ (પ્રાથમિક)',
-    2: 'ધોરણ ૨ (પ્રાથમિક)',
-    3: 'ધોરણ ૩ (પ્રાથમિક)',
-    4: 'ધોરણ ૪ (પ્રાથમિક)',
-    5: 'ધોરણ ૫ (પ્રાથમિક)',
-    6: 'ધોરણ ૬ (ઉચ્ચ પ્રાથમિક)',
-    7: 'ધોરણ ૭ (ઉચ્ચ પ્રાથમિક)',
-    8: 'ધોરણ ૮ (ઉચ્ચ પ્રાથમિક)',
-};
-
 export function StandardSelectionModal({
     visible,
     onClose,
     selectedStandard,
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
-    const slideAnim = useRef(new Animated.Value(300)).current;
+    const scaleAnim = useRef(new Animated.Value(0.85)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
@@ -52,13 +40,13 @@ export function StandardSelectionModal({
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
-                    duration: 200,
+                    duration: 180,
                     useNativeDriver: true,
                 }),
-                Animated.spring(slideAnim, {
-                    toValue: 0,
-                    damping: 15,
-                    stiffness: 220,
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    damping: 14,
+                    stiffness: 240,
                     useNativeDriver: true,
                 }),
             ]).start();
@@ -66,17 +54,17 @@ export function StandardSelectionModal({
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 0,
-                    duration: 150,
+                    duration: 120,
                     useNativeDriver: true,
                 }),
-                Animated.timing(slideAnim, {
-                    toValue: 300,
-                    duration: 150,
+                Animated.timing(scaleAnim, {
+                    toValue: 0.85,
+                    duration: 120,
                     useNativeDriver: true,
                 }),
             ]).start();
         }
-    }, [visible, fadeAnim, slideAnim]);
+    }, [visible, fadeAnim, scaleAnim]);
 
     if (!visible) return <></>;
 
@@ -89,7 +77,7 @@ export function StandardSelectionModal({
             statusBarTranslucent={true}
         >
             <View style={styles.overlay}>
-                {/* Backdrop touchable */}
+                {/* Backdrop touchable (tap outside to close) */}
                 <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
                     <TouchableOpacity
                         style={StyleSheet.absoluteFillObject}
@@ -98,18 +86,16 @@ export function StandardSelectionModal({
                     />
                 </Animated.View>
 
-                {/* Bottom Sheet Modal */}
+                {/* Centered Normal Modal Dialog Card */}
                 <Animated.View
                     style={[
-                        styles.sheetCard,
+                        styles.dialogCard,
                         {
-                            transform: [{ translateY: slideAnim }],
+                            opacity: fadeAnim,
+                            transform: [{ scale: scaleAnim }],
                         },
                     ]}
                 >
-                    {/* Pull Handle */}
-                    <View style={styles.handle} />
-
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.titleWrap}>
@@ -118,14 +104,14 @@ export function StandardSelectionModal({
                             </View>
                             <View>
                                 <Text style={styles.title}>ધોરણ પસંદ કરો</Text>
-                                <Text style={styles.subtitle}>Select Your Standard (Class 1-8)</Text>
+                                <Text style={styles.subtitle}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
                             </View>
                         </View>
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeBtn}
                             activeOpacity={0.7}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                             <Ionicons name="close" size={20} color="#64748b" />
                         </TouchableOpacity>
@@ -142,7 +128,6 @@ export function StandardSelectionModal({
                         <View style={styles.grid}>
                             {standards.map(num => {
                                 const isActive = String(num) === String(selectedStandard);
-                                const labelGu = STANDARD_GUJARATI_MAP[num] || `ધોરણ ${num}`;
                                 return (
                                     <TouchableOpacity
                                         key={num}
@@ -160,16 +145,11 @@ export function StandardSelectionModal({
                                         </View>
                                         <View style={styles.itemTextWrap}>
                                             <Text style={[styles.itemTitle, isActive && styles.itemTitleActive]}>
-                                                {labelGu}
-                                            </Text>
-                                            <Text style={[styles.itemSub, isActive && styles.itemSubActive]}>
-                                                Standard {num} GCERT
+                                                ધોરણ {num} (Standard {num})
                                             </Text>
                                         </View>
                                         {isActive ? (
-                                            <View style={styles.activeCheckBadge}>
-                                                <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
-                                            </View>
+                                            <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
                                         ) : (
                                             <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
                                         )}
@@ -187,30 +167,23 @@ export function StandardSelectionModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
     },
-    sheetCard: {
+    dialogCard: {
         backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-        maxHeight: '80%',
+        borderRadius: 24,
+        padding: 20,
         width: '100%',
+        maxWidth: 360,
+        maxHeight: '80%',
         ...shadows.lg,
-    },
-    handle: {
-        width: 40,
-        height: 4,
-        backgroundColor: '#cbd5e1',
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginBottom: 14,
+        elevation: 16,
     },
     header: {
         flexDirection: 'row',
@@ -227,23 +200,23 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     headerIconBox: {
-        width: 40,
-        height: 40,
+        width: 38,
+        height: 38,
         borderRadius: 12,
         backgroundColor: '#eff6ff',
         justifyContent: 'center',
         alignItems: 'center',
     },
     headerEmoji: {
-        fontSize: 20,
+        fontSize: 18,
     },
     title: {
-        fontSize: 17,
+        fontSize: 16,
         fontWeight: '800',
         color: '#0f172a',
     },
     subtitle: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#64748b',
         fontWeight: '500',
         marginTop: 1,
@@ -257,10 +230,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     scrollList: {
-        maxHeight: 380,
+        maxHeight: 340,
     },
     scrollContent: {
-        paddingBottom: 12,
+        paddingVertical: 4,
     },
     grid: {
         gap: 8,
@@ -270,21 +243,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 12,
-        borderRadius: 16,
+        borderRadius: 14,
         backgroundColor: '#f8fafc',
-        borderWidth: 1.5,
+        borderWidth: 1.2,
         borderColor: '#e2e8f0',
         gap: 12,
     },
     itemCardActive: {
         backgroundColor: '#eff6ff',
         borderColor: '#3b82f6',
-        borderWidth: 1.5,
     },
     stdCircle: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         backgroundColor: '#e2e8f0',
         justifyContent: 'center',
         alignItems: 'center',
@@ -293,7 +265,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#2563eb',
     },
     stdCircleText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '800',
         color: '#475569',
     },
@@ -305,26 +277,11 @@ const styles = StyleSheet.create({
     },
     itemTitle: {
         fontSize: 14,
-        fontWeight: '700',
-        color: '#1e293b',
+        fontWeight: '600',
+        color: '#334155',
     },
     itemTitleActive: {
         color: '#1d4ed8',
         fontWeight: '800',
-    },
-    itemSub: {
-        fontSize: 11,
-        color: '#64748b',
-        fontWeight: '500',
-        marginTop: 2,
-    },
-    itemSubActive: {
-        color: '#3b82f6',
-    },
-    activeCheckBadge: {
-        width: 26,
-        height: 26,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
 });
