@@ -10,7 +10,6 @@ import {
     RefreshControl,
     ActivityIndicator,
     Modal,
-    Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -153,10 +152,10 @@ const StandardSwitcher = React.memo(function StandardSwitcher({
     standardLabel,
 }: StandardSwitcherProps): React.JSX.Element {
     return (
-        <AnimatedPressable
+        <TouchableOpacity
             style={styles.standardSwitcher}
             onPress={onPress}
-            scaleTo={0.96}
+            activeOpacity={0.8}
         >
             <View style={styles.standardSwitcherLeft}>
                 <View style={styles.standardSwitcherIconWrap}>
@@ -171,7 +170,7 @@ const StandardSwitcher = React.memo(function StandardSwitcher({
                 <Text style={styles.standardSwitcherChangeText}>બદલો</Text>
                 <Ionicons name="chevron-down" size={14} color="#1d4ed8" style={{ marginLeft: 3 }} />
             </View>
-        </AnimatedPressable>
+        </TouchableOpacity>
     );
 });
 
@@ -401,56 +400,62 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
             </TouchableOpacity>
 
-            {/* Standard Switcher Modal */}
+            {/* Standard Switcher Bottom Sheet Modal */}
             <Modal
                 visible={standardModalVisible}
-                transparent
-                animationType="fade"
+                transparent={true}
+                animationType="slide"
                 onRequestClose={() => setStandardModalVisible(false)}
+                statusBarTranslucent={true}
             >
-                <View style={styles.dropdownOverlay}>
-                    {/* Backdrop */}
-                    <Pressable
-                        style={StyleSheet.absoluteFill}
-                        onPress={() => setStandardModalVisible(false)}
-                    />
-
-                    {/* Modal Card */}
-                    <View style={styles.dropdownCard}>
+                <TouchableOpacity
+                    style={styles.dropdownOverlay}
+                    activeOpacity={1}
+                    onPress={() => setStandardModalVisible(false)}
+                >
+                    <View
+                        style={styles.dropdownCard}
+                        onStartShouldSetResponder={() => true}
+                    >
                         <View style={styles.modalHandle} />
 
                         <View style={styles.dropdownHeader}>
                             <View style={styles.dropdownTitleWrap}>
                                 <View style={styles.dropdownHeaderIconBox}>
-                                    <Text style={{ fontSize: 18 }}>🎓</Text>
+                                    <Text style={{ fontSize: 20 }}>🎓</Text>
                                 </View>
                                 <View>
                                     <Text style={styles.dropdownTitle}>ધોરણ પસંદ કરો</Text>
                                     <Text style={styles.dropdownSub}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
                                 </View>
                             </View>
-                            <AnimatedPressable
+                            <TouchableOpacity
                                 onPress={() => setStandardModalVisible(false)}
                                 style={styles.dropdownCloseBtn}
-                                scaleTo={0.88}
+                                activeOpacity={0.7}
                             >
                                 <Ionicons name="close" size={20} color="#64748b" />
-                            </AnimatedPressable>
+                            </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView
+                            style={{ maxHeight: 380 }}
+                            contentContainerStyle={{ paddingBottom: 12 }}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                        >
                             <View style={styles.dropdownGrid}>
                                 {standards.map(num => {
                                     const isActive = String(num) === selectedStandard;
                                     return (
-                                        <AnimatedPressable
+                                        <TouchableOpacity
                                             key={num}
                                             style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
                                             onPress={() => {
                                                 setSelectedStandard(String(num));
                                                 setStandardModalVisible(false);
                                             }}
-                                            scaleTo={0.95}
+                                            activeOpacity={0.7}
                                         >
                                             <View style={[styles.stdNumCircle, isActive && styles.stdNumCircleActive]}>
                                                 <Text style={[styles.stdNumText, isActive && styles.stdNumTextActive]}>
@@ -467,13 +472,13 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                                             ) : (
                                                 <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
                                             )}
-                                        </AnimatedPressable>
+                                        </TouchableOpacity>
                                     );
                                 })}
                             </View>
                         </ScrollView>
                     </View>
-                </View>
+                </TouchableOpacity>
             </Modal>
         </View>
     );
@@ -1688,17 +1693,17 @@ const styles = StyleSheet.create({
     // ─── Dropdown Modal ─────────────────────────────────────────
     dropdownOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        justifyContent: 'flex-end',
     },
     dropdownCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 20,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: 20,
+        paddingTop: 14,
+        paddingBottom: 28,
         width: '100%',
-        maxWidth: 360,
         ...shadows.lg,
     },
     modalHandle: {
