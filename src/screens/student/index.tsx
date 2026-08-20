@@ -191,7 +191,7 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
         return (
             <View style={styles.bookmarkSection}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ (Bookmarks)</Text>
+                    <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ</Text>
                 </View>
                 <View style={styles.bookmarkEmpty}>
                     <Text style={styles.bookmarkEmptyIcon}>⭐</Text>
@@ -205,9 +205,9 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
     return (
         <View style={styles.bookmarkSection}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ (Bookmarks)</Text>
+                <Text style={styles.sectionTitle}>📌 મારી બુકમાર્ક્સ</Text>
                 <TouchableOpacity
-                    onPress={() => navigation.navigate('Bookmarks')}
+                    onPress={() => navigation.navigate('BookmarkList')}
                     activeOpacity={0.7}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >

@@ -423,9 +423,10 @@ export function StudentTabs(): React.JSX.Element {
                 component={BookmarkListScreen}
                 options={{
                     headerShown: true,
-                    headerStyle: { backgroundColor: studentColors.surface },
-                    headerTintColor: studentColors.textPrimary,
-                    headerTitleStyle: { fontWeight: typography.weight.semibold },
+                    headerStyle: { backgroundColor: '#1d4ed8' },
+                    headerTintColor: '#FFFFFF',
+                    headerTitleStyle: { fontWeight: '700' },
+                    title: '📌 મારી બુકમાર્ક્સ',
                 }}
             />
             <Stack.Screen
