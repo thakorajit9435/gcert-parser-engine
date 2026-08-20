@@ -32,6 +32,12 @@ import firestore from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants';
 import { Chapter } from '../../types';
 import { warmUpBackend } from '../../services/warmup.service';
+import { PermissionModal } from '../../components/common/PermissionModal';
+import {
+    checkFilesAndMediaPermission,
+    requestFilesAndMediaPermission,
+    openAppSettings,
+} from '../../services/permissions';
 
 interface Message {
     id: string;
@@ -209,6 +215,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
     const [chatLoadingStage, setChatLoadingStage] = useState(0);
+    const [permissionModalVisible, setPermissionModalVisible] = useState(false);
 
     const flatListRef = useRef<FlatList>(null);
     const inputRef = useRef<TextInput>(null);
@@ -450,8 +457,34 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         });
     };
 
-    // Camera Image Pick
+    // Camera / File Image Pick with permission flow
     const handlePickImage = async () => {
+        const hasPermission = await checkFilesAndMediaPermission();
+        if (!hasPermission) {
+            setPermissionModalVisible(true);
+            return;
+        }
+        proceedWithImagePick();
+    };
+
+    const handleAllowFilesPermission = async () => {
+        setPermissionModalVisible(false);
+        const granted = await requestFilesAndMediaPermission();
+        if (granted) {
+            proceedWithImagePick();
+        } else {
+            Alert.alert(
+                'પરવાનગી જરૂરી છે (Permission Required)',
+                'ફોટો અથવા ફાઇલ પસંદ કરવા માટે કૃપા કરીને સેટિંગ્સમાંથી Files & Media ની પરવાનગી આપો.',
+                [
+                    { text: 'સેટિંગ્સ ખોલો', onPress: () => openAppSettings() },
+                    { text: 'બંધ કરો', style: 'cancel' }
+                ]
+            );
+        }
+    };
+
+    const proceedWithImagePick = async () => {
         try {
             const res = await DocumentPicker.pickSingle({
                 type: [DocumentPicker.types.images],
@@ -1136,6 +1169,15 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                     </View>
                 </View>
             </Modal>
+
+            {/* Files & Media Permission Modal */}
+            <PermissionModal
+                visible={permissionModalVisible}
+                icon="🖼️"
+                title="ફાઇલ્સ અને મીડિયા પરવાનગી"
+                onClose={() => setPermissionModalVisible(false)}
+                onAllow={handleAllowFilesPermission}
+            />
 
             {/* Hidden WebView for Speech recognition */}
             <WebView

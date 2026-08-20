@@ -1,65 +1,86 @@
 import { Platform } from 'react-native';
-import { check, request, PERMISSIONS, RESULTS, openSettings, Permission } from 'react-native-permissions';
+import {
+    check,
+    request,
+    requestMultiple,
+    PERMISSIONS,
+    RESULTS,
+    openSettings,
+    Permission,
+} from 'react-native-permissions';
 
 /**
- * Get storage permission constant based on platform and API level.
+ * Get files & media permissions array based on platform and OS version.
  */
-function getStoragePermission(): Permission | null {
+export function getFilesAndMediaPermissions(): Permission[] {
     if (Platform.OS === 'android') {
         const apiLevel = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
         if (apiLevel >= 33) {
-            // Android 13+ (API 33+) does not require WRITE_EXTERNAL_STORAGE for app-specific storage.
-            // If the app needs media, we use READ_MEDIA_* but for PDF downloads/caching, no permission is needed.
-            return null;
+            return [PERMISSIONS.ANDROID.READ_MEDIA_IMAGES];
         }
-        return PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE;
+        return [
+            PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+            PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE,
+        ];
     }
-    // iOS manages app sandboxing; no runtime storage permission is needed for local downloading.
-    return null;
+    if (Platform.OS === 'ios') {
+        return [PERMISSIONS.IOS.PHOTO_LIBRARY];
+    }
+    return [];
 }
 
 /**
- * Check the current storage permission status.
- * Returns true if granted or if permission is not required for the current platform/version.
+ * Check if files and media permission is already granted.
+ */
+export async function checkFilesAndMediaPermission(): Promise<boolean> {
+    const permissions = getFilesAndMediaPermissions();
+    if (permissions.length === 0) return true;
+
+    try {
+        for (const perm of permissions) {
+            const status = await check(perm);
+            if (status !== RESULTS.GRANTED && status !== RESULTS.LIMITED) {
+                return false;
+            }
+        }
+        return true;
+    } catch (error) {
+        console.warn('[Permissions] checkFilesAndMediaPermission error:', error);
+        return false;
+    }
+}
+
+/**
+ * Request files and media permissions from the OS.
+ */
+export async function requestFilesAndMediaPermission(): Promise<boolean> {
+    const permissions = getFilesAndMediaPermissions();
+    if (permissions.length === 0) return true;
+
+    try {
+        if (permissions.length === 1 && permissions[0]) {
+            const status = await request(permissions[0]);
+            return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
+        }
+        const statuses = await requestMultiple(permissions);
+        return permissions.every(
+            p => statuses[p] === RESULTS.GRANTED || statuses[p] === RESULTS.LIMITED
+        );
+    } catch (error) {
+        console.warn('[Permissions] requestFilesAndMediaPermission error:', error);
+        return false;
+    }
+}
+
+/**
+ * Legacy storage permission helpers for backward compatibility.
  */
 export async function checkStoragePermission(): Promise<boolean> {
-    const permission = getStoragePermission();
-    if (!permission) {
-        return true;
-    }
-
-    try {
-        const status = await check(permission);
-        return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
-    } catch (error) {
-        if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn('[Permissions] checkStoragePermission error:', error);
-        }
-        return false;
-    }
+    return checkFilesAndMediaPermission();
 }
 
-/**
- * Request storage permission from the user.
- * Returns true if granted or if permission is not required for the current platform/version.
- */
 export async function requestStoragePermission(): Promise<boolean> {
-    const permission = getStoragePermission();
-    if (!permission) {
-        return true;
-    }
-
-    try {
-        const status = await request(permission);
-        return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
-    } catch (error) {
-        if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn('[Permissions] requestStoragePermission error:', error);
-        }
-        return false;
-    }
+    return requestFilesAndMediaPermission();
 }
 
 /**
@@ -69,9 +90,6 @@ export async function openAppSettings(): Promise<void> {
     try {
         await openSettings();
     } catch (error) {
-        if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn('[Permissions] openAppSettings error:', error);
-        }
+        console.warn('[Permissions] openAppSettings error:', error);
     }
 }
