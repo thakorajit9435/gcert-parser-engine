@@ -29,6 +29,9 @@
     <!-- Camera Permission for capturing question photos -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Google Play Services Advertising ID Permission (Android 13+ for Firebase Analytics) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
     <application
         android:name=".MainApplication"
         android:label="@string/app_name"
