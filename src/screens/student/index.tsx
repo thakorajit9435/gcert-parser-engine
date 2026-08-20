@@ -638,11 +638,6 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             <Text style={[styles.chapterTitle, locked && styles.chapterTitleLocked]} numberOfLines={1}>
                                                 {mainTitle}
                                             </Text>
-                                            {item.lastOpenedAt && !item.isCompleted && (
-                                                <View style={styles.recentBadge}>
-                                                    <Text style={styles.recentBadgeText}>Active</Text>
-                                                </View>
-                                            )}
                                         </View>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' }}>
                                             {item.startPage !== undefined && item.startPage !== null ? (
