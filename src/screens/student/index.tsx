@@ -614,7 +614,6 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                         const locked = item.isPremium && !isPremium;
                         const bookmarked = isBookmarked(item.id);
                         const mainTitle = item.titleGu || item.title;
-                        const subTitle = item.titleGu && item.title !== item.titleGu ? item.title : '';
 
                         return (
                             <View
@@ -645,9 +644,6 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                                 </View>
                                             )}
                                         </View>
-                                        {subTitle ? (
-                                            <Text style={styles.chapterTitleGu}>{subTitle}</Text>
-                                        ) : null}
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' }}>
                                             {item.startPage !== undefined && item.startPage !== null ? (
                                                 <View style={styles.pageBadge}>

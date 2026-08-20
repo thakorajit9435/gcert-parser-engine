@@ -66,7 +66,6 @@ export function ChapterSelectionScreen({ route, navigation }: { route: any; navi
                     contentContainerStyle={styles.listContent}
                     renderItem={({ item, index }) => {
                         const mainTitle = item.titleGu || item.title;
-                        const subTitle = item.titleGu && item.title !== item.titleGu ? item.title : '';
                         return (
                             <TouchableOpacity
                                 style={styles.chapterCard}
@@ -78,9 +77,6 @@ export function ChapterSelectionScreen({ route, navigation }: { route: any; navi
                                 </View>
                                 <View style={styles.chapterInfo}>
                                     <Text style={styles.chapterTitle}>{mainTitle}</Text>
-                                    {subTitle ? (
-                                        <Text style={styles.chapterTitleGu}>{subTitle}</Text>
-                                    ) : null}
                                 </View>
                                 <Text style={styles.chevron}>›</Text>
                             </TouchableOpacity>
