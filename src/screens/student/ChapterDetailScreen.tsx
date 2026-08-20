@@ -652,9 +652,9 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                     >
                         <Ionicons
                             name="grid"
-                            size={15}
+                            size={17}
                             color={activeTab === 'menu' ? '#1d4ed8' : 'rgba(255,255,255,0.85)'}
-                            style={{ marginRight: 5 }}
+                            style={{ marginRight: 6 }}
                         />
                         <Text style={[styles.tabText, activeTab === 'menu' && styles.tabTextActive]}>
                             પ્રકરણ ઓવરવ્યૂ
@@ -671,9 +671,9 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                     >
                         <Ionicons
                             name="chatbubbles"
-                            size={15}
+                            size={17}
                             color={activeTab === 'chat' ? '#1d4ed8' : 'rgba(255,255,255,0.85)'}
-                            style={{ marginRight: 5 }}
+                            style={{ marginRight: 6 }}
                         />
                         <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>
                             AI Chat (ટ્યુટર)
@@ -748,7 +748,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#eff6ff' }]}>
-                                    <Ionicons name="book-outline" size={20} color="#2563eb" />
+                                    <Ionicons name="book-outline" size={22} color="#2563eb" />
                                 </View>
                                 <Text style={styles.toolTitle}>પાઠ્યપુસ્તક</Text>
                                 <Text style={styles.toolSub}>ડિજિટલ PDF</Text>
@@ -760,7 +760,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#f5f3ff' }]}>
-                                    <Ionicons name="document-text-outline" size={20} color="#7c3aed" />
+                                    <Ionicons name="document-text-outline" size={22} color="#7c3aed" />
                                 </View>
                                 <Text style={styles.toolTitle}>મારી નોંધ</Text>
                                 <Text style={styles.toolSub}>ચેપ્ટર નોટ્સ</Text>
@@ -772,7 +772,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#ecfdf5' }]}>
-                                    <Ionicons name="trophy-outline" size={20} color="#059669" />
+                                    <Ionicons name="trophy-outline" size={22} color="#059669" />
                                 </View>
                                 <Text style={styles.toolTitle}>MCQ ક્વિઝ</Text>
                                 <Text style={styles.toolSub}>ટેસ્ટ પ્રેક્ટિસ</Text>
@@ -784,7 +784,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#fffbeb' }]}>
-                                    <Ionicons name="flash-outline" size={20} color="#d97706" />
+                                    <Ionicons name="flash-outline" size={22} color="#d97706" />
                                 </View>
                                 <Text style={styles.toolTitle}>ફ્લેશકાર્ડ્સ</Text>
                                 <Text style={styles.toolSub}>ઝડપી રિવિઝન</Text>
@@ -1188,7 +1188,10 @@ const styles = StyleSheet.create({
     tabContainer: {
         flexDirection: 'row',
         backgroundColor: '#1e40af',
-        padding: 4,
+        padding: 5,
+        marginHorizontal: 10,
+        marginBottom: 6,
+        borderRadius: 14,
         gap: 6,
     },
     tab: {
@@ -1196,18 +1199,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 6,
-        borderRadius: 14,
-        backgroundColor: 'rgba(255,255,255,0.12)',
+        paddingVertical: 9,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.14)',
     },
     tabActive: {
         backgroundColor: '#FFFFFF',
         ...shadows.sm,
     },
     tabText: {
-        fontSize: 11.5,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.85)',
+        fontSize: 13,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.92)',
     },
     tabTextActive: {
         color: '#1d4ed8',
@@ -1215,17 +1218,17 @@ const styles = StyleSheet.create({
     },
     tabBadge: {
         backgroundColor: 'rgba(255,255,255,0.25)',
-        paddingHorizontal: 5,
-        paddingVertical: 0.5,
+        paddingHorizontal: 6,
+        paddingVertical: 1,
         borderRadius: 10,
-        marginLeft: 5,
+        marginLeft: 6,
     },
     tabBadgeActive: {
         backgroundColor: '#dbeafe',
     },
     tabBadgeText: {
-        fontSize: 9.5,
-        fontWeight: '700',
+        fontSize: 10,
+        fontWeight: '800',
         color: '#fff',
     },
     tabBadgeTextActive: {
@@ -1349,30 +1352,36 @@ const styles = StyleSheet.create({
     toolCard: {
         width: '48%',
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        padding: 12,
+        borderRadius: 16,
+        paddingVertical: 15,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
         borderTopWidth: 3.5,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         ...shadows.sm,
     },
     toolIconBox: {
-        width: 38,
-        height: 38,
-        borderRadius: 10,
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: 8,
+        alignSelf: 'center',
     },
     toolTitle: {
-        fontSize: 13,
+        fontSize: 13.5,
         fontWeight: '700',
         color: '#1e293b',
+        textAlign: 'center',
     },
     toolSub: {
-        fontSize: 10,
+        fontSize: 10.5,
         color: '#64748b',
-        marginTop: 1,
+        marginTop: 2,
+        textAlign: 'center',
     },
 
     // ── Suggested Topics Section ───────────────────────────────────
