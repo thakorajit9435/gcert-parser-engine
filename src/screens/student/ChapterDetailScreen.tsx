@@ -208,6 +208,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     const [recording, setRecording] = useState(false);
     const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
     const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+    const [chatLoadingStage, setChatLoadingStage] = useState(0);
 
     const flatListRef = useRef<FlatList>(null);
     const inputRef = useRef<TextInput>(null);
@@ -230,10 +231,30 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         }
     }, [chapter.id, chapter.subjectId, chapter.standardId, chapter.title, user?.uid]);
 
-    // Trigger backend warmup on mount
+    // Trigger backend warmup on mount & pre-warm chat session in background
     useEffect(() => {
-        warmUpBackend();
-    }, []);
+        warmUpBackend(true);
+        if (user?.uid) {
+            getOrCreateSessionId().catch(() => {});
+        }
+    }, [chapter.id, user?.uid]);
+
+    // Progressive live stage updates while AI chat is thinking/waking
+    useEffect(() => {
+        let t1: any = null;
+        let t2: any = null;
+        if (chatLoading) {
+            setChatLoadingStage(0);
+            t1 = setTimeout(() => setChatLoadingStage(1), 3000);
+            t2 = setTimeout(() => setChatLoadingStage(2), 7500);
+        } else {
+            setChatLoadingStage(0);
+        }
+        return () => {
+            if (t1) clearTimeout(t1);
+            if (t2) clearTimeout(t2);
+        };
+    }, [chatLoading]);
 
     // Load saved notes
     useEffect(() => {
@@ -248,11 +269,15 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         loadNotes();
     }, [chapter.id]);
 
-    // Auto-focus input and open keyboard when switching to AI Chat tab
+    // Auto-focus input, pre-warm backend and prepare session when switching to AI Chat tab
     useEffect(() => {
         let timer1: any;
         let timer2: any;
         if (activeTab === 'chat') {
+            warmUpBackend(true);
+            if (user?.uid && !sessionId) {
+                getOrCreateSessionId().catch(() => {});
+            }
             timer1 = setTimeout(() => {
                 inputRef.current?.focus();
             }, 100);
@@ -264,7 +289,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
             if (timer1) clearTimeout(timer1);
             if (timer2) clearTimeout(timer2);
         };
-    }, [activeTab]);
+    }, [activeTab, sessionId, user?.uid]);
 
     // Fetch dynamic questions from Firestore MCQs
     useEffect(() => {
@@ -943,9 +968,13 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
                             <View style={styles.aiAvatar}>
                                 <Text style={styles.aiAvatarText}>🤖</Text>
                             </View>
-                            <View style={styles.typingBubble}>
+                            <View style={[styles.typingBubble, { maxWidth: '85%' }]}>
                                 <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 8 }} />
-                                <Text style={styles.typingText}>AI ઉત્તર તૈયાર કરી રહ્યો છે...</Text>
+                                <Text style={styles.typingText}>
+                                    {chatLoadingStage === 0 && 'AI ઉત્તર તૈયાર કરી રહ્યો છે...'}
+                                    {chatLoadingStage === 1 && 'પાઠ્યપુસ્તકમાંથી સંદર્ભો શોધી રહ્યા છીએ...'}
+                                    {chatLoadingStage === 2 && 'સર્વર સક્રિય થઈ રહ્યું છે, જવાબ આવી રહ્યો છે... ⏳'}
+                                </Text>
                             </View>
                         </View>
                     )}
