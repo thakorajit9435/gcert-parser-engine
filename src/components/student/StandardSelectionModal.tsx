@@ -6,14 +6,12 @@ import {
     Modal,
     TouchableOpacity,
     Animated,
-    ScrollView,
     Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { shadows } from '../../theme';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -22,13 +20,24 @@ interface StandardSelectionModalProps {
     onSelectStandard: (standard: string) => void;
 }
 
+const GUJARATI_NUMERALS: { [key: number]: string } = {
+    1: '૧',
+    2: '૨',
+    3: '૩',
+    4: '૪',
+    5: '૫',
+    6: '૬',
+    7: '૭',
+    8: '૮',
+};
+
 export function StandardSelectionModal({
     visible,
     onClose,
     selectedStandard,
     onSelectStandard,
 }: StandardSelectionModalProps): React.JSX.Element {
-    const scaleAnim = useRef(new Animated.Value(0.85)).current;
+    const scaleAnim = useRef(new Animated.Value(0.9)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const standards = React.useMemo(() => {
@@ -48,8 +57,8 @@ export function StandardSelectionModal({
                 }),
                 Animated.spring(scaleAnim, {
                     toValue: 1,
-                    damping: 14,
-                    stiffness: 240,
+                    damping: 15,
+                    stiffness: 250,
                     useNativeDriver: true,
                 }),
             ]).start();
@@ -61,7 +70,7 @@ export function StandardSelectionModal({
                     useNativeDriver: true,
                 }),
                 Animated.timing(scaleAnim, {
-                    toValue: 0.85,
+                    toValue: 0.9,
                     duration: 120,
                     useNativeDriver: true,
                 }),
@@ -79,20 +88,20 @@ export function StandardSelectionModal({
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <View style={styles.overlay}>
-                {/* Backdrop touchable (tap outside to close) */}
-                <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-                    <TouchableOpacity
-                        style={StyleSheet.absoluteFillObject}
-                        activeOpacity={1}
-                        onPress={onClose}
-                    />
-                </Animated.View>
+            <View style={styles.modalRootContainer}>
+                {/* Fullscreen Backdrop touchable */}
+                <TouchableOpacity
+                    style={styles.backdropTouchable}
+                    activeOpacity={1}
+                    onPress={onClose}
+                >
+                    <Animated.View style={[styles.backdropBg, { opacity: fadeAnim }]} />
+                </TouchableOpacity>
 
-                {/* Centered Normal Modal Dialog Card */}
+                {/* Centered Modal Card */}
                 <Animated.View
                     style={[
-                        styles.dialogCard,
+                        styles.dialogContainer,
                         {
                             opacity: fadeAnim,
                             transform: [{ scale: scaleAnim }],
@@ -101,66 +110,71 @@ export function StandardSelectionModal({
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <View style={styles.titleWrap}>
-                            <View style={styles.headerIconBox}>
-                                <Text style={styles.headerEmoji}>🎓</Text>
+                        <View style={styles.titleRow}>
+                            <View style={styles.iconBox}>
+                                <Text style={styles.iconEmoji}>🎓</Text>
                             </View>
-                            <View>
+                            <View style={styles.headerTextWrap}>
                                 <Text style={styles.title}>ધોરણ પસંદ કરો</Text>
-                                <Text style={styles.subtitle}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
+                                <Text style={styles.subtitle}>GCERT પાઠ્યક્રમ (ધોરણ ૧ થી ૮)</Text>
                             </View>
                         </View>
                         <TouchableOpacity
                             onPress={onClose}
                             style={styles.closeBtn}
                             activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
-                            <Ionicons name="close" size={20} color="#64748b" />
+                            <Ionicons name="close" size={19} color="#64748b" />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Standard List */}
-                    <ScrollView
-                        style={styles.scrollList}
-                        contentContainerStyle={styles.scrollContent}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        bounces={false}
-                    >
-                        <View style={styles.grid}>
-                            {standards.map(num => {
-                                const isActive = String(num) === String(selectedStandard);
-                                return (
-                                    <TouchableOpacity
-                                        key={num}
-                                        style={[styles.itemCard, isActive && styles.itemCardActive]}
-                                        onPress={() => {
-                                            onSelectStandard(String(num));
-                                            onClose();
-                                        }}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View style={[styles.stdCircle, isActive && styles.stdCircleActive]}>
-                                            <Text style={[styles.stdCircleText, isActive && styles.stdCircleTextActive]}>
-                                                {num}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.itemTextWrap}>
-                                            <Text style={[styles.itemTitle, isActive && styles.itemTitleActive]}>
-                                                ધોરણ {num} (Standard {num})
-                                            </Text>
-                                        </View>
-                                        {isActive ? (
-                                            <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
-                                        ) : (
-                                            <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    </ScrollView>
+                    {/* Standard Grid (2 Columns, 4 Rows) */}
+                    <View style={styles.gridContainer}>
+                        {standards.map(num => {
+                            const isActive = String(num) === String(selectedStandard);
+                            const gujNum = GUJARATI_NUMERALS[num] || String(num);
+
+                            return (
+                                <TouchableOpacity
+                                    key={num}
+                                    style={[styles.gridCard, isActive && styles.gridCardActive]}
+                                    onPress={() => {
+                                        onSelectStandard(String(num));
+                                        onClose();
+                                    }}
+                                    activeOpacity={0.75}
+                                >
+                                    <View style={[styles.numBadge, isActive && styles.numBadgeActive]}>
+                                        <Text style={[styles.numText, isActive && styles.numTextActive]}>
+                                            {num}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.gridCardTextWrap}>
+                                        <Text style={[styles.gridCardTitle, isActive && styles.gridCardTitleActive]}>
+                                            ધોરણ {gujNum}
+                                        </Text>
+                                        <Text style={[styles.gridCardSub, isActive && styles.gridCardSubActive]}>
+                                            Class {num}
+                                        </Text>
+                                    </View>
+                                    {isActive ? (
+                                        <Ionicons name="checkmark-circle" size={20} color="#2563eb" />
+                                    ) : (
+                                        <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    {/* Footer Info */}
+                    <View style={styles.footer}>
+                        <Ionicons name="information-circle-outline" size={15} color="#64748b" style={{ marginRight: 4 }} />
+                        <Text style={styles.footerText}>
+                            ધોરણ બદલવાથી તમામ વિષયો આપોઆપ અપડેટ થશે.
+                        </Text>
+                    </View>
                 </Animated.View>
             </View>
         </Modal>
@@ -168,43 +182,61 @@ export function StandardSelectionModal({
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        width: '100%',
-        height: '100%',
+    modalRootContainer: {
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 99999,
+        elevation: 99999,
     },
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backdropTouchable: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
     },
-    dialogCard: {
+    backdropBg: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(15, 23, 42, 0.68)',
+    },
+    dialogContainer: {
+        width: Math.min(SCREEN_WIDTH - 36, 360),
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 20,
-        width: Math.min(SCREEN_WIDTH - 48, 360),
+        padding: 18,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 20,
+        zIndex: 100000,
         alignSelf: 'center',
-        maxHeight: '80%',
-        ...shadows.lg,
-        elevation: 16,
-        zIndex: 10,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingBottom: 14,
+        paddingBottom: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
-        marginBottom: 12,
+        marginBottom: 14,
     },
-    titleWrap: {
+    titleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
     },
-    headerIconBox: {
+    iconBox: {
         width: 38,
         height: 38,
         borderRadius: 12,
@@ -212,8 +244,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerEmoji: {
+    iconEmoji: {
         fontSize: 18,
+    },
+    headerTextWrap: {
+        justifyContent: 'center',
     },
     title: {
         fontSize: 16,
@@ -227,66 +262,88 @@ const styles = StyleSheet.create({
         marginTop: 1,
     },
     closeBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    scrollList: {
-        maxHeight: 340,
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 10,
     },
-    scrollContent: {
-        paddingVertical: 4,
-    },
-    grid: {
-        gap: 8,
-    },
-    itemCard: {
+    gridCard: {
+        width: '48%',
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
         borderRadius: 14,
         backgroundColor: '#f8fafc',
-        borderWidth: 1.2,
+        borderWidth: 1.5,
         borderColor: '#e2e8f0',
-        gap: 12,
+        gap: 8,
     },
-    itemCardActive: {
+    gridCardActive: {
         backgroundColor: '#eff6ff',
         borderColor: '#3b82f6',
+        borderWidth: 1.5,
     },
-    stdCircle: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+    numBadge: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         backgroundColor: '#e2e8f0',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    stdCircleActive: {
+    numBadgeActive: {
         backgroundColor: '#2563eb',
     },
-    stdCircleText: {
-        fontSize: 14,
+    numText: {
+        fontSize: 13,
         fontWeight: '800',
         color: '#475569',
     },
-    stdCircleTextActive: {
+    numTextActive: {
         color: '#FFFFFF',
     },
-    itemTextWrap: {
+    gridCardTextWrap: {
         flex: 1,
     },
-    itemTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#334155',
+    gridCardTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1e293b',
     },
-    itemTitleActive: {
+    gridCardTitleActive: {
         color: '#1d4ed8',
         fontWeight: '800',
+    },
+    gridCardSub: {
+        fontSize: 10,
+        color: '#94a3b8',
+        fontWeight: '500',
+        marginTop: 1,
+    },
+    gridCardSubActive: {
+        color: '#3b82f6',
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 14,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+        justifyContent: 'center',
+    },
+    footerText: {
+        fontSize: 11,
+        color: '#64748b',
+        fontWeight: '500',
     },
 });
