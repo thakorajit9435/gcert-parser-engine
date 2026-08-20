@@ -1,91 +1,77 @@
 import { PermissionsAndroid, Platform, Linking } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const PERMISSION_ACKNOWLEDGED_KEY = '@gyan_files_permission_ack_v1';
 
 /**
- * Check if files and media permission is already granted and acknowledged.
+ * Directly requests native System Camera & Media permissions (same native OS popup as Mic).
  */
-export async function checkFilesAndMediaPermission(): Promise<boolean> {
+export async function requestCameraAndMediaPermission(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+
     try {
-        const hasAck = await AsyncStorage.getItem(PERMISSION_ACKNOWLEDGED_KEY);
-        if (!hasAck) {
-            return false;
+        const apiLevel = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
+
+        const permissionsToRequest: any[] = [PermissionsAndroid.PERMISSIONS.CAMERA];
+        if (apiLevel >= 33) {
+            permissionsToRequest.push('android.permission.READ_MEDIA_IMAGES');
+        } else {
+            permissionsToRequest.push(
+                PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+            );
         }
 
-        if (Platform.OS === 'android') {
-            const apiLevel = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
-            if (apiLevel >= 33) {
-                const hasMedia = await PermissionsAndroid.check(
-                    'android.permission.READ_MEDIA_IMAGES' as any
-                );
-                return hasMedia;
-            } else {
-                const hasRead = await PermissionsAndroid.check(
-                    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-                );
-                const hasWrite = await PermissionsAndroid.check(
-                    PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-                );
-                return hasRead && hasWrite;
-            }
-        }
-        return true;
+        const results: Record<string, string> = await PermissionsAndroid.requestMultiple(permissionsToRequest);
+
+        const cameraGranted =
+            results[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        const mediaGranted =
+            apiLevel >= 33
+                ? results['android.permission.READ_MEDIA_IMAGES'] === PermissionsAndroid.RESULTS.GRANTED
+                : results[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED ||
+                  results[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+
+        return cameraGranted || mediaGranted;
     } catch (error) {
-        console.warn('[Permissions] checkFilesAndMediaPermission error:', error);
+        console.warn('[Permissions] requestCameraAndMediaPermission error:', error);
         return false;
     }
 }
 
 /**
- * Request files and media permissions from OS.
- */
-export async function requestFilesAndMediaPermission(): Promise<boolean> {
-    try {
-        await AsyncStorage.setItem(PERMISSION_ACKNOWLEDGED_KEY, 'true');
-
-        if (Platform.OS === 'android') {
-            const apiLevel = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
-            if (apiLevel >= 33) {
-                const result = await PermissionsAndroid.request(
-                    'android.permission.READ_MEDIA_IMAGES' as any,
-                    {
-                        title: 'Files and Media Permission',
-                        message: 'App needs access to your photos and files for reading textbooks and solving doubts.',
-                        buttonPositive: 'Allow',
-                        buttonNegative: 'Deny',
-                    }
-                );
-                return result === PermissionsAndroid.RESULTS.GRANTED;
-            } else {
-                const results = await PermissionsAndroid.requestMultiple([
-                    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-                    PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-                ]);
-                return (
-                    results[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] ===
-                        PermissionsAndroid.RESULTS.GRANTED ||
-                    results[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] ===
-                        PermissionsAndroid.RESULTS.GRANTED
-                );
-            }
-        }
-        return true;
-    } catch (error) {
-        console.warn('[Permissions] requestFilesAndMediaPermission error:', error);
-        return false;
-    }
-}
-
-/**
- * Legacy storage permission helpers for backward compatibility.
+ * Check if storage/media permission is granted.
  */
 export async function checkStoragePermission(): Promise<boolean> {
-    return checkFilesAndMediaPermission();
+    if (Platform.OS !== 'android') return true;
+    try {
+        const apiLevel = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
+        if (apiLevel >= 33) {
+            return await PermissionsAndroid.check('android.permission.READ_MEDIA_IMAGES' as any);
+        }
+        const hasRead = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+        return hasRead;
+    } catch {
+        return false;
+    }
 }
 
+/**
+ * Request storage permission from user.
+ */
 export async function requestStoragePermission(): Promise<boolean> {
-    return requestFilesAndMediaPermission();
+    return requestCameraAndMediaPermission();
+}
+
+/**
+ * Check files and media permission.
+ */
+export async function checkFilesAndMediaPermission(): Promise<boolean> {
+    return checkStoragePermission();
+}
+
+/**
+ * Request files and media permission.
+ */
+export async function requestFilesAndMediaPermission(): Promise<boolean> {
+    return requestCameraAndMediaPermission();
 }
 
 /**

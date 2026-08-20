@@ -28,10 +28,8 @@ import { useSubjects } from '../../hooks/useSubjects';
 import { shadows } from '../../theme';
 import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import { AnimatedPressable } from '../../components/common/AnimatedPressable';
-import { PermissionModal } from '../../components/common/PermissionModal';
 import {
-  checkFilesAndMediaPermission,
-  requestFilesAndMediaPermission,
+  requestCameraAndMediaPermission,
   openAppSettings,
 } from '../../services/permissions';
 
@@ -254,7 +252,6 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('સાંભળી રહ્યા છીએ...');
   const [selectedImage, setSelectedImage] = useState<{ uri: string; type: string; name: string } | null>(null);
-  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const webViewRef = useRef<any>(null);
@@ -463,35 +460,22 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
     Alert.alert('કૉપિ થયું', 'જવાબ ક્લિપબોર્ડમાં કૉપિ થઈ ગયો છે ✅');
   };
 
-  // Image upload with permission flow
+  // Direct Camera & Media pick with native system permission request
   const handlePickImage = async () => {
-    const hasPermission = await checkFilesAndMediaPermission();
-    if (!hasPermission) {
-      setPermissionModalVisible(true);
-      return;
-    }
-    proceedWithImagePick();
-  };
-
-  const handleAllowFilesPermission = async () => {
-    setPermissionModalVisible(false);
-    const granted = await requestFilesAndMediaPermission();
-    if (granted) {
-      proceedWithImagePick();
-    } else {
-      Alert.alert(
-        'પરવાનગી જરૂરી છે (Permission Required)',
-        'ફોટો અથવા ફાઇલ પસંદ કરવા માટે કૃપા કરીને સેટિંગ્સમાંથી Files & Media ની પરવાનગી આપો.',
-        [
-          { text: 'સેટિંગ્સ ખોલો', onPress: () => openAppSettings() },
-          { text: 'બંધ કરો', style: 'cancel' }
-        ]
-      );
-    }
-  };
-
-  const proceedWithImagePick = async () => {
     try {
+      const granted = await requestCameraAndMediaPermission();
+      if (!granted) {
+        Alert.alert(
+          'પરવાનગી જરૂરી છે',
+          'પ્રશ્નનો ફોટો પાડવા અથવા પસંદ કરવા માટે Camera અને Photos પરવાનગી આપો.',
+          [
+            { text: 'સેટિંગ્સ ખોલો', onPress: () => openAppSettings() },
+            { text: 'બંધ કરો', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+
       const res = await DocumentPicker.pickSingle({
         type: [DocumentPicker.types.images],
       });
@@ -961,15 +945,6 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
           onMessage={onWebViewMessage}
           javaScriptEnabled={true}
           style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
-        />
-
-        {/* Files & Media Permission Modal */}
-        <PermissionModal
-          visible={permissionModalVisible}
-          icon="🖼️"
-          title="ફાઇલ્સ અને મીડિયા પરવાનગી"
-          onClose={() => setPermissionModalVisible(false)}
-          onAllow={handleAllowFilesPermission}
         />
       </View>
     </KeyboardAvoidingView>
