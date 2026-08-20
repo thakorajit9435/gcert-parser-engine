@@ -17,7 +17,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DocumentPicker from 'react-native-document-picker';
-import ReactNativeBlobUtil from 'react-native-blob-util';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChapterDetail } from '../../hooks/useChapterDetail';
@@ -500,50 +499,37 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                 setChatLoading(false);
                 return;
             }
-            setSessionError(false);
 
-            let answer = '';
-            let activeCitations: CitationItem[] | undefined = undefined;
-
-            if (selectedImage) {
-                const fs = ReactNativeBlobUtil.fs;
-                const base64Data = await fs.readFile(selectedImage.uri, 'base64');
-                answer = await aiTutorService.sendMultimodalDoubt(base64Data, queryText, selectedImage.type);
-            } else {
-                const res = await aiTutorService.sendChatMessage(activeSessionId, queryText, {
-                    standard: chapter.standardId,
+            const response = await aiTutorService.sendChatMessage(
+                activeSessionId,
+                queryText,
+                {
+                    standard: String(chapter.standardId),
                     subject: chapter.subjectId,
-                    chapter: chapter.id,
-                    language: 'gu'
-                });
-                answer = res.answer;
-                activeCitations = res.citations && res.citations.length > 0 ? res.citations : undefined;
-            }
+                    chapter: chapter.title,
+                }
+            );
 
-            const pageNum = (activeCitations && activeCitations[0] && activeCitations[0].pageNumber)
-                ? activeCitations[0].pageNumber
-                : (chapter.bookStartPage || chapter.startPage || 1);
-
+            const pageNo = response.citations?.[0]?.pageNumber;
             const assistantMsg: Message = {
                 id: `assistant_${Date.now()}`,
                 role: 'assistant',
-                content: answer,
-                citations: activeCitations,
-                pageNumber: pageNum,
+                content: response.answer || 'ક્ષમા કરશો, મને આ પ્રશ્નનો જવાબ મળ્યો નથી.',
                 timestamp: new Date(),
+                citations: response.citations,
+                pageNumber: pageNo,
             };
             setMessages(prev => [...prev, assistantMsg]);
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-        } catch (err) {
-            console.error('Send error:', err);
+        } catch (err: any) {
+            console.error('[ChapterDetailScreen] Error sending message:', err);
             const errorMsg: Message = {
-                id: `error_${Date.now()}`,
+                id: `err_${Date.now()}`,
                 role: 'assistant',
-                content: '⚠️ માફ કરશો, AI સર્વર સાથે જોડાવામાં સમય લાગી રહ્યો છે. કૃપા કરીને ૧૦-૧૫ સેકન્ડ પછી ફરીથી પ્રયત્ન કરો.',
+                content: 'ક્ષમા કરશો, સર્વર સાથે જોડાણ કરવામાં ભૂલ આવી. કૃપા કરીને થોડીવાર પછી ફરી પ્રયાસ કરો.',
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, errorMsg]);
-            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         } finally {
             setChatLoading(false);
         }
@@ -593,12 +579,13 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
             {/* Header with Safe Area */}
             <SafeAreaView edges={['top']} style={{ backgroundColor: '#1d4ed8' }}>
                 <View style={styles.header}>
                     <AnimatedPressable onPress={() => navigation.goBack()} style={styles.headerIconBtn} scaleTo={0.88}>
-                        <Ionicons name="arrow-back" size={22} color="#fff" />
+                        <Ionicons name="arrow-back" size={20} color="#fff" />
                     </AnimatedPressable>
 
                     <View style={styles.headerTitleWrap}>
@@ -616,7 +603,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             style={styles.headerIconBtn}
                             scaleTo={0.88}
                         >
-                            <Ionicons name="document-text-outline" size={19} color="#fff" />
+                            <Ionicons name="document-text-outline" size={18} color="#fff" />
                         </AnimatedPressable>
 
                         <AnimatedPressable
@@ -630,7 +617,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             ) : (
                                 <Ionicons
                                     name={isChapterBookmarked ? 'star' : 'star-outline'}
-                                    size={19}
+                                    size={18}
                                     color={isChapterBookmarked ? '#facc15' : '#fff'}
                                 />
                             )}
@@ -647,9 +634,9 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                     >
                         <Ionicons
                             name="grid"
-                            size={16}
-                            color={activeTab === 'menu' ? '#1d4ed8' : 'rgba(255,255,255,0.8)'}
-                            style={{ marginRight: 6 }}
+                            size={15}
+                            color={activeTab === 'menu' ? '#1d4ed8' : 'rgba(255,255,255,0.85)'}
+                            style={{ marginRight: 5 }}
                         />
                         <Text style={[styles.tabText, activeTab === 'menu' && styles.tabTextActive]}>
                             પ્રકરણ ઓવરવ્યૂ
@@ -663,9 +650,9 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                     >
                         <Ionicons
                             name="chatbubbles"
-                            size={16}
-                            color={activeTab === 'chat' ? '#1d4ed8' : 'rgba(255,255,255,0.8)'}
-                            style={{ marginRight: 6 }}
+                            size={15}
+                            color={activeTab === 'chat' ? '#1d4ed8' : 'rgba(255,255,255,0.85)'}
+                            style={{ marginRight: 5 }}
                         />
                         <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>
                             AI Chat (ટ્યુટર)
@@ -703,13 +690,13 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             <Text style={styles.heroSubTitle}>{chapter.title}</Text>
                         ) : null}
 
-                        {/* Page Range Pill */}
+                        {/* Page Range & Notes Pills */}
                         <View style={styles.heroMetaRow}>
                             {chapter.startPage ? (
                                 <View style={styles.heroPageBadge}>
                                     <Ionicons name="book" size={13} color="#2563eb" />
                                     <Text style={styles.heroPageBadgeText}>
-                                        પાઠ્યપુસ્તક પાના: {chapter.endPage ? `${chapter.startPage} - ${chapter.endPage}` : chapter.startPage}
+                                        પાના: {chapter.endPage ? `${chapter.startPage} - ${chapter.endPage}` : chapter.startPage}
                                     </Text>
                                 </View>
                             ) : null}
@@ -717,7 +704,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 <View style={[styles.heroPageBadge, { backgroundColor: '#fdf4ff', borderColor: '#f0abfc' }]}>
                                     <Ionicons name="create" size={13} color="#c026d3" />
                                     <Text style={[styles.heroPageBadgeText, { color: '#c026d3' }]}>
-                                        નોંધ સાચવેલ છે
+                                        નોંધ સાચવેલ
                                     </Text>
                                 </View>
                             ) : null}
@@ -732,7 +719,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
 
                     {/* Modern 2x2 Interactive Tools Grid */}
                     <View style={styles.toolsSection}>
-                        <Text style={styles.sectionHeading}>⚡ મુખ્ય સાધનો & અભ્યાસ સામગ્રી</Text>
+                        <Text style={styles.sectionHeading}>⚡ મુખ્ય સાધનો & સામગ્રી</Text>
                         <View style={styles.toolsGrid}>
                             <AnimatedPressable
                                 style={[styles.toolCard, { borderTopColor: '#2563eb' }]}
@@ -740,7 +727,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#eff6ff' }]}>
-                                    <Ionicons name="book-outline" size={22} color="#2563eb" />
+                                    <Ionicons name="book-outline" size={20} color="#2563eb" />
                                 </View>
                                 <Text style={styles.toolTitle}>પાઠ્યપુસ્તક</Text>
                                 <Text style={styles.toolSub}>ડિજિટલ PDF</Text>
@@ -752,7 +739,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#f5f3ff' }]}>
-                                    <Ionicons name="document-text-outline" size={22} color="#7c3aed" />
+                                    <Ionicons name="document-text-outline" size={20} color="#7c3aed" />
                                 </View>
                                 <Text style={styles.toolTitle}>મારી નોંધ</Text>
                                 <Text style={styles.toolSub}>ચેપ્ટર નોટ્સ</Text>
@@ -764,7 +751,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#ecfdf5' }]}>
-                                    <Ionicons name="trophy-outline" size={22} color="#059669" />
+                                    <Ionicons name="trophy-outline" size={20} color="#059669" />
                                 </View>
                                 <Text style={styles.toolTitle}>MCQ ક્વિઝ</Text>
                                 <Text style={styles.toolSub}>ટેસ્ટ પ્રેક્ટિસ</Text>
@@ -776,11 +763,45 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 scaleTo={0.94}
                             >
                                 <View style={[styles.toolIconBox, { backgroundColor: '#fffbeb' }]}>
-                                    <Ionicons name="flash-outline" size={22} color="#d97706" />
+                                    <Ionicons name="flash-outline" size={20} color="#d97706" />
                                 </View>
                                 <Text style={styles.toolTitle}>ફ્લેશકાર્ડ્સ</Text>
                                 <Text style={styles.toolSub}>ઝડપી રિવિઝન</Text>
                             </AnimatedPressable>
+                        </View>
+                    </View>
+
+                    {/* Suggested Topics / Quick AI Prompts */}
+                    <View style={styles.suggestedSection}>
+                        <View style={styles.suggestedHeaderRow}>
+                            <Text style={styles.sectionHeading}>💡 મહત્વના પ્રશ્નો & AI પ્રશ્નોત્તરી</Text>
+                            <AnimatedPressable onPress={() => setActiveTab('chat')} scaleTo={0.90}>
+                                <Text style={styles.viewAllChatText}>AI Chat ➔</Text>
+                            </AnimatedPressable>
+                        </View>
+
+                        <View style={styles.suggestedList}>
+                            {suggestedItems.slice(0, 4).map((item) => (
+                                <AnimatedPressable
+                                    key={item.key}
+                                    style={[styles.suggestedCard, { borderLeftColor: item.color }]}
+                                    onPress={() => handleQuestionPress(item)}
+                                    scaleTo={0.96}
+                                >
+                                    <View style={styles.suggestedCardHeader}>
+                                        <View style={[styles.suggestedCatBadge, { backgroundColor: item.bgColor }]}>
+                                            <Text style={styles.suggestedCatIcon}>{item.icon}</Text>
+                                            <Text style={[styles.suggestedCatText, { color: item.color }]}>{item.category}</Text>
+                                        </View>
+                                        <View style={styles.askAiChip}>
+                                            <Text style={styles.askAiChipText}>પૂછો ➔</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.suggestedCardQText} numberOfLines={2}>
+                                        {item.displayText}
+                                    </Text>
+                                </AnimatedPressable>
+                            ))}
                         </View>
                     </View>
 
@@ -796,7 +817,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 <ActivityIndicator size="small" color="#FFFFFF" />
                             ) : (
                                 <>
-                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                                     <Text style={styles.markCompletedText}>આ પ્રકરણ પૂર્ણ થયું તરીકે ચિહ્નિત કરો</Text>
                                 </>
                             )}
@@ -811,7 +832,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                     {/* Connection Error Banner */}
                     {sessionError && (
                         <View style={styles.sessionErrorBanner}>
-                            <Ionicons name="cloud-offline-outline" size={22} color="#ef4444" style={{ marginRight: 8 }} />
+                            <Ionicons name="cloud-offline-outline" size={18} color="#ef4444" style={{ marginRight: 6 }} />
                             <Text style={styles.sessionErrorTitle}>સર્વર જોડાણ નથી</Text>
                             <AnimatedPressable style={styles.sessionRetryBtn} onPress={retrySession} scaleTo={0.90}>
                                 <Text style={styles.sessionRetryBtnText}>ફરી જોડો</Text>
@@ -834,7 +855,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 <View style={[
                                     styles.msgRow,
                                     isUser ? styles.msgUser : styles.msgAssistant,
-                                    isLast && { marginBottom: 12 }
+                                    isLast && { marginBottom: 10 }
                                 ]}>
                                     {!isUser && (
                                         <View style={styles.aiAvatar}>
@@ -861,7 +882,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                                     scaleTo={0.96}
                                                 >
                                                     <View style={styles.citationBadgeHeader}>
-                                                        <Ionicons name="book" size={13} color="#2563eb" />
+                                                        <Ionicons name="book" size={12} color="#2563eb" />
                                                         <Text style={styles.citationChapterName} numberOfLines={1}>
                                                             {item.citations && item.citations[0]?.chapter ? item.citations[0].chapter : chapterTitle}
                                                         </Text>
@@ -884,7 +905,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                     </View>
                                     {isUser && (
                                         <View style={styles.userAvatar}>
-                                            <Ionicons name="person" size={13} color="#FFFFFF" />
+                                            <Ionicons name="person" size={12} color="#FFFFFF" />
                                         </View>
                                     )}
                                 </View>
@@ -897,12 +918,12 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 </View>
                                 <Text style={styles.emptyChatTitle}>AI ડાઉટ સોલ્વર — {chapterTitle}</Text>
                                 <Text style={styles.emptyChatSub}>
-                                    આ પ્રકરણમાંથી કોઈપણ પ્રશ્ન પૂછો. AI સીધા પાઠ્યપુસ્તકમાંથી ઉત્તર આપશે!
+                                    આ પ્રકરણમાંથી કોઈપણ પ્રશ્ન પૂછો. AI સીધા પાઠ્યપુસ્તકમાંથી સચોટ ઉત્તર આપશે!
                                 </Text>
 
                                 <Text style={styles.emptyQuickTitle}>ઝડપી પ્રશ્નો 👇</Text>
                                 <View style={styles.emptyChipsGrid}>
-                                    {suggestedItems.map((q: any) => (
+                                    {suggestedItems.slice(0, 5).map((q: any) => (
                                         <AnimatedPressable
                                             key={q.key}
                                             style={styles.emptyChip}
@@ -925,7 +946,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 <Text style={styles.aiAvatarText}>🤖</Text>
                             </View>
                             <View style={styles.typingBubble}>
-                                <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 8 }} />
+                                <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 6 }} />
                                 <Text style={styles.typingText}>AI ઉત્તર તૈયાર કરી રહ્યો છે...</Text>
                             </View>
                         </View>
@@ -959,7 +980,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                                 <Text style={styles.imagePreviewSub}>ફોટો જોડાયેલ છે</Text>
                             </View>
                             <AnimatedPressable onPress={() => setSelectedImage(null)} scaleTo={0.85}>
-                                <Ionicons name="close-circle" size={24} color={studentColors.error} />
+                                <Ionicons name="close-circle" size={22} color={studentColors.error} />
                             </AnimatedPressable>
                         </View>
                     )}
@@ -973,13 +994,13 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         >
                             <Ionicons
                                 name={recording ? 'mic-sharp' : 'mic-outline'}
-                                size={22}
+                                size={20}
                                 color={recording ? '#FFFFFF' : '#2563eb'}
                             />
                         </AnimatedPressable>
 
                         <AnimatedPressable onPress={handlePickImage} style={styles.inputActionBtn} scaleTo={0.90}>
-                            <Ionicons name="camera-outline" size={22} color="#2563eb" />
+                            <Ionicons name="camera-outline" size={20} color="#2563eb" />
                         </AnimatedPressable>
 
                         <TextInput
@@ -1002,7 +1023,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             disabled={!inputText.trim() && !selectedImage}
                             scaleTo={0.90}
                         >
-                            <Ionicons name="send" size={17} color="#FFFFFF" />
+                            <Ionicons name="send" size={16} color="#FFFFFF" />
                         </AnimatedPressable>
                     </View>
                 </View>
@@ -1059,7 +1080,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         <View style={styles.voiceRingOuter}>
                             <View style={styles.voiceRingMid}>
                                 <View style={styles.voiceRingInner}>
-                                    <Ionicons name="mic" size={38} color="#FFFFFF" />
+                                    <Ionicons name="mic" size={36} color="#FFFFFF" />
                                 </View>
                             </View>
                         </View>
@@ -1146,7 +1167,6 @@ const styles = StyleSheet.create({
         paddingTop: 8,
         paddingBottom: 8,
         backgroundColor: '#1d4ed8',
-        gap: 6,
     },
     headerIconBtn: {
         width: 34,
@@ -1158,7 +1178,7 @@ const styles = StyleSheet.create({
     },
     headerTitleWrap: {
         flex: 1,
-        paddingHorizontal: 4,
+        paddingHorizontal: 8,
     },
     headerMainTitle: {
         fontSize: 14.5,
@@ -1173,7 +1193,7 @@ const styles = StyleSheet.create({
     },
     headerRightActions: {
         flexDirection: 'row',
-        gap: 5,
+        gap: 6,
     },
 
     // ── Segmented Pill Tab Bar ─────────────────────────────────────
@@ -1181,7 +1201,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#1e40af',
         padding: 4,
-        gap: 5,
+        gap: 6,
     },
     tab: {
         flex: 1,
@@ -1189,7 +1209,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 6,
-        borderRadius: 16,
+        borderRadius: 14,
         backgroundColor: 'rgba(255,255,255,0.12)',
     },
     tabActive: {
@@ -1226,31 +1246,33 @@ const styles = StyleSheet.create({
 
     // ── Menu / Overview Scroll ─────────────────────────────────────
     menuScroll: {
-        padding: 10,
-        paddingBottom: 16,
+        padding: 12,
+        paddingBottom: 20,
     },
 
     // ── Chapter Hero Card ──────────────────────────────────────────
     chapterHeroCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        padding: 12,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 12,
+        borderWidth: 1.5,
+        borderColor: '#e0e7ff',
         ...shadows.sm,
     },
     heroTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     orderBadge: {
         backgroundColor: '#eff6ff',
-        paddingHorizontal: 7,
-        paddingVertical: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 2.5,
         borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#dbeafe',
     },
     orderBadgeText: {
         fontSize: 9.5,
@@ -1259,8 +1281,8 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     statusBadge: {
-        paddingHorizontal: 7,
-        paddingVertical: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 2.5,
         borderRadius: 6,
     },
     statusCompleted: {
@@ -1293,8 +1315,8 @@ const styles = StyleSheet.create({
     heroMetaRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 5,
-        marginTop: 6,
+        gap: 6,
+        marginTop: 8,
         marginBottom: 4,
     },
     heroPageBadge: {
@@ -1303,8 +1325,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
         borderWidth: 1,
         borderColor: '#bfdbfe',
-        paddingHorizontal: 7,
-        paddingVertical: 2.5,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
         borderRadius: 6,
         gap: 4,
     },
@@ -1317,51 +1339,120 @@ const styles = StyleSheet.create({
         fontSize: 11.5,
         color: '#64748b',
         lineHeight: 16,
-        marginTop: 4,
+        marginTop: 6,
     },
 
     // ── Tools Grid ─────────────────────────────────────────────────
     toolsSection: {
-        marginBottom: 10,
+        marginBottom: 12,
     },
     sectionHeading: {
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: '800',
         color: '#0f172a',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     toolsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        justifyContent: 'space-between',
+        rowGap: 10,
     },
     toolCard: {
-        width: (width - 28) / 2,
+        width: '48%',
         backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 10,
-        borderTopWidth: 3,
+        borderRadius: 14,
+        padding: 12,
+        borderTopWidth: 3.5,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         ...shadows.sm,
     },
     toolIconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 8,
+        width: 38,
+        height: 38,
+        borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 5,
+        marginBottom: 6,
     },
     toolTitle: {
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: '700',
         color: '#1e293b',
     },
     toolSub: {
-        fontSize: 9.5,
+        fontSize: 10,
         color: '#64748b',
         marginTop: 1,
+    },
+
+    // ── Suggested Topics Section ───────────────────────────────────
+    suggestedSection: {
+        marginBottom: 14,
+    },
+    suggestedHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    viewAllChatText: {
+        fontSize: 11.5,
+        fontWeight: '700',
+        color: '#2563eb',
+    },
+    suggestedList: {
+        gap: 8,
+    },
+    suggestedCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderLeftWidth: 4,
+        ...shadows.sm,
+    },
+    suggestedCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    suggestedCatBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        gap: 4,
+    },
+    suggestedCatIcon: {
+        fontSize: 11,
+    },
+    suggestedCatText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    askAiChip: {
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+    },
+    askAiChipText: {
+        fontSize: 9.5,
+        fontWeight: '700',
+        color: '#2563eb',
+    },
+    suggestedCardQText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#1e293b',
+        lineHeight: 17,
     },
 
     // ── Mark Completed Button ──────────────────────────────────────
@@ -1370,10 +1461,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#059669',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        marginTop: 2,
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginTop: 4,
         ...shadows.sm,
     },
     markCompletedText: {
@@ -1384,9 +1475,9 @@ const styles = StyleSheet.create({
 
     // ── Chat Tab Styles ────────────────────────────────────────────
     chatList: {
-        paddingHorizontal: 10,
-        paddingTop: 8,
-        paddingBottom: 4,
+        paddingHorizontal: 12,
+        paddingTop: 10,
+        paddingBottom: 6,
     },
     sessionErrorBanner: {
         flexDirection: 'row',
@@ -1417,7 +1508,7 @@ const styles = StyleSheet.create({
     msgRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     msgUser: {
         justifyContent: 'flex-end',
@@ -1436,7 +1527,7 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     aiAvatarText: {
-        fontSize: 15,
+        fontSize: 14,
     },
     userAvatar: {
         width: 26,
@@ -1445,7 +1536,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#2563eb',
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 5,
+        marginLeft: 6,
         flexShrink: 0,
     },
     msgBubbleWrapper: {
@@ -1532,7 +1623,7 @@ const styles = StyleSheet.create({
 
     // ── Empty Chat ─────────────────────────────────────────────────
     emptyChat: {
-        paddingVertical: 10,
+        paddingVertical: 12,
         alignItems: 'center',
     },
     emptyChatIconBg: {
@@ -1542,7 +1633,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#dbeafe',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: 8,
     },
     emptyChatEmoji: {
         fontSize: 22,
@@ -1560,7 +1651,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 16,
         paddingHorizontal: 12,
-        marginBottom: 10,
+        marginBottom: 12,
     },
     emptyQuickTitle: {
         fontSize: 11.5,
@@ -1571,14 +1662,14 @@ const styles = StyleSheet.create({
     },
     emptyChipsGrid: {
         width: '100%',
-        gap: 5,
+        gap: 6,
     },
     emptyChip: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        borderRadius: 8,
-        paddingVertical: 6,
+        borderRadius: 10,
+        paddingVertical: 7,
         paddingHorizontal: 10,
         borderWidth: 1,
         borderColor: '#e2e8f0',
@@ -1600,11 +1691,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#e2e8f0',
-        paddingVertical: 4,
+        paddingVertical: 5,
     },
     followUpScroll: {
         paddingHorizontal: 10,
-        gap: 5,
+        gap: 6,
     },
     followUpChip: {
         flexDirection: 'row',
@@ -1613,9 +1704,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#bfdbfe',
         borderRadius: 14,
-        paddingVertical: 3,
-        paddingHorizontal: 8,
-        gap: 3,
+        paddingVertical: 3.5,
+        paddingHorizontal: 9,
+        gap: 4,
     },
     followUpIcon: {
         fontSize: 11,
@@ -1630,7 +1721,7 @@ const styles = StyleSheet.create({
     typingIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         paddingBottom: 6,
     },
     typingBubble: {
@@ -1683,7 +1774,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#e2e8f0',
         paddingHorizontal: 8,
         paddingVertical: 6,
-        gap: 5,
+        gap: 6,
     },
     inputActionBtn: {
         width: 34,
