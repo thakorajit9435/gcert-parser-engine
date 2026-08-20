@@ -7,10 +7,13 @@ import {
     TouchableOpacity,
     Animated,
     ScrollView,
+    Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { shadows } from '../../theme';
 import { MIN_STANDARD, MAX_STANDARD } from '../../constants';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface StandardSelectionModalProps {
     visible: boolean;
@@ -167,9 +170,10 @@ export function StandardSelectionModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
@@ -179,11 +183,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 20,
-        width: '100%',
-        maxWidth: 360,
+        width: Math.min(SCREEN_WIDTH - 48, 360),
+        alignSelf: 'center',
         maxHeight: '80%',
         ...shadows.lg,
         elevation: 16,
+        zIndex: 10,
     },
     header: {
         flexDirection: 'row',
