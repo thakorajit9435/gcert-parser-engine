@@ -151,19 +151,13 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
         navigation.goBack();
     };
 
-    const handleAskAI = () => {
-        navigation.navigate('AITutor', {
-            subject: 'Science',
-        });
-    };
-
     const source = { uri: url, cache: true };
     const totalPagesRange = (startPage && endPage) ? (endPage - startPage + 1) : totalPages;
     const currentPageIndex = (startPage) ? (currentPage - startPage + 1) : currentPage;
     const progressPercent = totalPagesRange > 0 ? (currentPageIndex / totalPagesRange) * 100 : 0;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={isFullscreen ? ['top', 'bottom'] : ['bottom']}>
             <StatusBar barStyle={isFullscreen ? 'light-content' : 'dark-content'} />
 
             {/* Header controls (only in fullscreen) */}
@@ -193,6 +187,7 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                     horizontal={false}
                     enableAntialiasing={true}
                     fitPolicy={0}
+                    spacing={0}
                     enableAnnotationRendering={false}
                     onLoadComplete={(numberOfPages) => {
                         setTotalPages(numberOfPages);
@@ -270,13 +265,6 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                                 <Text style={styles.buttonText}>
                                     {isFullscreen ? '🔍' : '🔎'}
                                 </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.iconButton, { backgroundColor: studentColors.primary }]}
-                                onPress={handleAskAI}
-                            >
-                                <Text style={[styles.buttonText, { color: '#FFF' }]}>🤖</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -389,12 +377,13 @@ const styles = StyleSheet.create({
     },
     pdfContainer: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
     },
     pdf: {
         flex: 1,
         width: Dimensions.get('window').width,
         height: '100%',
-        backgroundColor: studentColors.background,
+        backgroundColor: '#FFFFFF',
     },
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -476,10 +465,10 @@ const styles = StyleSheet.create({
         fontWeight: typography.weight.semibold as any,
     },
     controlsContainer: {
-        backgroundColor: studentColors.surface,
+        backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
-        borderTopColor: studentColors.border,
-        paddingBottom: spacing.sm,
+        borderTopColor: '#e2e8f0',
+        paddingVertical: 4,
         paddingHorizontal: spacing.md,
     },
     fullscreenControls: {
@@ -487,48 +476,52 @@ const styles = StyleSheet.create({
         borderTopColor: '#334155',
     },
     progressBarBg: {
-        height: 4,
-        backgroundColor: studentColors.border,
+        height: 3,
+        backgroundColor: '#e2e8f0',
         width: '100%',
         position: 'absolute',
         top: 0,
-        left: spacing.md,
+        left: 0,
+        right: 0,
     },
     progressBarFill: {
         height: '100%',
-        backgroundColor: studentColors.primary,
+        backgroundColor: '#1d4ed8',
     },
     controlsRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: spacing.md,
+        marginTop: 4,
     },
     pageText: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.semibold as any,
-        color: studentColors.textSecondary,
+        fontSize: 12.5,
+        fontWeight: '600',
+        color: '#475569',
     },
     actionsRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 4,
     },
     iconButton: {
-        padding: spacing.sm,
-        marginHorizontal: spacing.xs,
-        backgroundColor: studentColors.surfaceHover,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        backgroundColor: '#f1f5f9',
         borderRadius: borderRadius.sm,
-        minWidth: 40,
+        minWidth: 36,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     disabledButton: {
         opacity: 0.3,
     },
     buttonText: {
-        fontSize: typography.size.md,
-        color: studentColors.textPrimary,
+        fontSize: 13,
+        color: '#1e293b',
+        fontWeight: '600',
     },
     bookmarkIcon: {
-        fontSize: typography.size.lg,
+        fontSize: 15,
     },
 });

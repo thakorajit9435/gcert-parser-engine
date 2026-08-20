@@ -110,7 +110,7 @@ function PDFReaderScreenContent({ route }: { route: any }): React.JSX.Element {
                 enablePaging={true}
                 horizontal={true}
                 fitPolicy={0}
-                spacing={10}
+                spacing={0}
                 page={initialPage}
                 onLoadComplete={handleLoadComplete}
                 onPageChanged={handlePageChanged}
