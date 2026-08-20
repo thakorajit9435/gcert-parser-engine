@@ -10,6 +10,7 @@ import {
     RefreshControl,
     ActivityIndicator,
     Modal,
+    Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -177,6 +178,8 @@ const StandardSwitcher = React.memo(function StandardSwitcher({
 // ─── Bookmark Section ──────────────────────────────────────────
 
 const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigation }: { bookmarks: UserBookmark[]; navigation: any }): React.JSX.Element {
+    const { setSelectedStandard } = useStandardContext();
+
     if (!bookmarks || bookmarks.length === 0) {
         return (
             <View style={styles.bookmarkSection}>
@@ -203,7 +206,6 @@ const BookmarkSection = React.memo(function BookmarkSection({ bookmarks, navigat
                 contentContainerStyle={styles.bookmarkScrollContent}
             >
                 {bookmarks.slice(0, 5).map(bm => {
-                    const { setSelectedStandard } = useStandardContext();
                     return (
                         <AnimatedPressable
                             key={bm.id}
@@ -408,15 +410,15 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                 onRequestClose={() => setStandardModalVisible(false)}
                 statusBarTranslucent={true}
             >
-                <TouchableOpacity
-                    style={styles.dropdownOverlay}
-                    activeOpacity={1}
-                    onPress={() => setStandardModalVisible(false)}
-                >
-                    <View
-                        style={styles.dropdownCard}
-                        onStartShouldSetResponder={() => true}
-                    >
+                <View style={styles.dropdownOverlay}>
+                    {/* Backdrop touchable */}
+                    <Pressable
+                        style={StyleSheet.absoluteFillObject}
+                        onPress={() => setStandardModalVisible(false)}
+                    />
+
+                    {/* Bottom Sheet Card */}
+                    <View style={styles.dropdownCard}>
                         <View style={styles.modalHandle} />
 
                         <View style={styles.dropdownHeader}>
@@ -440,7 +442,7 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
 
                         <ScrollView
                             style={{ maxHeight: 380 }}
-                            contentContainerStyle={{ paddingBottom: 12 }}
+                            contentContainerStyle={{ paddingBottom: 16 }}
                             showsVerticalScrollIndicator={false}
                             keyboardShouldPersistTaps="handled"
                         >
@@ -478,7 +480,7 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                             </View>
                         </ScrollView>
                     </View>
-                </TouchableOpacity>
+                </View>
             </Modal>
         </View>
     );
@@ -1697,6 +1699,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     dropdownCard: {
+        ...shadows.lg,
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
@@ -1704,7 +1707,8 @@ const styles = StyleSheet.create({
         paddingTop: 14,
         paddingBottom: 28,
         width: '100%',
-        ...shadows.lg,
+        zIndex: 10,
+        elevation: 12,
     },
     modalHandle: {
         width: 40,
