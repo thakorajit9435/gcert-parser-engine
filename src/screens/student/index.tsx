@@ -9,7 +9,6 @@ import {
     ScrollView,
     RefreshControl,
     ActivityIndicator,
-    Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -21,9 +20,10 @@ import { useUserProgress } from '../../hooks/useUserProgress';
 import { useBookmarks } from '../../hooks/useBookmarks';
 import { useStandardContext } from '../../context/StandardContext';
 import { LeaderboardEntry, UserBookmark } from '../../types';
-import { MIN_STANDARD, MAX_STANDARD, COLLECTIONS } from '../../constants';
+import { COLLECTIONS } from '../../constants';
 import firestore from '@react-native-firebase/firestore';
 import { EmptyState, SubjectCardSkeleton, ChapterCardSkeleton, AnimatedPressable } from '../../components/common';
+import { StandardSelectionModal } from '../../components/student';
 import { logAnalyticsEvent } from '../../services/analytics';
 
 const SUBJECT_ICONS: Record<string, string> = {
@@ -290,13 +290,6 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
     const [refreshing, setRefreshing] = useState(false);
     const [standardModalVisible, setStandardModalVisible] = useState(false);
 
-    const standards = useMemo(() => {
-        return Array.from(
-            { length: MAX_STANDARD - MIN_STANDARD + 1 },
-            (_, i) => MIN_STANDARD + i,
-        );
-    }, []);
-
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         setTimeout(() => setRefreshing(false), 1000);
@@ -407,88 +400,13 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                 <Ionicons name="chatbubble-ellipses" size={26} color="#FFFFFF" />
             </TouchableOpacity>
 
-            {/* Standard Switcher Bottom Sheet Modal */}
-            <Modal
+            {/* Standard Selection Modal */}
+            <StandardSelectionModal
                 visible={standardModalVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setStandardModalVisible(false)}
-                statusBarTranslucent={true}
-            >
-                <View style={styles.dropdownOverlay}>
-                    {/* Top backdrop touch area: tap outside to close */}
-                    <TouchableOpacity
-                        style={styles.modalBackdropArea}
-                        activeOpacity={1}
-                        onPress={() => setStandardModalVisible(false)}
-                    />
-
-                    {/* Bottom Sheet Card */}
-                    <View style={styles.dropdownCard}>
-                        <View style={styles.modalHandle} />
-
-                        <View style={styles.dropdownHeader}>
-                            <View style={styles.dropdownTitleWrap}>
-                                <View style={styles.dropdownHeaderIconBox}>
-                                    <Text style={{ fontSize: 20 }}>🎓</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.dropdownTitle}>ધોરણ પસંદ કરો</Text>
-                                    <Text style={styles.dropdownSub}>તમારો વર્ગ / ધોરણ પસંદ કરો</Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => setStandardModalVisible(false)}
-                                style={styles.dropdownCloseBtn}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="close" size={20} color="#64748b" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView
-                            style={{ maxHeight: 380 }}
-                            contentContainerStyle={{ paddingBottom: 16 }}
-                            showsVerticalScrollIndicator={false}
-                            keyboardShouldPersistTaps="handled"
-                            bounces={false}
-                        >
-                            <View style={styles.dropdownGrid}>
-                                {standards.map(num => {
-                                    const isActive = String(num) === selectedStandard;
-                                    return (
-                                        <TouchableOpacity
-                                            key={num}
-                                            style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
-                                            onPress={() => {
-                                                setSelectedStandard(String(num));
-                                                setStandardModalVisible(false);
-                                            }}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={[styles.stdNumCircle, isActive && styles.stdNumCircleActive]}>
-                                                <Text style={[styles.stdNumText, isActive && styles.stdNumTextActive]}>
-                                                    {num}
-                                                </Text>
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
-                                                    ધોરણ {num} (Standard {num})
-                                                </Text>
-                                            </View>
-                                            {isActive ? (
-                                                <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
-                                            ) : (
-                                                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
-                                            )}
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
+                onClose={() => setStandardModalVisible(false)}
+                selectedStandard={selectedStandard}
+                onSelectStandard={(std) => setSelectedStandard(std)}
+            />
         </View>
     );
 }
