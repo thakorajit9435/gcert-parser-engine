@@ -11,6 +11,7 @@ import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import { NetworkProvider } from './src/components/common/NetworkProvider';
 import { adminColors } from './src/theme';
 import { seedDemoQuizIfNeeded } from './src/services/firebase/quiz.service';
+import { warmUpBackend } from './src/services/warmup.service';
 import crashlytics from '@react-native-firebase/crashlytics';
 
 // Set up global JS error handler to report to Crashlytics
@@ -40,6 +41,7 @@ function App(): React.JSX.Element {
     useEffect(() => {
         crashlytics().log('App mounted');
         seedDemoQuizIfNeeded();
+        warmUpBackend();
     }, []);
 
     return (

@@ -17,8 +17,10 @@ import { studentColors, typography, spacing, borderRadius } from '../../theme';
 import { logAnalyticsEvent } from '../../services/analytics';
 import { logCrashError } from '../../services/crashlytics';
 
-const LOADING_TIMEOUT_MS = 15000;
-const MAX_RETRIES = 2;
+import { warmUpBackend } from '../../services/warmup.service';
+
+const LOADING_TIMEOUT_MS = 80000;
+const MAX_RETRIES = 5;
 
 export function PdfViewerScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { url, title, pdfId, pdfType, startPage, endPage, bookStartPage } = route.params;
@@ -27,6 +29,7 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
 
 
     const [loading, setLoading] = useState(true);
+    const [isWakingServer, setIsWakingServer] = useState(false);
     const [hasError, setHasError] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
     const [webViewKey, setWebViewKey] = useState(0);
@@ -61,14 +64,30 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
         }, LOADING_TIMEOUT_MS);
     }, [clearLoadingTimeout, url, pdfId]);
 
-    // Track analytics event on open
+    // Track analytics event on open and trigger backend warmup
     useEffect(() => {
+        warmUpBackend();
         logAnalyticsEvent('pdf_open', {
             pdf_id: pdfId || 'unknown',
             pdf_type: pdfType || 'unknown',
             title: title || 'unknown',
         });
     }, [pdfId, pdfType, title]);
+
+    // Show server cold-start notice if loading takes longer than 3.5s
+    useEffect(() => {
+        let timer: any = null;
+        if (loading) {
+            timer = setTimeout(() => {
+                setIsWakingServer(true);
+            }, 3500);
+        } else {
+            setIsWakingServer(false);
+        }
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [loading]);
 
     // Manage status bar and navigation header visibility based on fullscreen mode
     useEffect(() => {
@@ -302,8 +321,12 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
             {/* Loading Overlay */}
             {loading && (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={studentColors.primary} />
-                    <Text style={styles.loadingText}>PDF લોડ થઈ રહ્યું છે...</Text>
+                    <ActivityIndicator size="large" color="#1d4ed8" />
+                    <Text style={styles.loadingText}>
+                        {isWakingServer
+                            ? 'સર્વર સક્રિય થઈ રહ્યું છે, પુસ્તક લોડ થઈ રહ્યું છે...\n(કૃપા કરીને થોડી સેકન્ડ રાહ જુઓ ⏳)'
+                            : 'ડિજિટલ પુસ્તક લોડ થઈ રહ્યું છે...'}
+                    </Text>
                 </View>
             )}
 

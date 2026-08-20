@@ -31,6 +31,7 @@ import { aiTutorService, CitationItem } from '../../services/aiTutor.service';
 import firestore from '@react-native-firebase/firestore';
 import { COLLECTIONS } from '../../constants';
 import { Chapter } from '../../types';
+import { warmUpBackend } from '../../services/warmup.service';
 
 interface Message {
     id: string;
@@ -228,6 +229,11 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
             });
         }
     }, [chapter.id, chapter.subjectId, chapter.standardId, chapter.title, user?.uid]);
+
+    // Trigger backend warmup on mount
+    useEffect(() => {
+        warmUpBackend();
+    }, []);
 
     // Load saved notes
     useEffect(() => {
