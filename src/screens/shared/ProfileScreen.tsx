@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     StatusBar,
     Modal,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -185,6 +186,61 @@ function DeleteAccountModal({
     );
 }
 
+// ─── Government & Textbook Disclaimer Modal ───────────────────
+
+function DisclaimerModal({
+    visible,
+    onClose,
+}: {
+    visible: boolean;
+    onClose: () => void;
+}): React.JSX.Element {
+    return (
+        <Modal
+            transparent
+            animationType="fade"
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={[styles.modalCard, { maxWidth: 420 }]}>
+                    <Text style={styles.modalIcon}>🏛️</Text>
+                    <Text style={styles.modalTitle}>સરકારી અસ્વીકરણ (Disclaimer)</Text>
+                    
+                    <ScrollView style={{ maxHeight: 260, marginVertical: 10 }} showsVerticalScrollIndicator={false}>
+                        <Text style={[styles.modalBody, { textAlign: 'left', fontSize: 13, lineHeight: 19, color: '#334155' }]}>
+                            <Text style={{ fontWeight: '700', color: '#1e293b' }}>૧. બિન-સરકારી એકમ (Non-Affiliation):</Text>{'\n'}
+                            આ એપ્લિકેશન (GyanDeep) એક સ્વતંત્ર શૈક્ષણિક પ્લેટફોર્મ છે. તે ગુજરાત સરકાર કે ગુજરાત રાજ્ય શાળા પાઠ્યપુસ્તક મંડળ (GSSTB) સાથે સંલગ્ન કે અધિકૃત નથી.{'\n\n'}
+                            <Text style={{ fontWeight: '700', color: '#1e293b' }}>૨. પાઠ્યપુસ્તકોનો સત્તાવાર સ્ત્રોત:</Text>{'\n'}
+                            તમામ શાળા પાઠ્યપુસ્તકો જાહેર શિક્ષણ હેતુ માટે GSSTB ની અધિકૃત વેબસાઇટ પરથી મેળવેલા છે:{'\n'}
+                        </Text>
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#eff6ff', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#bfdbfe', marginBottom: 10 }}
+                            onPress={() => Linking.openURL('https://gsstb.gujarat.gov.in/')}
+                        >
+                            <Text style={{ color: '#1d4ed8', fontWeight: '700', fontSize: 12, textAlign: 'center' }}>
+                                👉 https://gsstb.gujarat.gov.in/
+                            </Text>
+                        </TouchableOpacity>
+                        <Text style={[styles.modalBody, { textAlign: 'left', fontSize: 13, lineHeight: 19, color: '#334155' }]}>
+                            <Text style={{ fontWeight: '700', color: '#1e293b' }}>૩. ૧૦૦% મફત વાંચન:</Text>{'\n'}
+                            વિદ્યાર્થીઓ તમામ સરકારી પાઠ્યપુસ્તકો કોઈપણ ફી વગર સંપૂર્ણપણે મફત વાંચી શકે છે.
+                        </Text>
+                    </ScrollView>
+
+                    <TouchableOpacity
+                        style={[styles.modalCancelBtn, { backgroundColor: '#1d4ed8', marginTop: 6 }]}
+                        onPress={onClose}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={[styles.modalCancelText, { color: '#FFFFFF', fontWeight: '700' }]}>સમજાઈ ગયું (Close)</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
 // ─── ProfileScreen ────────────────────────────────────────────
 
 export function ProfileScreen(): React.JSX.Element {
@@ -192,6 +248,9 @@ export function ProfileScreen(): React.JSX.Element {
     const navigation = useNavigation();
     const { t, i18n } = useTranslation();
     const [loggingOut, setLoggingOut] = useState(false);
+
+    // Disclaimer modal state
+    const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
 
     // Delete account state
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -290,6 +349,12 @@ export function ProfileScreen(): React.JSX.Element {
                 isDeleting={isDeleting}
             />
 
+            {/* Government & GSSTB Disclaimer Modal */}
+            <DisclaimerModal
+                visible={showDisclaimerModal}
+                onClose={() => setShowDisclaimerModal(false)}
+            />
+
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -340,6 +405,11 @@ export function ProfileScreen(): React.JSX.Element {
                         {/* ── Legal & Account Links ─────────────── */}
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>Legal & Account</Text>
+                            <NavRow
+                                icon="🏛️"
+                                label="અસ્વીકરણ (Disclaimer & Source)"
+                                onPress={() => setShowDisclaimerModal(true)}
+                            />
                             <NavRow
                                 icon="🔒"
                                 label="Privacy Policy"

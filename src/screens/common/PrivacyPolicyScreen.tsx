@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { adminColors, typography } from '../../theme';
 
@@ -15,36 +15,53 @@ export function PrivacyPolicyScreen(): React.JSX.Element {
                     <Text style={styles.header}>Privacy Policy</Text>
                     <Text style={styles.lastUpdated}>Last updated: {new Date().toLocaleDateString()}</Text>
 
+                    {/* Government & Textbook Disclaimer */}
+                    <View style={styles.disclaimerBox}>
+                        <Text style={styles.disclaimerTitle}>⚠️ GOVERNMENT ENTITY & SOURCE DISCLAIMER</Text>
+                        <Text style={styles.disclaimerText}>
+                            • <Text style={styles.bold}>Independent App:</Text> This app is an independent educational tool and is <Text style={styles.bold}>NOT affiliated with or endorsed by</Text> the Gujarat State School Textbook Board (GSSTB) or the Government of Gujarat.
+                        </Text>
+                        <Text style={styles.disclaimerText}>
+                            • <Text style={styles.bold}>Source of Information:</Text> School textbooks are publicly available from Gujarat State School Textbook Board (GSSTB):
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.sourceBtn}
+                            onPress={() => Linking.openURL('https://gsstb.gujarat.gov.in/')}
+                        >
+                            <Text style={styles.sourceBtnText}>👉 https://gsstb.gujarat.gov.in/</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.disclaimerText}>
+                            • <Text style={styles.bold}>Free Educational Access:</Text> All standard curriculum textbooks remain freely accessible to all registered students without requiring any subscription.
+                        </Text>
+                    </View>
+
                     <Text style={styles.sectionTitle}>1. Introduction</Text>
                     <Text style={styles.paragraph}>
-                        Welcome to our application. We respect your privacy and are committed to protecting your personal data.
-                        This privacy policy will inform you as to how we look after your personal data when you visit our application
-                        and tell you about your privacy rights and how the law protects you.
+                        Welcome to GyanDeep. We respect your privacy and are committed to protecting your personal information.
+                        This privacy policy explains how we collect and safeguard your data when using our educational learning application.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>2. The data we collect about you</Text>
+                    <Text style={styles.sectionTitle}>2. The Data We Collect</Text>
                     <Text style={styles.paragraph}>
-                        We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:
-                        {'\n'}• Identity Data: includes first name, last name, username or similar identifier.
-                        {'\n'}• Contact Data: includes email address and telephone numbers.
-                        {'\n'}• Technical Data: includes internet protocol (IP) address, your login data, browser type and version.
+                        We only collect essential data required for educational progress tracking:
+                        {'\n'}• Account Profile: Name, email address, standard/grade.
+                        {'\n'}• Learning Progress: Completed chapters, bookmarks, quiz scores, reading time.
+                        {'\n'}• Anonymous Analytics: Crash logs and app performance to improve user experience.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>3. How we use your personal data</Text>
+                    <Text style={styles.sectionTitle}>3. How We Use Your Data</Text>
                     <Text style={styles.paragraph}>
-                        We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:
-                        {'\n'}• Where we need to perform the contract we are about to enter into or have entered into with you.
-                        {'\n'}• Where it is necessary for our legitimate interests (or those of a third party) and your interests and fundamental rights do not override those interests.
+                        Your data is solely used to personalize your learning journey, provide AI tutoring assistance, and maintain your bookmark & quiz records. We never sell student data to third parties.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>4. Data security</Text>
+                    <Text style={styles.sectionTitle}>4. Data Security & Child Safety</Text>
                     <Text style={styles.paragraph}>
-                        We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorised way, altered or disclosed.
+                        We implement secure cloud infrastructure with encryption to prevent unauthorized data access. The app complies with student privacy and child safety standards.
                     </Text>
 
                     <Text style={styles.sectionTitle}>5. Contact Details</Text>
                     <Text style={styles.paragraph}>
-                        If you have any questions about this privacy policy or our privacy practices, please contact us.
+                        If you have any questions or data deletion requests, please contact our support team.
                     </Text>
                 </View>
             </ScrollView>
@@ -64,7 +81,7 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: adminColors.surface,
         borderRadius: 20,
-        padding: 24,
+        padding: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
@@ -75,24 +92,63 @@ const styles = StyleSheet.create({
         fontSize: typography.size.xxl,
         fontWeight: typography.weight.bold,
         color: adminColors.textPrimary,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     lastUpdated: {
         fontSize: typography.size.sm,
         color: adminColors.textMuted,
-        marginBottom: 24,
+        marginBottom: 16,
+    },
+    disclaimerBox: {
+        backgroundColor: '#eff6ff',
+        borderColor: '#3b82f6',
+        borderWidth: 1.5,
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 20,
+    },
+    disclaimerTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#1e40af',
+        marginBottom: 8,
+        letterSpacing: 0.3,
+    },
+    disclaimerText: {
+        fontSize: 12.5,
+        color: '#1e3a8a',
+        lineHeight: 18,
+        marginBottom: 8,
+    },
+    bold: {
+        fontWeight: '700',
+    },
+    sourceBtn: {
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#93c5fd',
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+    },
+    sourceBtnText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1d4ed8',
     },
     sectionTitle: {
         fontSize: typography.size.lg,
         fontWeight: typography.weight.semibold,
         color: adminColors.textPrimary,
-        marginTop: 16,
-        marginBottom: 8,
+        marginTop: 14,
+        marginBottom: 6,
     },
     paragraph: {
         fontSize: typography.size.md,
         color: adminColors.textSecondary,
-        lineHeight: 24,
-        marginBottom: 12,
+        lineHeight: 22,
+        marginBottom: 10,
     },
 });

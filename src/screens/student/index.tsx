@@ -439,7 +439,6 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
     const { chapters: chapterList, loading: chaptersLoading } = require('../../hooks/useChapters').useChapters(subjectId, effectiveStandardId);
     const { subjects, loading: subjectsLoading } = useSubjects(effectiveStandardId, session);
     const { isBookmarked, toggle: toggleBookmark } = useBookmarks(currentUserId);
-    const isPremium = userProfile?.premium ?? false;
     const [bookmarkLoadingMap, setBookmarkLoadingMap] = useState<{ [chapterId: string]: boolean }>({});
     const [chapterCounts, setChapterCounts] = useState<{ [subjectId: string]: number }>({});
 
@@ -611,22 +610,18 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                     windowSize={5}
                     removeClippedSubviews={true}
                     renderItem={({ item, index }: { item: any; index: number }) => {
-                        const locked = item.isPremium && !isPremium;
+                        const locked = false; // All government textbooks & chapters are 100% free to read
                         const bookmarked = isBookmarked(item.id);
                         const mainTitle = item.titleGu || item.title;
 
                         return (
                             <View
-                                style={[styles.chapterCard, locked && styles.chapterCardLocked, item.isCompleted && styles.chapterCardCompleted]}
+                                style={[styles.chapterCard, item.isCompleted && styles.chapterCardCompleted]}
                             >
                                 <AnimatedPressable
                                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
                                     onPress={() => {
-                                        if (locked) {
-                                            navigation.navigate('PremiumAccess');
-                                        } else {
-                                            navigation.navigate('ChapterDetail', { chapterId: item.id });
-                                        }
+                                        navigation.navigate('ChapterDetail', { chapterId: item.id });
                                     }}
                                     scaleTo={0.97}
                                 >

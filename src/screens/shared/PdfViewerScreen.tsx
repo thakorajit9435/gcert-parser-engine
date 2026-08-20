@@ -288,6 +288,26 @@ export function PdfViewerScreen({ route, navigation }: { route: any; navigation:
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    {/* Source Attribution Note */}
+                    <TouchableOpacity
+                        style={{ marginTop: 4, alignItems: 'center', justifyContent: 'center' }}
+                        onPress={() => {
+                            Alert.alert(
+                                '🏛️ પાઠ્યપુસ્તક સ્ત્રોત અને અસ્વીકરણ',
+                                'આ ડિજિટલ પુસ્તક GSSTB (ગુજરાત રાજ્ય શાળા પાઠ્યપુસ્તક મંડળ) ની સત્તાવાર વેબસાઇટ પરથી વિદ્યાર્થીઓના મફત શૈક્ષણિક ઉપયોગ માટે ઉપલબ્ધ કરાયેલ છે.\n\nઆ એપ સરકાર સાથે સીધી રીતે સંલગ્ન નથી.\n\nસત્તાવાર સ્ત્રોત: https://gsstb.gujarat.gov.in/',
+                                [
+                                    { text: 'વેબસાઇટ ખોલો', onPress: () => Linking.openURL('https://gsstb.gujarat.gov.in/') },
+                                    { text: 'સમજાઈ ગયું', style: 'cancel' }
+                                ]
+                            );
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={{ fontSize: 10, color: '#64748b', textAlign: 'center' }}>
+                            📖 સ્ત્રોત: GSSTB (https://gsstb.gujarat.gov.in/) ⓘ
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             )}
 

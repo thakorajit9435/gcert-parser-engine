@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { adminColors, typography } from '../../theme';
 
@@ -15,36 +15,50 @@ export function TermsConditionsScreen(): React.JSX.Element {
                     <Text style={styles.header}>Terms & Conditions</Text>
                     <Text style={styles.lastUpdated}>Last updated: {new Date().toLocaleDateString()}</Text>
 
+                    {/* Government & Textbook Disclaimer */}
+                    <View style={styles.disclaimerBox}>
+                        <Text style={styles.disclaimerTitle}>⚠️ IMPORTANT GOVERNMENT & SOURCE DISCLAIMER</Text>
+                        <Text style={styles.disclaimerText}>
+                            1. <Text style={styles.bold}>Non-Affiliation:</Text> This application (GyanDeep) is an independent educational platform. It is <Text style={styles.bold}>NOT</Text> an official application of the Gujarat State School Textbook Board (GSSTB) or the Government of Gujarat, nor is it endorsed by, affiliated with, or associated with any government entity.
+                        </Text>
+                        <Text style={styles.disclaimerText}>
+                            2. <Text style={styles.bold}>Source of Information:</Text> All school textbook materials and curriculum PDFs accessible in this app are sourced from the publicly accessible official portal of the Gujarat State School Textbook Board (GSSTB):
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.sourceBtn}
+                            onPress={() => Linking.openURL('https://gsstb.gujarat.gov.in/')}
+                        >
+                            <Text style={styles.sourceBtnText}>👉 https://gsstb.gujarat.gov.in/</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.disclaimerText}>
+                            3. <Text style={styles.bold}>Free Access:</Text> All government textbooks are available for students to read 100% free of cost. We do not charge fees for accessing public domain government textbooks.
+                        </Text>
+                    </View>
+
                     <Text style={styles.sectionTitle}>1. Agreement to Terms</Text>
                     <Text style={styles.paragraph}>
                         By accessing or using our application, you agree to be bound by these Terms and Conditions and our Privacy Policy.
                         If you disagree with any part of the terms then you may not access the service.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>2. Intellectual Property Rights</Text>
+                    <Text style={styles.sectionTitle}>2. Intellectual Property Rights & Fair Use</Text>
                     <Text style={styles.paragraph}>
-                        Other than the content you own, under these Terms, we and/or our licensors own all the intellectual property rights and materials contained in this Application.
-                        You are granted limited license only for purposes of viewing the material contained on this Application.
+                        All intellectual property rights and copyrights for the textbooks belong to their respective publisher, the Gujarat State School Textbook Board (GSSTB). This application provides access solely for non-commercial educational and self-study purposes under educational fair use.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>3. Restrictions</Text>
+                    <Text style={styles.sectionTitle}>3. User Content & Conduct</Text>
                     <Text style={styles.paragraph}>
-                        You are specifically restricted from all of the following:
-                        {'\n'}• Publishing any Application material in any other media.
-                        {'\n'}• Selling, sublicensing and/or otherwise commercializing any Application material.
-                        {'\n'}• Publicly performing and/or showing any Application material.
-                        {'\n'}• Using this Application in any way that is or may be damaging to this Application or its users.
+                        Students are encouraged to use study aids, AI chat tutors, and practice quizzes for educational progress. Any misuse or attempts to reverse engineer the application are strictly prohibited.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>4. User Content</Text>
+                    <Text style={styles.sectionTitle}>4. Limitation of Liability</Text>
                     <Text style={styles.paragraph}>
-                        In these Terms and Conditions, "Your Content" shall mean any audio, video text, images or other material you choose to display on this Application.
-                        By displaying Your Content, you grant us a non-exclusive, worldwide irrevocable, sub licensable license to use, reproduce, adapt, publish, translate and distribute it in any and all media.
+                        This Application is provided "as is," for educational guidance. While we strive for absolute accuracy, students and teachers should refer to official board publications for formal examination notices.
                     </Text>
 
-                    <Text style={styles.sectionTitle}>5. Disclaimer</Text>
+                    <Text style={styles.sectionTitle}>5. Contact & Copyright Queries</Text>
                     <Text style={styles.paragraph}>
-                        This Application is provided "as is," with all faults, and we express no representations or warranties, of any kind related to this Application or the materials contained on this Application.
+                        If you have any questions or copyright notices, please contact us and we will address your inquiry promptly.
                     </Text>
                 </View>
             </ScrollView>
@@ -64,7 +78,7 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: adminColors.surface,
         borderRadius: 20,
-        padding: 24,
+        padding: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
@@ -75,24 +89,63 @@ const styles = StyleSheet.create({
         fontSize: typography.size.xxl,
         fontWeight: typography.weight.bold,
         color: adminColors.textPrimary,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     lastUpdated: {
         fontSize: typography.size.sm,
         color: adminColors.textMuted,
-        marginBottom: 24,
+        marginBottom: 16,
+    },
+    disclaimerBox: {
+        backgroundColor: '#fef3c7',
+        borderColor: '#f59e0b',
+        borderWidth: 1.5,
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 20,
+    },
+    disclaimerTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#92400e',
+        marginBottom: 8,
+        letterSpacing: 0.3,
+    },
+    disclaimerText: {
+        fontSize: 12.5,
+        color: '#78350f',
+        lineHeight: 18,
+        marginBottom: 8,
+    },
+    bold: {
+        fontWeight: '700',
+    },
+    sourceBtn: {
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#fcd34d',
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+    },
+    sourceBtnText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#b45309',
     },
     sectionTitle: {
         fontSize: typography.size.lg,
         fontWeight: typography.weight.semibold,
         color: adminColors.textPrimary,
-        marginTop: 16,
-        marginBottom: 8,
+        marginTop: 14,
+        marginBottom: 6,
     },
     paragraph: {
         fontSize: typography.size.md,
         color: adminColors.textSecondary,
-        lineHeight: 24,
-        marginBottom: 12,
+        lineHeight: 22,
+        marginBottom: 10,
     },
 });

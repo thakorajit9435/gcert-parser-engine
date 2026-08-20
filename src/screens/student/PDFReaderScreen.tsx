@@ -136,7 +136,7 @@ function PDFReaderScreenContent({ route }: { route: any }): React.JSX.Element {
                 <View style={styles.pageIndicatorContainer}>
                     <View style={styles.pageIndicator}>
                         <Text style={styles.pageIndicatorText}>
-                            Page {currentPage} of {totalPages || book.totalPages}
+                            Page {currentPage} of {totalPages || book.totalPages} • GSSTB (Free)
                         </Text>
                     </View>
                 </View>
