@@ -164,7 +164,7 @@ export function ChapterDetailScreen(props: any): React.JSX.Element {
 }
 
 function ChapterDetailScreenLoader({ route, navigation }: any): React.JSX.Element {
-    const { chapterId } = route.params;
+    const { chapterId, initialTab } = route.params || {};
     const { chapter, loading, error } = useChapterDetail(chapterId);
 
     if (loading) {
@@ -188,15 +188,15 @@ function ChapterDetailScreenLoader({ route, navigation }: any): React.JSX.Elemen
         );
     }
 
-    return <ChapterDetailScreenContent chapter={chapter} navigation={navigation} />;
+    return <ChapterDetailScreenContent chapter={chapter} navigation={navigation} initialTab={initialTab} />;
 }
 
-function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter; navigation: any }): React.JSX.Element {
+function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapter: Chapter; navigation: any; initialTab?: string }): React.JSX.Element {
     const { user } = useAuth();
     const { getChapterProgress } = useUserProgress(chapter.subjectId);
     const { isBookmarked, toggle } = useBookmarks(user?.uid);
 
-    const [activeTab, setActiveTab] = useState<'menu' | 'chat'>('menu');
+    const [activeTab, setActiveTab] = useState<'menu' | 'chat'>(initialTab === 'chat' ? 'chat' : 'menu');
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
@@ -247,14 +247,19 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
 
     // Auto-focus input and open keyboard when switching to AI Chat tab
     useEffect(() => {
-        let timer: any;
+        let timer1: any;
+        let timer2: any;
         if (activeTab === 'chat') {
-            timer = setTimeout(() => {
+            timer1 = setTimeout(() => {
                 inputRef.current?.focus();
-            }, 200);
+            }, 100);
+            timer2 = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 300);
         }
         return () => {
-            if (timer) clearTimeout(timer);
+            if (timer1) clearTimeout(timer1);
+            if (timer2) clearTimeout(timer2);
         };
     }, [activeTab]);
 
@@ -994,6 +999,7 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                             onChangeText={setInputText}
                             multiline
                             maxLength={600}
+                            autoFocus={true}
                         />
 
                         <AnimatedPressable
