@@ -516,11 +516,7 @@ export function StudentTabs(): React.JSX.Element {
                 name="StudentFlashcards"
                 component={StudentFlashcardsScreen}
                 options={{
-                    headerShown: true,
-                    headerStyle: { backgroundColor: studentColors.surface },
-                    headerTintColor: studentColors.textPrimary,
-                    headerTitleStyle: { fontWeight: typography.weight.semibold },
-                    title: '⚡ ફ્લેશકાર્ડ્સ (Flashcards)',
+                    headerShown: false,
                 }}
             />
             <Stack.Screen
