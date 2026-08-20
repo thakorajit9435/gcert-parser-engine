@@ -771,40 +771,6 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
                         </View>
                     </View>
 
-                    {/* Suggested Topics / Quick AI Prompts */}
-                    <View style={styles.suggestedSection}>
-                        <View style={styles.suggestedHeaderRow}>
-                            <Text style={styles.sectionHeading}>💡 મહત્વના પ્રશ્નો & AI પ્રશ્નોત્તરી</Text>
-                            <AnimatedPressable onPress={() => setActiveTab('chat')} scaleTo={0.90}>
-                                <Text style={styles.viewAllChatText}>AI Chat ➔</Text>
-                            </AnimatedPressable>
-                        </View>
-
-                        <View style={styles.suggestedList}>
-                            {suggestedItems.slice(0, 4).map((item) => (
-                                <AnimatedPressable
-                                    key={item.key}
-                                    style={[styles.suggestedCard, { borderLeftColor: item.color }]}
-                                    onPress={() => handleQuestionPress(item)}
-                                    scaleTo={0.96}
-                                >
-                                    <View style={styles.suggestedCardHeader}>
-                                        <View style={[styles.suggestedCatBadge, { backgroundColor: item.bgColor }]}>
-                                            <Text style={styles.suggestedCatIcon}>{item.icon}</Text>
-                                            <Text style={[styles.suggestedCatText, { color: item.color }]}>{item.category}</Text>
-                                        </View>
-                                        <View style={styles.askAiChip}>
-                                            <Text style={styles.askAiChipText}>પૂછો ➔</Text>
-                                        </View>
-                                    </View>
-                                    <Text style={styles.suggestedCardQText} numberOfLines={2}>
-                                        {item.displayText}
-                                    </Text>
-                                </AnimatedPressable>
-                            ))}
-                        </View>
-                    </View>
-
                     {/* Mark Completed Button */}
                     {!isCompleted && (
                         <AnimatedPressable
