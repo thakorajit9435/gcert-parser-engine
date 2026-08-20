@@ -245,6 +245,19 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
         loadNotes();
     }, [chapter.id]);
 
+    // Auto-focus input and open keyboard when switching to AI Chat tab
+    useEffect(() => {
+        let timer: any;
+        if (activeTab === 'chat') {
+            timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 200);
+        }
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [activeTab]);
+
     // Fetch dynamic questions from Firestore MCQs
     useEffect(() => {
         const fetchSuggestedQuestions = async () => {
@@ -645,7 +658,10 @@ function ChapterDetailScreenContent({ chapter, navigation }: { chapter: Chapter;
 
                     <AnimatedPressable
                         style={[styles.tab, activeTab === 'chat' && styles.tabActive]}
-                        onPress={() => setActiveTab('chat')}
+                        onPress={() => {
+                            setActiveTab('chat');
+                            setTimeout(() => inputRef.current?.focus(), 100);
+                        }}
                         scaleTo={0.95}
                     >
                         <Ionicons
