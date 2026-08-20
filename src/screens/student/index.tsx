@@ -10,7 +10,6 @@ import {
     RefreshControl,
     ActivityIndicator,
     Modal,
-    Pressable,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { studentColors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -156,7 +155,8 @@ const StandardSwitcher = React.memo(function StandardSwitcher({
         <TouchableOpacity
             style={styles.standardSwitcher}
             onPress={onPress}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
             <View style={styles.standardSwitcherLeft}>
                 <View style={styles.standardSwitcherIconWrap}>
@@ -328,9 +328,14 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                         <Text style={styles.greetingText}>
                             નમસ્તે, {userProfile?.name?.split(' ')[0] || 'Student'} 👋
                         </Text>
-                        <View style={styles.stdBadge}>
+                        <TouchableOpacity
+                            style={styles.stdBadge}
+                            activeOpacity={0.7}
+                            onPress={() => setStandardModalVisible(true)}
+                        >
                             <Text style={styles.stdBadgeText}>Std {selectedStandard}</Text>
-                        </View>
+                            <Ionicons name="chevron-down" size={12} color={studentColors.primary} style={{ marginLeft: 3 }} />
+                        </TouchableOpacity>
                     </View>
                     <Text style={styles.greetingSubtext}>
                         {userProfile?.points ?? 0} XP • 🔥 {userProfile?.streak ?? 0} Day Streak
@@ -411,9 +416,10 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                 statusBarTranslucent={true}
             >
                 <View style={styles.dropdownOverlay}>
-                    {/* Backdrop touchable */}
-                    <Pressable
-                        style={StyleSheet.absoluteFillObject}
+                    {/* Top backdrop touch area: tap outside to close */}
+                    <TouchableOpacity
+                        style={styles.modalBackdropArea}
+                        activeOpacity={1}
                         onPress={() => setStandardModalVisible(false)}
                     />
 
@@ -445,6 +451,7 @@ export function StudentHomeScreen({ navigation }: { navigation: any }): React.JS
                             contentContainerStyle={{ paddingBottom: 16 }}
                             showsVerticalScrollIndicator={false}
                             keyboardShouldPersistTaps="handled"
+                            bounces={false}
                         >
                             <View style={styles.dropdownGrid}>
                                 {standards.map(num => {
@@ -954,15 +961,19 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
     },
     stdBadge: {
-        backgroundColor: studentColors.primaryLight,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xxs,
-        borderRadius: borderRadius.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: spacing.sm + 4,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
     },
     stdBadgeText: {
         fontSize: typography.size.xs,
         fontWeight: typography.weight.bold,
-        color: studentColors.primary,
+        color: '#1d4ed8',
     },
     continueCard: {
         flexDirection: 'row',
@@ -1698,6 +1709,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
         justifyContent: 'flex-end',
     },
+    modalBackdropArea: {
+        flex: 1,
+        width: '100%',
+    },
     dropdownCard: {
         ...shadows.lg,
         backgroundColor: '#FFFFFF',
@@ -1707,8 +1722,6 @@ const styles = StyleSheet.create({
         paddingTop: 14,
         paddingBottom: 28,
         width: '100%',
-        zIndex: 10,
-        elevation: 12,
     },
     modalHandle: {
         width: 40,
