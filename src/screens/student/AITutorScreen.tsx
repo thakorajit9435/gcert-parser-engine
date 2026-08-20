@@ -388,7 +388,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         setMessages(prev => {
           const updated = [...prev, aiMsg];
           if (activeSessionId) {
-            AsyncStorage.setItem(`chat_messages_${activeSessionId}`, JSON.stringify(updated)).catch(() => {});
+            AsyncStorage.setItem(`chat_messages_${activeSessionId}`, JSON.stringify(updated)).catch(() => { });
           }
           return updated;
         });
@@ -412,7 +412,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
       setIsBookmarked(nextState);
       if (sessionId) {
         await AsyncStorage.setItem(`chat_bookmarked_${sessionId}`, String(nextState));
-        aiTutorService.bookmarkChatSession(sessionId, nextState).catch(() => {});
+        aiTutorService.bookmarkChatSession(sessionId, nextState).catch(() => { });
       }
       Alert.alert('બુકમાર્ક', nextState ? 'ચેટ સત્ર સાચવવામાં આવ્યું છે ⭐' : 'બુકમાર્ક દૂર કર્યું');
     } catch (e) {
@@ -439,7 +439,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
             if (sessionId) {
               await AsyncStorage.removeItem(`chat_bookmarked_${sessionId}`);
               await AsyncStorage.removeItem(`chat_messages_${sessionId}`);
-              aiTutorService.deleteChatSession(sessionId).catch(() => {});
+              aiTutorService.deleteChatSession(sessionId).catch(() => { });
             }
             handleNewChat();
           } catch (e) {
@@ -635,13 +635,16 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
         <View style={styles.subjectFilterBar}>
           <ScrollView
             horizontal
+            nestedScrollEnabled={true}
             showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.subjectFilterScroll}
           >
             <AnimatedPressable
               style={[
                 styles.subjectChip,
                 !activeSubject && styles.subjectChipActive,
+                { marginRight: 8 },
               ]}
               onPress={() => handleToggleSubject(null)}
               scaleTo={0.93}
@@ -655,14 +658,16 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
             {subjectsLoading ? (
               <ActivityIndicator size="small" color="#93c5fd" style={{ marginLeft: 8 }} />
             ) : (
-              subjects.map(sub => {
+              subjects.map((sub, idx) => {
                 const isActive = activeSubject?.id === sub.id || activeSubject?.name === sub.name;
+                const isLast = idx === subjects.length - 1;
                 return (
                   <AnimatedPressable
-                    key={sub.id}
+                    key={sub.id || `sub_${idx}`}
                     style={[
                       styles.subjectChip,
                       isActive && styles.subjectChipActive,
+                      !isLast && { marginRight: 8 },
                     ]}
                     onPress={() =>
                       handleToggleSubject({
@@ -755,7 +760,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
               </View>
 
               {/* Features Overview Strip */}
-              <View style={styles.featuresRow}>
+              {/* <View style={styles.featuresRow}>
                 <View style={styles.featureItem}>
                   <View style={styles.featureIconBox}>
                     <Text style={styles.featureEmoji}>🎙️</Text>
@@ -774,7 +779,7 @@ export function AITutorScreen({ route, navigation }: { route: any; navigation: a
                   </View>
                   <Text style={styles.featureText}>GCERT પુસ્તકમાંથી</Text>
                 </View>
-              </View>
+              </View> */}
             </View>
           }
         />
@@ -1014,38 +1019,37 @@ const styles = StyleSheet.create({
   // ── Subject Filter Bar ──────────────────────────────────────────
   subjectFilterBar: {
     backgroundColor: '#1e40af',
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.12)',
   },
   subjectFilterScroll: {
     paddingHorizontal: 12,
-    gap: 8,
     alignItems: 'center',
   },
   subjectChip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: 20,
-    gap: 5,
+    gap: 6,
   },
   subjectChipActive: {
     backgroundColor: '#FFFFFF',
   },
   subjectChipEmoji: {
-    fontSize: 13,
+    fontSize: 14,
   },
   subjectChipText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#e2e8f0',
   },
   subjectChipTextActive: {
     color: '#1e40af',
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   // ── Message List ───────────────────────────────────────────────
