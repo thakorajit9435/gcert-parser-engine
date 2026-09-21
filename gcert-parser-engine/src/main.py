@@ -162,6 +162,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 from src.pipeline.router import router as pipeline_router
 app.include_router(pipeline_router)
 
+# Register Admin Content Management Router (Chapter Start Page CRUD + User-facing listing)
+from src.pipeline.admin_router import admin_router
+app.include_router(admin_router)
+
 @app.get("/")
 def read_root():
     return {

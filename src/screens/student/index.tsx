@@ -550,7 +550,14 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                                 sessionTitle: route.params?.sessionTitle
                                             });
                                         } else {
-                                            navigation.push('SubjectAndChapterList', { subjectId: item.id, subjectName: item.name });
+                                            navigation.push('SubjectAndChapterList', {
+                                                subjectId: item.id,
+                                                subjectName: item.nameGu || item.name,
+                                                standardId: effectiveStandardId,
+                                                session: session || '1',
+                                                sessionType: route.params?.sessionType,
+                                                sessionTitle: route.params?.sessionTitle,
+                                            });
                                         }
                                     }}
                                     scaleTo={0.97}
@@ -613,6 +620,24 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                         const locked = false; // All government textbooks & chapters are 100% free to read
                         const bookmarked = isBookmarked(item.id);
                         const mainTitle = item.titleGu || item.title;
+                        const resolvedPdfUrl = item.pdfUrl || item.pdf_url || item.file_url || item.url || (item as any).textbookUrl;
+                        const isTextbookSession = route.params?.sessionType === 'textbook';
+
+                        const handleOpenChapter = () => {
+                            if (isTextbookSession && resolvedPdfUrl) {
+                                navigation.navigate('PdfViewer', {
+                                    url: resolvedPdfUrl,
+                                    title: mainTitle,
+                                    pdfId: item.id,
+                                    pdfType: 'chapter',
+                                    startPage: item.startPage || 1,
+                                    endPage: item.endPage,
+                                    bookStartPage: item.bookStartPage || 1,
+                                });
+                            } else {
+                                navigation.navigate('ChapterDetail', { chapterId: item.id });
+                            }
+                        };
 
                         return (
                             <View
@@ -620,9 +645,7 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                             >
                                 <AnimatedPressable
                                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                                    onPress={() => {
-                                        navigation.navigate('ChapterDetail', { chapterId: item.id });
-                                    }}
+                                    onPress={handleOpenChapter}
                                     scaleTo={0.97}
                                 >
                                     <View style={[styles.chapterNumber, item.isCompleted && styles.chapterNumberCompleted]}>
@@ -649,8 +672,29 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                     </View>
                                 </AnimatedPressable>
 
-                                {/* Right Side Actions (Bookmark + Status) */}
+                                {/* Right Side Actions (Direct Read + Bookmark + Status) */}
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginLeft: spacing.xs }}>
+                                    {isTextbookSession && resolvedPdfUrl ? (
+                                        <TouchableOpacity
+                                            style={styles.directReadBtn}
+                                            onPress={() => {
+                                                navigation.navigate('PdfViewer', {
+                                                    url: resolvedPdfUrl,
+                                                    title: mainTitle,
+                                                    pdfId: item.id,
+                                                    pdfType: 'chapter',
+                                                    startPage: item.startPage || 1,
+                                                    endPage: item.endPage,
+                                                    bookStartPage: item.bookStartPage || 1,
+                                                });
+                                            }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Ionicons name="book" size={13} color="#FFFFFF" />
+                                            <Text style={styles.directReadText}>વાંચો</Text>
+                                        </TouchableOpacity>
+                                    ) : null}
+
                                     {!locked && (
                                         <TouchableOpacity
                                             style={styles.chapterCardBookmarkBtn}
@@ -679,9 +723,13 @@ export function StudentSubjectsScreen({ route, navigation }: { route: any; navig
                                             <Text style={styles.completedIcon}>✅</Text>
                                         </View>
                                     ) : (
-                                        <View style={styles.progressCircle}>
+                                        <TouchableOpacity
+                                            style={styles.progressCircle}
+                                            onPress={() => navigation.navigate('ChapterDetail', { chapterId: item.id })}
+                                            activeOpacity={0.7}
+                                        >
                                             <Text style={styles.progressText}>▶</Text>
-                                        </View>
+                                        </TouchableOpacity>
                                     )}
                                 </View>
                             </View>
@@ -1854,5 +1902,19 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 6,
+    },
+    directReadBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2563eb',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 5,
+        borderRadius: borderRadius.md,
+        gap: 4,
+    },
+    directReadText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });

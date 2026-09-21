@@ -42,6 +42,13 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
         } else {
           let data = snapshot.docs.map(doc => {
             const raw = doc.data() || {};
+            const rawStart = raw.startPage ?? raw.start_page ?? raw.bookStartPage ?? raw.book_start_page;
+            const parsedStartPage = rawStart !== undefined && rawStart !== null && rawStart !== '' ? Number(rawStart) : undefined;
+            const rawEnd = raw.endPage ?? raw.end_page;
+            const parsedEndPage = rawEnd !== undefined && rawEnd !== null && rawEnd !== '' ? Number(rawEnd) : undefined;
+            const rawBookStart = raw.bookStartPage ?? raw.book_start_page ?? raw.startPage ?? raw.start_page;
+            const parsedBookStartPage = rawBookStart !== undefined && rawBookStart !== null && rawBookStart !== '' ? Number(rawBookStart) : undefined;
+
             return {
               id: doc.id,
               ...raw,
@@ -56,21 +63,33 @@ export function useChapters(subjectId?: string, standardId?: string): UseChapter
                 '',
               titleGu: raw.titleGu || raw.title_gu || raw.title || '',
               title: raw.title || raw.titleGu || raw.title_gu || '',
-              startPage: Number(raw.startPage ?? raw.start_page ?? raw.bookStartPage ?? raw.book_start_page ?? 1),
-              endPage: raw.endPage ?? raw.end_page ?? undefined,
-              bookStartPage: Number(raw.bookStartPage ?? raw.book_start_page ?? raw.startPage ?? raw.start_page ?? 1),
+              startPage: parsedStartPage,
+              endPage: parsedEndPage,
+              bookStartPage: parsedBookStartPage,
             } as Chapter;
           });
 
           // Filter out deleted chapters
           data = data.filter(ch => ch.isDeleted !== true);
 
-          // Client-side sort by chapter order / number ascending
-          data.sort(
-            (a, b) =>
+          // Client-side sort by startPage ascending first, fallback to chapter order / number ascending
+          data.sort((a, b) => {
+            const pageA = a.startPage;
+            const pageB = b.startPage;
+            if (pageA !== undefined && pageB !== undefined && pageA !== pageB) {
+              return pageA - pageB;
+            }
+            if (pageA !== undefined && pageB === undefined) {
+              return -1;
+            }
+            if (pageA === undefined && pageB !== undefined) {
+              return 1;
+            }
+            return (
               (Number(a.order ?? (a as any).chapterNumber) || 999) -
               (Number(b.order ?? (b as any).chapterNumber) || 999)
-          );
+            );
+          });
 
           setChapters(data);
         }

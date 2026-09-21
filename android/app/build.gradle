@@ -13,28 +13,22 @@ def enableProguardInReleaseBuilds = true
 android {
     ndkVersion "27.0.12077973"              // ← CHANGE: rootProject.ext.ndkVersion ने replace करो
     buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk 35
+    compileSdk 36
 
     namespace "com.gyandeeps"
 
     defaultConfig {
         applicationId "com.gyandeeps"
         minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion 35
-        versionCode 15
-        versionName "1.1.4"
+        targetSdkVersion 36
+        versionCode 17
+        versionName "1.1.6"
     }
 
-    splits {
-        abi {
-            enable true
-            reset()
-            include "armeabi-v7a", "arm64-v8a"
-            universalApk false
-        }
-    }
+    // ABI splits removed — App Bundles (AAB) handle per-ABI delivery automatically via Google Play.
+    // Using splits.abi with bundleRelease causes "Sequence contains more than one matching element" error.
 
-    // ✅ ADD THIS BLOCK - 16KB Page Size Fix
+    // ✅ 16KB Page Size Fix
     packaging {
         jniLibs {
             useLegacyPackaging = false

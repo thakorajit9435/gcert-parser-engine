@@ -27,6 +27,20 @@ export function AddEditChapterScreen({ route, navigation }: { route: any; naviga
     const [formTitleGu, setFormTitleGu] = useState(existingChapter?.titleGu ?? '');
     const [formDesc, setFormDesc] = useState(existingChapter?.description ?? '');
     const [formOrder, setFormOrder] = useState(String(existingChapter?.order ?? '1'));
+    const [formStartPage, setFormStartPage] = useState(
+        existingChapter?.startPage !== undefined && existingChapter?.startPage !== null
+            ? String(existingChapter.startPage)
+            : (existingChapter as any)?.start_page !== undefined && (existingChapter as any)?.start_page !== null
+                ? String((existingChapter as any).start_page)
+                : ''
+    );
+    const [formEndPage, setFormEndPage] = useState(
+        existingChapter?.endPage !== undefined && existingChapter?.endPage !== null
+            ? String(existingChapter.endPage)
+            : (existingChapter as any)?.end_page !== undefined && (existingChapter as any)?.end_page !== null
+                ? String((existingChapter as any).end_page)
+                : ''
+    );
     const [formIsPremium, setFormIsPremium] = useState(existingChapter?.isPremium ?? false);
     const [formVideoUrl, setFormVideoUrl] = useState(existingChapter?.videoUrl ?? '');
     const [formPdfUrl, setFormPdfUrl] = useState(existingChapter?.pdfUrl ?? '');
@@ -126,6 +140,32 @@ export function AddEditChapterScreen({ route, navigation }: { route: any; naviga
                 updatedAt: firestore.FieldValue.serverTimestamp(),
             };
 
+            const startP = formStartPage.trim() ? parseInt(formStartPage.trim(), 10) : undefined;
+            const endP = formEndPage.trim() ? parseInt(formEndPage.trim(), 10) : undefined;
+
+            if (startP !== undefined && !isNaN(startP) && startP > 0) {
+                const pdfPageOffset = (existingChapter as any)?.pdfPageOffset ?? (existingChapter as any)?.pdf_page_offset ?? 0;
+                const finalEndP = endP && !isNaN(endP) && endP >= startP ? endP : startP + 14;
+                const bookStartPage = Math.max(1, startP - pdfPageOffset);
+                const initialPage = Math.max(0, startP - 1);
+
+                chapterData.startPage = startP;
+                chapterData.start_page = startP;
+                chapterData.endPage = finalEndP;
+                chapterData.end_page = finalEndP;
+                chapterData.bookStartPage = bookStartPage;
+                chapterData.book_start_page = bookStartPage;
+                chapterData.initialPage = initialPage;
+                chapterData.initial_page = initialPage;
+                chapterData.pageIndex = initialPage;
+                chapterData.page_index = initialPage;
+                chapterData.pageNumber = startP;
+                chapterData.page_number = startP;
+                chapterData.pageNo = startP;
+                chapterData.page_no = startP;
+                chapterData.page = startP;
+            }
+
             if (isEditing && existingChapter) {
                 await firestore()
                     .collection(COLLECTIONS.CHAPTERS)
@@ -151,7 +191,7 @@ export function AddEditChapterScreen({ route, navigation }: { route: any; naviga
         } finally {
             setSaving(false);
         }
-    }, [isEditing, existingChapter, formTitle, formTitleGu, formDesc, formOrder, formIsPremium, formVideoUrl, formPdfUrl, formSwadhyayPdfUrl, formHasSwadhyay, formHasMcq, formHasMixedQuiz, subjectId, standardId, navigation]);
+    }, [isEditing, existingChapter, formTitle, formTitleGu, formDesc, formOrder, formStartPage, formEndPage, formIsPremium, formVideoUrl, formPdfUrl, formSwadhyayPdfUrl, formHasSwadhyay, formHasMcq, formHasMixedQuiz, subjectId, standardId, navigation]);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -222,6 +262,38 @@ export function AddEditChapterScreen({ route, navigation }: { route: any; naviga
                         <Text style={styles.switchLabel}>{formIsPremium ? 'Yes' : 'No'}</Text>
                     </View>
                 </View>
+            </View>
+
+            {/* Textbook Page Range (Start Page & End Page) */}
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>📖 Textbook Page Range</Text>
+                <View style={styles.formRow}>
+                    <View style={styles.formHalf}>
+                        <Text style={styles.label}>Start Page (PDF Page)</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={formStartPage}
+                            onChangeText={setFormStartPage}
+                            keyboardType="number-pad"
+                            placeholder="e.g. 18"
+                            placeholderTextColor={adminColors.textMuted}
+                        />
+                    </View>
+                    <View style={styles.formHalf}>
+                        <Text style={styles.label}>End Page</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={formEndPage}
+                            onChangeText={setFormEndPage}
+                            keyboardType="number-pad"
+                            placeholder="e.g. 27"
+                            placeholderTextColor={adminColors.textMuted}
+                        />
+                    </View>
+                </View>
+                <Text style={styles.helperText}>
+                    📌 Chapters will be shown in ascending order of start page. PDF opens directly at this start page.
+                </Text>
             </View>
 
             {/* Feature Toggles */}
@@ -546,6 +618,12 @@ const styles = StyleSheet.create({
         fontSize: typography.size.md,
         fontWeight: typography.weight.bold,
         color: '#FFFFFF',
+    },
+    helperText: {
+        fontSize: typography.size.xs,
+        color: adminColors.textMuted,
+        marginTop: spacing.xs,
+        lineHeight: 18,
     },
     bottomSpacer: {
         height: 40,

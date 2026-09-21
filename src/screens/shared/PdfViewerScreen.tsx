@@ -24,6 +24,7 @@ const MAX_RETRIES = 5;
 
 export function PdfViewerScreen({ route, navigation }: { route: any; navigation: any }): React.JSX.Element {
     const { url, title, pdfId, pdfType, startPage, endPage, bookStartPage } = route.params;
+    console.log(startPage, endPage, bookStartPage);
     const { userProfile } = useAuth();
     const userId = userProfile?.uid;
 

@@ -140,6 +140,9 @@ export interface Chapter {
   startPage?: number;
   endPage?: number;
   bookStartPage?: number;
+  initialPage?: number;
+  pageNumber?: number;
+  pdfPageOffset?: number;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }

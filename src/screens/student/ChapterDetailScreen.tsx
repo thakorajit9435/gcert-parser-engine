@@ -239,7 +239,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     useEffect(() => {
         warmUpBackend(true);
         if (user?.uid) {
-            getOrCreateSessionId().catch(() => {});
+            getOrCreateSessionId().catch(() => { });
         }
     }, [chapter.id, user?.uid]);
 
@@ -280,7 +280,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         if (activeTab === 'chat') {
             warmUpBackend(true);
             if (user?.uid && !sessionId) {
-                getOrCreateSessionId().catch(() => {});
+                getOrCreateSessionId().catch(() => { });
             }
             timer1 = setTimeout(() => {
                 inputRef.current?.focus();
@@ -392,12 +392,24 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
         }
     };
 
+    const getResolvedPdf = () => {
+        let resolved = chapter.pdfUrl || (chapter as any).pdf_url || (chapter as any).file_url || (chapter as any).url || (chapter as any).textbookUrl;
+        if (!resolved) {
+            const titleToCheck = `${chapter.title || ''} ${chapter.titleGu || ''} ${chapter.subjectId || ''}`.toLowerCase();
+            if (titleToCheck.includes('gita') || titleToCheck.includes('ગીતા') || titleToCheck.includes('bhagavad')) {
+                resolved = 'https://firebasestorage.googleapis.com/v0/b/quizapp-1627022258976.appspot.com/o/textbooks%2FStd-6%20to%208%20%E0%AA%AD%E0%AA%97%E0%AA%B5%E0%AA%A6%E0%AB%8D%20%E0%AA%97%E0%AB%80%E0%AA%A4%E0%AA%BE%20%E0%AA%97%E0%AB%81%E0%AA%9C%E0%AA%B0%E0%AA%BE%E0%AA%A4%E0%AB%80%20%E0%AA%AE%E0%AA%BE%E0%AA%A7%E0%AB%8D%E0%AA%AF%E0%AA%AE.pdf?alt=media';
+            }
+        }
+        return resolved;
+    };
+
     const openPDF = () => {
-        const resolvedPdfUrl = chapter.pdfUrl || (chapter as any).pdf_url || (chapter as any).file_url || (chapter as any).url || (chapter as any).textbookUrl;
+        const resolvedPdfUrl = getResolvedPdf();
         if (!resolvedPdfUrl) {
             Alert.alert('Notice', 'આ પ્રકરણ માટે ડિજિટલ પુસ્તક ઉપલબ્ધ નથી.');
             return;
         }
+        console.log("startPage PdfViewer", chapter.startPage)
         navigation.navigate('PdfViewer', {
             url: resolvedPdfUrl,
             title: chapterTitle,
@@ -410,7 +422,7 @@ function ChapterDetailScreenContent({ chapter, navigation, initialTab }: { chapt
     };
 
     const openPDFAtPage = (targetPage?: number) => {
-        const resolvedPdfUrl = chapter.pdfUrl || (chapter as any).pdf_url || (chapter as any).file_url || (chapter as any).url || (chapter as any).textbookUrl;
+        const resolvedPdfUrl = getResolvedPdf();
         if (!resolvedPdfUrl) {
             Alert.alert('Notice', 'આ પ્રકરણ માટે પીડીએફ ઉપલબ્ધ નથી.');
             return;

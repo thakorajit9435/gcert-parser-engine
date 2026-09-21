@@ -15,17 +15,24 @@ class BGEEmbedder:
         return cls._instance
 
     def _init_model(self):
-        """Initializes the SentenceTransformer model lazily with memory safeguard."""
+        """Initializes the SentenceTransformer model lazily with cloud & memory safeguard."""
         if self._model is not None:
+            return
+
+        import os
+        # On Render / Cloud containers with 512MB RAM, always use lightweight embedding (0MB extra RAM)
+        if os.getenv("RENDER") == "true" or os.getenv("USE_LOCAL_MODELS", "false").lower() != "true":
+            logger.info("Cloud environment detected (RENDER=true). Using cloud-optimized deterministic embedding (0MB RAM).")
+            self._model = "fallback"
             return
 
         # Check available RAM before loading heavy 2.3GB PyTorch model to prevent OOM crash
         try:
             import psutil
             avail_mb = psutil.virtual_memory().available / (1024 * 1024)
-            if avail_mb < 1800:
+            if avail_mb < 2500:
                 logger.warning(
-                    "Low memory environment detected (%.1f MB available < 1800 MB). "
+                    "Low memory environment detected (%.1f MB available < 2500 MB). "
                     "Skipping local BGE-M3 model download to prevent OOM crash on free cloud tier. "
                     "Using deterministic lightweight embedding generator.",
                     avail_mb
@@ -56,6 +63,7 @@ class BGEEmbedder:
                 settings.EMBEDDING_MODEL_NAME, str(e)
             )
             self._model = "fallback"
+
 
     def get_dense_embedding(self, text: str) -> List[float]:
         """Generates a 1024-dimension dense embedding vector for the given text."""
@@ -146,10 +154,15 @@ class BGEEmbedder:
         if self._reranker is not None:
             return
 
+        import os
+        if os.getenv("RENDER") == "true" or os.getenv("USE_LOCAL_MODELS", "false").lower() != "true":
+            self._reranker = "fallback"
+            return
+
         try:
             import psutil
             avail_mb = psutil.virtual_memory().available / (1024 * 1024)
-            if avail_mb < 1800:
+            if avail_mb < 2500:
                 logger.warning("Low memory detected (%.1f MB). Skipping CrossEncoder to prevent OOM.", avail_mb)
                 self._reranker = "fallback"
                 return
