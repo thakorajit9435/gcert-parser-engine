@@ -195,7 +195,8 @@ export function ManageChaptersScreen({ route, navigation }: { route: any; naviga
         setPageEdits((prev) => ({
             ...prev,
             [chapterId]: {
-                ...prev[chapterId],
+                startPage: prev[chapterId]?.startPage ?? '',
+                endPage: prev[chapterId]?.endPage ?? '',
                 [field]: numericValue,
             },
         }));
